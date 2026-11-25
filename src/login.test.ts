@@ -7,10 +7,10 @@ import { encryptForTest } from './test-utils';
 const content: Content = {
   v: 1,
   name: 'Tester',
-  greeting: 'Willkommen',
+  greeting: 'Welcome',
   doors: Array.from({ length: 24 }, (_, index) => ({
     n: index + 1,
-    text: `Platzhalter Nummer ${index + 1}`,
+    text: `Placeholder number ${index + 1}`,
   })),
 };
 
@@ -55,18 +55,18 @@ describe('renderLogin', () => {
   it('renders the heading, the labeled inputs and a disabled submit button', () => {
     stubBundle({} as Bundle);
     renderLogin(container, () => {});
-    expect(container.querySelector('h1')?.textContent).toBe('Adventskalender');
+    expect(container.querySelector('h1')?.textContent).toBe('Advent Calendar');
     const labels = Array.from(container.querySelectorAll('label')).map((label) =>
       label.textContent?.trim(),
     );
-    expect(labels[0]).toContain('Dein Name');
-    expect(labels[1]).toContain('Passwort');
+    expect(labels[0]).toContain('Your name');
+    expect(labels[1]).toContain('Password');
     expect(container.querySelector('input[name="name"]')).not.toBeNull();
     expect(container.querySelector<HTMLInputElement>('input[name="password"]')?.type).toBe(
       'password',
     );
     const button = container.querySelector<HTMLButtonElement>('button[type="submit"]');
-    expect(button?.textContent).toBe('Aufmachen');
+    expect(button?.textContent).toBe('Unlock');
     expect(button?.disabled).toBe(true);
     expect(container.querySelector('.login-error')?.hasAttribute('hidden')).toBe(true);
   });
@@ -103,7 +103,7 @@ describe('renderLogin', () => {
     await vi.waitFor(() => {
       const error = container.querySelector<HTMLParagraphElement>('.login-error');
       expect(error?.hidden).toBe(false);
-      expect(error?.textContent).toBe('Das hat leider nicht gepasst.');
+      expect(error?.textContent).toBe('Sorry, that did not match.');
     });
     expect(onSuccess).not.toHaveBeenCalled();
     expect(loadLockState().attempts).toBe(1);

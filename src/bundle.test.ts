@@ -28,7 +28,7 @@ describe('public/content.enc', () => {
     const content = await decryptBundle(bundle, keyBits);
     expect(content.v).toBe(1);
     expect(content.name).toBe('Tester');
-    expect(content.greeting).toBe('Willkommen');
+    expect(content.greeting).toBe('Welcome');
   });
 
   it('contains 24 doors numbered 1..24', async () => {
