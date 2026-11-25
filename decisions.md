@@ -257,7 +257,7 @@
 - **Context:** the card splits scratch-to-open and pinch-zoom into pure
   logic plus DOM glue but does not name the split points.
   **Decision:** `src/scratch.ts` holds all canvas-free scratch math
-  (32x32 sample-grid progress, >=60% threshold, pointer-path bookkeeping,
+  (32x32 sample-grid progress, threshold 0.7, tuned after smoke test, pointer-path bookkeeping,
   tap-vs-scratch classification with <6px / <350ms) and `src/zoom.ts` holds
   all zoom math (clamp 1x..4x, pinch scale by distance ratio, midpoint
   anchoring, pan bounds, double-tap toggle 1x<->2.5x within 300ms,
@@ -268,7 +268,7 @@
   `src/app.test.ts`) plus manual dev verification; the pure modules are
   fully unit tested (`src/scratch.test.ts`, `src/zoom.test.ts`).
   **Alternatives considered:** putting the math inline in the glue (untestable).
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #6
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #6
 - **Context:** the frost layer's exact look and how the door number stays
   visible on it.
   **Decision:** the frost canvas paints the night-blue base #0b1d3a with a
@@ -279,7 +279,7 @@
   is erased together with the frost once scratching starts.
   **Alternatives considered:** SVG text (renders empty without fonts),
   gradients (excluded by the card). **Decided-by:** coding-agent.
-  **Status:** Proposed in PR #6
+  **Status:** Accepted in PR #6
 - **Context:** how tap-vs-scratch interacts with the existing click path
   (keyboard Enter/Space and synthetic clicks must still open doors).
   **Decision:** with an active frost overlay, pointer sequences are
@@ -291,20 +291,20 @@
   WC-04 activation exactly once (guarded by a per-door flag).
   **Alternatives considered:** activating on pointerup directly (would
   double-fire with the trailing click). **Decided-by:** coding-agent.
-  **Status:** Proposed in PR #6
+  **Status:** Accepted in PR #6
 - **Context:** scratch performance details the card left open (planner
   target: mid-range phone).
   **Decision:** canvas sized tile x devicePixelRatio (DPR capped at 2),
   erasures batched through requestAnimationFrame, brush of round segments
   (radius max(18, min(tile w,h) * 0.16) CSS px) along the interpolated
   pointer path with `destination-out`, progress resampled on a 32x32 grid
-  only every 4th pointer move and on release; on >=60% the remaining frost
+  only every 4th pointer move and on release; on >=0.7 the remaining frost
   fades via a 250ms CSS opacity transition and the canvas is removed.
   `touch-action: none` is set only on `.door--openable` (and the lightbox
   photo), so the page around the grid still scrolls normally.
   **Alternatives considered:** per-pixel progress on every move (too slow),
   full-page touch-action none (breaks scrolling). **Decided-by:**
-  coding-agent. **Status:** Proposed in PR #6
+  coding-agent. **Status:** Accepted in PR #6
 - **Context:** how opened photo doors look in the grid, and the
   performance rule that the grid must never decode full-size photos.
   **Decision:** each photo door renders an `<img class="door-thumb">` with
@@ -317,7 +317,7 @@
   3.3 KB base64 per thumbnail (reported by the encoder).
   **Alternatives considered:** background-image divs, decoding full images
   in the grid (rejected: performance requirement). **Decided-by:**
-  coding-agent. **Status:** Proposed in PR #6
+  coding-agent. **Status:** Accepted in PR #6
 - **Context:** lightbox zoom interaction details beyond the card's list.
   **Decision:** `transform-origin: 0 0` on the photo, Pointer Events with
   two-pointer pinch anchored at the midpoint, one-finger pan only while
@@ -328,7 +328,7 @@
   only to taps on the overlay background; × and Escape always close). No
   zoom hint UI; photos keep their original aspect ratio at 1x.
   **Alternatives considered:** transform-origin center (harder pan-bounds
-  math). **Decided-by:** coding-agent. **Status:** Proposed in PR #6
+  math). **Decided-by:** coding-agent. **Status:** Accepted in PR #6
 - **Context:** the schema change (Content loses name/greeting) and the
   header rewording; the card fixes the new shapes but not the version
   handling.
@@ -339,7 +339,7 @@
   header reads "Advent Calendar" / "24 days until Christmas Eve". The
   login name + password pair is untouched (key material).
   **Alternatives considered:** bumping to v2 (card says v stays 1).
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #6
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #6
 - **Context:** graceful degradation when canvas 2D or layout metrics are
   unavailable.
   **Decision:** `attachScratchOverlay` returns null (no frost, tap-to-open
@@ -347,4 +347,85 @@
   returns null; this is also what makes the happy-dom test environment
   exercise the tap fallback.
   **Alternatives considered:** throwing (breaks exotic browsers).
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #6
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #6
+- **Context:** the card requires one dependency-free module usable by both the
+  service worker (as a classic script) and Vitest, with no import maps, no
+  bundler tricks and no new dependencies.
+  **Decision:** `public/sw-core.js` is a plain classic script with no
+  import/export statements; it attaches the `SWCore` object to every available
+  global (`self`, `globalThis`, `window`). `public/sw.js` loads it with a
+  same-origin-only `importScripts(self.registration.scope + 'sw-core.js')`
+  (never remote code), and `src/sw-core.test.ts` imports it for its side
+  effect (`import '../public/sw-core.js'`) and reads `globalThis.SWCore`;
+  `tsc --noEmit` accepts the side-effect import without declarations.
+  **Alternatives considered:** UMD/`module.exports` (breaks under
+  `"type": "module"`), an `export` in the same file (syntax error in a classic
+  script), duplicating the logic in TS and JS (drift).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #7
+- **Context:** which request gets which caching strategy, and how "pass
+  through untouched" is enforced.
+  **Decision:** `SWCore.routeRequest` returns `cache-first` for same-origin
+  GET requests whose path is a direct child of `<base>assets/` with a hashed
+  name (`-` + 8+ base64url chars + extension), `network-first` for
+  `content.enc`, the app shell (bare base, `index.html`,
+  `manifest.webmanifest`) and icons (`icon.svg`, `icons/*`), and
+  `passthrough` for everything else; non-GET requests and cross-origin
+  requests are always `passthrough`, and for `passthrough` the fetch handler
+  never calls `respondWith`, so those requests are handled by the browser
+  untouched and never cached. The network-first cache fallback matches with
+  `ignoreSearch: true` so navigations carrying a query string still hit the
+  cached shell. Only same-origin GET responses are ever put into a cache; the
+  SW never touches auth material (it caches only already-public bytes).
+  **Alternatives considered:** caching all same-origin GETs (rejected:
+  card limits caching to the listed classes). **Decided-by:** coding-agent.
+  **Status:** Proposed in PR #7
+- **Context:** the invisible update flow and cache lifecycle across deploys.
+  **Decision:** `SW_VERSION = 'v1'` lives in `public/sw.js` and is bumped
+  whenever the SW changes; cache names are `wc-assets-<version>` and
+  `wc-shell-<version>` (helpers in sw-core); on `activate` every cache whose
+  name starts with `wc-` but is not one of the current version's names is
+  deleted (foreign caches are never touched); `skipWaiting()` runs on install
+  and `clients.claim()` on activate, so a new deploy takes over without any
+  toast, prompt or reload UI. Hashed assets are cached keyed by full URL and
+  never reused across deploys because new builds emit new hashed names.
+  **Alternatives considered:** an update-available toast (forbidden by the
+  card). **Decided-by:** coding-agent. **Status:** Proposed in PR #7
+- **Context:** on the very first visit the page's hashed assets are fetched
+  before the SW controls the client, so runtime cache-first alone would leave
+  no fully offline-capable cache after that first visit.
+  **Decision:** the SW precaches on `install`: the shell set (bare base URL,
+  `index.html`, `manifest.webmanifest`, `icon.svg`, the four committed PNG
+  icons, `content.enc`) into the shell cache, plus the hashed `assets/*` URLs
+  discovered by parsing the fetched `index.html` (`SWCore.extractAssetUrls`)
+  into the asset cache; each `cache.add` failure is ignored individually so a
+  transient error cannot kill install, and runtime strategies still fill any
+  gap on later visits. The SW source never hardcodes hashed names.
+  **Alternatives considered:** runtime-only caching (fails offline after the
+  first visit), hardcoding hashed asset names (forbidden, they change every
+  build). **Decided-by:** coding-agent. **Status:** Proposed in PR #7
+- **Context:** registration must happen only in production builds, from the
+  app bootstrap, and must never swallow the dev server.
+  **Decision:** `src/main.ts` calls
+  `navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)`
+  only when `import.meta.env.PROD` is true and `'serviceWorker' in navigator`;
+  the registration URL uses `BASE_URL` so it resolves to
+  `/winter-calendar-2026/sw.js` on Pages, and the scope is the SW's own
+  directory. Registration failures are logged to the console only (no UI).
+  `npm run dev` has `PROD === false`, so the dev server never registers a SW;
+  `npm run preview` (production build) does, which is what the manual smoke
+  uses. **Alternatives considered:** registering on `window.load` (delays
+  offline capability of the first visit for no benefit here).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #7
+- **Context:** CI has no browser, so the SW lifecycle cannot be fully
+  automated.
+  **Decision:** automated in CI: all pure sw-core logic (base-path parsing,
+  hashed-asset/content/shell/icon predicates, routing incl. non-GET,
+  cross-origin, query-string and malformed-URL cases, cache naming, version
+  bump, orphan-pruning selection, shell precache URL list, asset extraction
+  from HTML) via `src/sw-core.test.ts`. Manual smoke (steps in the PR body,
+  devtools only): SW registers under `npm run preview` but not under
+  `npm run dev`; offline reload boots login/doors/lightbox fully from cache;
+  re-online reload serves fresh shell and prunes stale `wc-*` caches after a
+  version bump. **Alternatives considered:** a headless-browser CI job (new
+  dependency/CI weight, forbidden by the card's zero-dependency rule).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #7

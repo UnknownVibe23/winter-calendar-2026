@@ -1,5 +1,5 @@
 export const SCRATCH_GRID_SIZE = 32;
-export const SCRATCH_OPEN_THRESHOLD = 0.6;
+export const SCRATCH_OPEN_THRESHOLD = 0.7;
 export const TAP_MAX_MOVEMENT_PX = 6;
 export const TAP_MAX_DURATION_MS = 350;
 

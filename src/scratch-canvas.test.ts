@@ -33,6 +33,15 @@ function scratchedAlpha(): Uint8ClampedArray {
   return new Uint8ClampedArray(32 * 32 * 4).fill(0);
 }
 
+function partialAlpha(fraction: number): Uint8ClampedArray {
+  const data = new Uint8ClampedArray(32 * 32 * 4).fill(255);
+  const cleared = Math.round(32 * 32 * fraction);
+  for (let index = 0; index < cleared; index += 1) {
+    data[index * 4 + 3] = 0;
+  }
+  return data;
+}
+
 function pointerEvent(
   type: string,
   pointerId: number,
@@ -132,8 +141,31 @@ describe('attachScratchOverlay', () => {
     expect(clickListener).not.toHaveBeenCalled();
   });
 
-  it('does not open below the threshold and swallows the click of a scratch gesture', async () => {
-    const ctx = fakeContext(frostedAlpha);
+  it('opens the door at 70% scratched and swallows the trailing click', async () => {
+    let alpha = frostedAlpha();
+    const ctx = fakeContext(() => alpha);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
+    const door = makeDoor();
+    const onActivate = vi.fn();
+    attachScratchOverlay(door, 5, { onActivate });
+
+    door.dispatchEvent(pointerEvent('pointerdown', 1, 10, 50));
+    for (let step = 1; step <= 8; step += 1) {
+      door.dispatchEvent(pointerEvent('pointermove', 1, 10 + step * 10, 50));
+    }
+    alpha = partialAlpha(0.7);
+    door.dispatchEvent(pointerEvent('pointerup', 1, 90, 50));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(door.classList.contains('door--frosted')).toBe(false);
+  });
+
+  it('does not open at 65% scratched (below the 70% threshold) and swallows the click of a scratch gesture', async () => {
+    let alpha = frostedAlpha();
+    const ctx = fakeContext(() => alpha);
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
       ctx as unknown as CanvasRenderingContext2D,
     );
@@ -145,6 +177,7 @@ describe('attachScratchOverlay', () => {
 
     door.dispatchEvent(pointerEvent('pointerdown', 1, 10, 50));
     door.dispatchEvent(pointerEvent('pointermove', 1, 40, 50));
+    alpha = partialAlpha(0.65);
     door.dispatchEvent(pointerEvent('pointerup', 1, 40, 50));
     await new Promise((resolve) => setTimeout(resolve, 20));
 
