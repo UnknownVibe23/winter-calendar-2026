@@ -109,7 +109,9 @@ describe('renderApp', () => {
     expect(door?.classList.contains('door--frosted')).toBe(false);
     expect(container.querySelector('.lightbox-overlay')).not.toBeNull();
     expect(container.querySelector('.lightbox-header')?.textContent).toBe('Door 5 — December 5');
-    expect(door?.querySelector('img.door-thumb')?.src).toBe('data:image/jpeg;base64,VUhVTUI=');
+    expect(door?.querySelector<HTMLImageElement>('img.door-thumb')?.src).toBe(
+      'data:image/jpeg;base64,VUhVTUI=',
+    );
   });
 
   afterEach(() => {
