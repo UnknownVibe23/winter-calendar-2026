@@ -1,4 +1,5 @@
 import { tintForDoor } from './door-palette';
+import { frostBloomsForDoor, frostStarsForDoor } from './frost';
 import {
   SCRATCH_GRID_SIZE,
   TAP_MAX_MOVEMENT_PX,
@@ -12,10 +13,11 @@ import {
   type PointerSample,
 } from './scratch';
 
-const FROST_PATTERN_CELL = 14;
 const FADE_MS = 250;
 const MAX_DPR = 2;
 const PROGRESS_CHECK_INTERVAL_MOVES = 4;
+const DISPLAY_FONT = '"Mountains of Christmas", Georgia, serif';
+const FROST_CREAM_RGB = '243, 226, 195';
 
 export interface ScratchOptions {
   onActivate: () => void;
@@ -29,23 +31,45 @@ function paintFrost(ctx: CanvasRenderingContext2D, width: number, height: number
   const tint = tintForDoor(doorNumber);
   ctx.fillStyle = tint.frost;
   ctx.fillRect(0, 0, width, height);
-  const cell = FROST_PATTERN_CELL;
-  for (let cy = 0; cy * cell < height; cy += 1) {
-    for (let cx = 0; cx * cell < width; cx += 1) {
-      const variant = (cx * 31 + cy * 17) % 5;
-      ctx.fillStyle =
-        (cx + cy) % 2 === 0
-          ? `rgba(243, 226, 195, ${0.03 + variant * 0.012})`
-          : `rgba(0, 0, 0, ${0.04 + variant * 0.01})`;
-      ctx.fillRect(cx * cell, cy * cell, cell - 1, cell - 1);
+  for (const bloom of frostBloomsForDoor(doorNumber, width, height)) {
+    ctx.fillStyle = `rgba(${FROST_CREAM_RGB}, ${bloom.alpha})`;
+    ctx.beginPath();
+    ctx.arc(bloom.x, bloom.y, bloom.radius, 0, Math.PI * 2);
+    ctx.fill();
+    for (const puff of bloom.puffs) {
+      ctx.beginPath();
+      ctx.arc(bloom.x + puff.dx, bloom.y + puff.dy, puff.r, 0, Math.PI * 2);
+      ctx.fill();
     }
+  }
+  ctx.strokeStyle = `rgba(${FROST_CREAM_RGB}, 0.5)`;
+  ctx.lineWidth = 1;
+  for (const star of frostStarsForDoor(doorNumber, width, height)) {
+    ctx.strokeStyle = `rgba(${FROST_CREAM_RGB}, ${star.alpha})`;
+    ctx.beginPath();
+    ctx.moveTo(star.x - star.size, star.y);
+    ctx.lineTo(star.x + star.size, star.y);
+    ctx.moveTo(star.x, star.y - star.size);
+    ctx.lineTo(star.x, star.y + star.size);
+    ctx.stroke();
   }
   const size = Math.round(Math.min(width, height) * 0.42);
   ctx.fillStyle = tint.number;
-  ctx.font = `700 ${size}px system-ui, sans-serif`;
+  ctx.font = `700 ${size}px ${DISPLAY_FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(String(doorNumber), width / 2, height / 2);
+}
+
+type FontsLike = { load?: (font: string) => Promise<unknown>; ready?: Promise<unknown> };
+
+function whenDisplayFontReady(paint: () => void, fontSpec: string): void {
+  const fonts = (document as Document & { fonts?: FontsLike }).fonts;
+  if (fonts && typeof fonts.load === 'function' && fonts.ready instanceof Promise) {
+    void Promise.all([fonts.load(fontSpec).catch(() => undefined), fonts.ready]).then(paint, paint);
+    return;
+  }
+  paint();
 }
 
 export function attachScratchOverlay(
@@ -70,7 +94,12 @@ export function attachScratchOverlay(
   canvas.width = Math.max(1, Math.round(width * dpr));
   canvas.height = Math.max(1, Math.round(height * dpr));
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  paintFrost(ctx, width, height, doorNumber);
+  let painted = false;
+  const fontSize = Math.round(Math.min(width, height) * 0.42);
+  whenDisplayFontReady(() => {
+    paintFrost(ctx, width, height, doorNumber);
+    painted = true;
+  }, `700 ${fontSize}px "Mountains of Christmas"`);
   door.append(canvas);
   door.classList.add('door--frosted');
 
@@ -126,7 +155,7 @@ export function attachScratchOverlay(
     pending = [];
     if (checkProgressNow || movesSinceCheck >= PROGRESS_CHECK_INTERVAL_MOVES) {
       movesSinceCheck = 0;
-      if (isScratchComplete(readProgress())) {
+      if (painted && isScratchComplete(readProgress())) {
         openNow();
       }
     }

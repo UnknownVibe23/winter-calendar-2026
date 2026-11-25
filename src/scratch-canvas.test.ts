@@ -6,6 +6,7 @@ const DOOR_RECT = { left: 0, top: 0, right: 200, bottom: 100, width: 200, height
 
 function fakeContext(getAlpha: () => Uint8ClampedArray) {
   const fillStyles: string[] = [];
+  const strokeStyles: string[] = [];
   return {
     get fillStyle(): string {
       return fillStyles[fillStyles.length - 1] ?? '';
@@ -14,7 +15,14 @@ function fakeContext(getAlpha: () => Uint8ClampedArray) {
       fillStyles.push(value);
     },
     fillStyles,
-    strokeStyle: '',
+    get strokeStyle(): string {
+      return strokeStyles[strokeStyles.length - 1] ?? '';
+    },
+    set strokeStyle(value: string) {
+      strokeStyles.push(value);
+    },
+    strokeStyles,
+    lineWidth: 1,
     font: '',
     textAlign: '',
     textBaseline: '',
@@ -29,6 +37,9 @@ function fakeContext(getAlpha: () => Uint8ClampedArray) {
     beginPath: vi.fn(),
     arc: vi.fn(),
     fill: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
     getImageData: vi.fn(() => ({ data: getAlpha(), width: 32, height: 32 })),
   };
 }
@@ -104,7 +115,7 @@ describe('attachScratchOverlay', () => {
     expect(door.querySelector('canvas.door-frost')).toBeNull();
   });
 
-  it('paints the frost and the door number on the canvas and frosts the door', () => {
+  it('paints the frost blooms and the door number on the canvas and frosts the door', () => {
     const ctx = fakeContext(frostedAlpha);
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
       ctx as unknown as CanvasRenderingContext2D,
@@ -119,6 +130,72 @@ describe('attachScratchOverlay', () => {
     expect(canvas?.height).toBe(100);
     expect(ctx.fillRect).toHaveBeenCalled();
     expect(ctx.fillText).toHaveBeenCalledWith('5', 100, 50);
+  });
+
+  it('paints rounded frost blooms (many arcs) plus sparse star strokes, not a checkerboard', () => {
+    const ctx = fakeContext(frostedAlpha);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
+    const door = makeDoor();
+    attachScratchOverlay(door, 5, { onActivate: vi.fn() });
+    // 7-10 blooms x (1 base + 3-5 puffs) arcs: well above the old cell count
+    expect(ctx.arc.mock.calls.length).toBeGreaterThan(20);
+    expect(ctx.fill.mock.calls.length).toBe(ctx.arc.mock.calls.length);
+    // 5-8 tiny star strokes (cross strokes), no cell fillRects beyond the base
+    expect(ctx.stroke.mock.calls.length).toBeGreaterThanOrEqual(5);
+    expect(ctx.stroke.mock.calls.length).toBeLessThanOrEqual(8);
+    expect(ctx.fillRect.mock.calls.length).toBe(1);
+    // bloom fills are translucent cream, star strokes are translucent cream too
+    for (const style of ctx.fillStyles.slice(1, -1)) {
+      expect(style).toMatch(/^rgba\(243, 226, 195, 0\.[0-9]+\)$/);
+    }
+    for (const style of ctx.strokeStyles) {
+      expect(style).toMatch(/^rgba\(243, 226, 195, 0\.[0-9]+\)$/);
+    }
+  });
+
+  it('paints the door number in Mountains of Christmas with a serif fallback', () => {
+    const ctx = fakeContext(frostedAlpha);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
+    const door = makeDoor();
+    attachScratchOverlay(door, 5, { onActivate: vi.fn() });
+    expect(ctx.font).toBe('700 42px "Mountains of Christmas", Georgia, serif');
+    expect(ctx.font).toContain('"Mountains of Christmas"');
+    expect(ctx.font).toContain('serif');
+  });
+
+  it('waits for document.fonts before the first paint when the FontFaceSet API exists', async () => {
+    let resolveLoad: (value: unknown) => void = () => undefined;
+    const loadPromise = new Promise<unknown>((resolve) => {
+      resolveLoad = resolve;
+    });
+    const fonts = { load: vi.fn(() => loadPromise), ready: Promise.resolve() };
+    const doc = document as Document & { fonts?: unknown };
+    const hadFonts = 'fonts' in doc;
+    const previous = doc.fonts;
+    doc.fonts = fonts;
+    try {
+      const ctx = fakeContext(frostedAlpha);
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+        ctx as unknown as CanvasRenderingContext2D,
+      );
+      const door = makeDoor();
+      attachScratchOverlay(door, 5, { onActivate: vi.fn() });
+      expect(fonts.load).toHaveBeenCalledWith('700 42px "Mountains of Christmas"');
+      expect(ctx.fillText).not.toHaveBeenCalled();
+      resolveLoad([]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(ctx.fillText).toHaveBeenCalledWith('5', 100, 50);
+    } finally {
+      if (hadFonts) {
+        doc.fonts = previous;
+      } else {
+        delete doc.fonts;
+      }
+    }
   });
 
   it('paints the frost base in the per-door tint and the number in the contrast-safe color', () => {
@@ -147,17 +224,41 @@ describe('attachScratchOverlay', () => {
     expect(ctx.fillStyles[ctx.fillStyles.length - 1]).toBe('#0b1d3a');
   });
 
-  it('paints the woven pattern deterministically (same cells every time)', () => {
-    const paint = (): string[] => {
+  it('paints the frost blooms deterministically (identical paint list every time)', () => {
+    const paint = (): unknown[] => {
       const ctx = fakeContext(frostedAlpha);
       vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
         ctx as unknown as CanvasRenderingContext2D,
       );
       const door = makeDoor();
       attachScratchOverlay(door, 7, { onActivate: vi.fn() });
-      return ctx.fillStyles;
+      return [
+        ctx.fillStyles,
+        ctx.strokeStyles,
+        ctx.arc.mock.calls,
+        ctx.fill.mock.calls.length,
+        ctx.moveTo.mock.calls,
+        ctx.lineTo.mock.calls,
+        ctx.stroke.mock.calls.length,
+        ctx.font,
+        ctx.fillText.mock.calls,
+      ];
     };
     expect(paint()).toEqual(paint());
+  });
+
+  it('paints a different bloom layout per door (same look family, never identical)', () => {
+    const paintArcs = (doorNumber: number): unknown[] => {
+      const ctx = fakeContext(frostedAlpha);
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+        ctx as unknown as CanvasRenderingContext2D,
+      );
+      const door = makeDoor();
+      attachScratchOverlay(door, doorNumber, { onActivate: vi.fn() });
+      return ctx.arc.mock.calls;
+    };
+    expect(paintArcs(3)).not.toEqual(paintArcs(4));
+    expect(paintArcs(3).length).toBeGreaterThan(20);
   });
 
   it('opens the door when scratching reaches the threshold and swallows the trailing click', async () => {

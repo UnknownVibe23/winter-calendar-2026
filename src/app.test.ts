@@ -93,6 +93,9 @@ describe('renderApp', () => {
       beginPath: vi.fn(),
       arc: vi.fn(),
       fill: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
       getImageData: vi.fn(() => ({
         data: scratched ? partialAlpha(0.75) : new Uint8ClampedArray(32 * 32 * 4).fill(255),
         width: 32,
