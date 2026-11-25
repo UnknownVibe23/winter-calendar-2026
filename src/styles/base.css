@@ -31,6 +31,40 @@
   pointer-events: none;
 }
 
+.star-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(243, 226, 195, 0.8);
+}
+
+.star--twinkle {
+  animation: star-twinkle 4s ease-in-out infinite;
+}
+
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .star--twinkle {
+    animation: none;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

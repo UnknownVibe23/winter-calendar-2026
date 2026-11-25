@@ -10,6 +10,7 @@ import { loadBundle, renderLogin } from './login';
 import { loadSession, saveSession } from './session';
 import { snowDayForDate } from './snow';
 import { attachSnowfall } from './snow-canvas';
+import { renderStarLayer } from './stars';
 
 const appElement = document.querySelector<HTMLDivElement>('#app');
 
@@ -22,6 +23,7 @@ const app: HTMLElement = appElement;
 async function boot(): Promise<void> {
   const now = resolveNow();
   attachSnowfall(document.body, snowDayForDate(now));
+  renderStarLayer(document.body);
   const session = loadSession();
   if (session) {
     try {
