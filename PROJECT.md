@@ -16,6 +16,7 @@ Single intended user.
 - WC-01 Bootstrap & Calendar Grid: implemented (PR #1)
 - WC-02 Password Gate & Content Encryption: implemented (PR #2)
 - WC-03 Local Content Encoder: implemented (PR #3)
+- WC-04 Door Logic, Lightbox, English UI, Deployment: in progress
 
 ## Working agreements
 See AGENTS.md. Content rules are absolute (no plaintext personal

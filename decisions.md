@@ -105,7 +105,7 @@
   repo root as before.
   **Alternatives considered:** resolving the root from the script location
   (would make temp-dir testing impossible). **Decided-by:** coding-agent.
-  **Status:** Proposed in PR #3
+  **Status:** Accepted in PR #3
 - **Context:** the WC-02 key derivation must be used by the .mjs CLI, which
   cannot import the app's TypeScript (the card mandates this duplication).
   **Decision:** scripts/encode.mjs duplicates the exact WC-02 formulas
@@ -115,21 +115,21 @@
   decrypts through src/crypto.ts) plus src/bundle.test.ts decrypting committed
   bundles through the app's own crypto.
   **Alternatives considered:** compiling crypto.ts for the CLI (would add
-  build complexity). **Decided-by:** coding-agent. **Status:** Proposed in PR #3
+  build complexity). **Decided-by:** coding-agent. **Status:** Accepted in PR #3
 - **Context:** fast tests need a lower PBKDF2 iteration count (the card
   mandates a test-only `--iterations` flag).
   **Decision:** `--iterations N` overrides the iteration count and is stored
   in `bundle.iter` (the app reads it from there); production runs never pass
   it and always use 600000.
   **Alternatives considered:** an environment variable. **Decided-by:**
-  coding-agent. **Status:** Proposed in PR #3
+  coding-agent. **Status:** Accepted in PR #3
 - **Context:** exact downscale behavior for door photos.
   **Decision:** sharp `resize` with `fit: 'inside'` in a 1600x1600 box and
   `withoutEnlargement: true` (original aspect ratio preserved, long edge at
   most 1600 px, smaller originals not upscaled), output JPEG quality 82; the
   JPEG re-encode drops most EXIF metadata (documented in docs/content-guide.md).
   **Alternatives considered:** upscaling small photos to 1600 px.
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #3
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #3
 - **Context:** placeholder door images must show the door number, but CI and
   minimal sandboxes have no fonts, so SVG `<text>` renders nothing there.
   **Decision:** the number is drawn as font-free seven-segment SVG rects in
@@ -137,25 +137,25 @@
   1200x1600, doors 13-24 landscape 1600x1200; embedded photo name `NN.jpg`.
   **Alternatives considered:** SVG `<text>` (renders empty without fonts),
   committing pre-rendered PNGs. **Decided-by:** coding-agent.
-  **Status:** Proposed in PR #3
+  **Status:** Accepted in PR #3
 - **Context:** the safety guard when `content/` is not git-ignored in
   placeholder mode (the card's parenthetical).
   **Decision:** placeholder mode still runs `git check-ignore
   content/content.json` but only warns and continues, because it reads no
   content; real mode refuses with exit code 1 and the fixed refusal message.
   **Alternatives considered:** refusing in both modes. **Decided-by:**
-  coding-agent. **Status:** Proposed in PR #3
+  coding-agent. **Status:** Accepted in PR #3
 - **Context:** size report units and the 8 MB warning threshold.
   **Decision:** sizes are reported in MB = 1024*1024 bytes of the written
   bundle file; the warning triggers when that exceeds 8 MB; the per-photo
   average is the mean base64 payload length per embedded photo.
   **Alternatives considered:** decimal MB (1000*1000). **Decided-by:**
-  coding-agent. **Status:** Proposed in PR #3
+  coding-agent. **Status:** Accepted in PR #3
 - **Context:** the "default pair" for placeholder mode.
   **Decision:** `--placeholders` uses `tester` / `schnee123` unless `--name` /
   `--password` are passed explicitly; `npm run bundle` uses the default pair.
   **Alternatives considered:** hard-coding the pair. **Decided-by:**
-  coding-agent. **Status:** Proposed in PR #3
+  coding-agent. **Status:** Accepted in PR #3
 - **Context:** details the card left open in the CLI.
   **Decision:** photo extensions are matched case-insensitively; the door
   number coverage and all per-door problems are collected and printed in one
@@ -164,4 +164,4 @@
   TTY); placeholder doors embed a photo each, so the committed dev bundle
   exercises the photo pipeline.
   **Alternatives considered:** failing on the first problem only.
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #3
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #3
