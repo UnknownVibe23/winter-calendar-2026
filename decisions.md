@@ -11,3 +11,25 @@
   committed to `public/icons/`; CI does not regenerate icons.
   **Alternatives considered:** hand-made PNGs. **Decided-by:**
   planner. **Status:** Proposed in this PR
+- **Context:** dependency versions (the card fixes the package list, not versions).
+  **Decision:** all 8 packages in devDependencies (no runtime deps; vite is the
+  dev/build tool), pinned to a mutually compatible set: vite ^6, typescript ~5.9,
+  vitest ^3, happy-dom ^18, eslint ^9, typescript-eslint ^8, prettier ^3,
+  sharp ^0.34; package-lock.json is committed so CI `npm ci` is reproducible.
+  **Alternatives considered:** latest majors (vite 8, vitest 5, eslint 10,
+  typescript 7), which conflict with the fixed list (typescript-eslint 8 peers
+  eslint ^9). **Decided-by:** coding-agent. **Status:** Proposed in this PR
+- **Context:** "prettier compatibility" in the ESLint flat config with a fixed
+  dependency list (eslint-config-prettier is not allowed).
+  **Decision:** rely on typescript-eslint `recommended`, which enables no
+  formatting rules, so Prettier (prettier.config.js: defaults + printWidth 100)
+  never conflicts with ESLint. **Alternatives considered:** adding
+  eslint-config-prettier (would break the fixed dependency list).
+  **Decided-by:** coding-agent. **Status:** Proposed in this PR
+- **Context:** tsconfig include set ("include src and scripts typings via
+  vite-env.d.ts").
+  **Decision:** include ["src", "scripts", "vite.config.ts", "eslint.config.js"];
+  src/vite-env.d.ts carries the vite/client reference; strict, ES2022 target,
+  bundler moduleResolution, noEmit (tsc is the typecheck half of `npm run build`).
+  **Alternatives considered:** a separate tsconfig.build.json.
+  **Decided-by:** coding-agent. **Status:** Proposed in this PR
