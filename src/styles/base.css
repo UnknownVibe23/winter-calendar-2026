@@ -37,10 +37,12 @@ body {
   color: #f3e2c3;
   background-color: #0b1d3a;
   background-image: radial-gradient(
-    ellipse 80% 50% at 50% -10%,
-    rgba(90, 130, 200, 0.35),
-    rgba(11, 29, 58, 0) 70%
+    ellipse 120% 90% at 50% 30%,
+    #14294d 0%,
+    #0b1d3a 55%,
+    #060f22 100%
   );
+  background-attachment: fixed;
   padding-top: env(safe-area-inset-top);
   padding-right: env(safe-area-inset-right);
   padding-bottom: env(safe-area-inset-bottom);
