@@ -9,6 +9,7 @@ export function renderApp(container: HTMLElement, content: Content, now: Date): 
   renderCalendar(container, {
     opened,
     now,
+    doors: content.doors,
     onDoorActivate(doorNumber) {
       const door = content.doors.find((entry) => entry.n === doorNumber);
       if (!door) {
@@ -27,14 +28,4 @@ export function renderApp(container: HTMLElement, content: Content, now: Date): 
       openLightbox(container, door);
     },
   });
-
-  const welcome = document.createElement('p');
-  welcome.className = 'welcome';
-  welcome.textContent = `${content.greeting}, ${content.name}!`;
-  const grid = container.querySelector('.calendar-grid');
-  if (grid) {
-    container.insertBefore(welcome, grid);
-  } else {
-    container.append(welcome);
-  }
 }

@@ -1,10 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DOOR_ORDER, applyDoorState, ariaLabelFor, renderCalendar } from './calendar';
+import { DOOR_ORDER, applyDoorState, ariaLabelFor, renderCalendar, thumbDataUrl } from './calendar';
+import type { Content } from './content';
 import { DOOR_COUNT } from './doors';
 
 const NOV_30 = new Date(2026, 10, 30, 12, 0, 0);
 const DEC_5 = new Date(2026, 11, 5, 15, 30, 0);
 const DEC_26 = new Date(2026, 11, 26, 12, 0, 0);
+
+function textDoors(): Content['doors'] {
+  return Array.from({ length: 24 }, (_, index) => ({
+    n: index + 1,
+    text: `Placeholder number ${index + 1}`,
+  }));
+}
+
+function photoDoors(): Content['doors'] {
+  return Array.from({ length: 24 }, (_, index) => ({
+    n: index + 1,
+    text: `Placeholder number ${index + 1}`,
+    photo: {
+      name: `${String(index + 1).padStart(2, '0')}.jpg`,
+      w: 1200,
+      h: 1600,
+      data: 'QUJDREVGR0g=',
+      thumb: `VUhVTS0w${index}`,
+    },
+  }));
+}
 
 function doorByNumber(container: HTMLElement, n: number): HTMLButtonElement {
   const door = container.querySelector<HTMLButtonElement>(`button.door[data-door="${n}"]`);
@@ -14,8 +36,14 @@ function doorByNumber(container: HTMLElement, n: number): HTMLButtonElement {
   return door;
 }
 
-function render(container: HTMLElement, opened: Set<number>, now: Date, onActivate = vi.fn()) {
-  renderCalendar(container, { opened, now, onDoorActivate: onActivate });
+function render(
+  container: HTMLElement,
+  opened: Set<number>,
+  now: Date,
+  onActivate = vi.fn(),
+  doors: Content['doors'] = textDoors(),
+) {
+  renderCalendar(container, { opened, now, doors, onDoorActivate: onActivate });
   return onActivate;
 }
 
@@ -30,10 +58,40 @@ describe('renderCalendar', () => {
 
   it('renders the English header', () => {
     render(container, new Set(), DEC_5);
-    expect(container.querySelector('h1')?.textContent).toBe('December 2026');
+    expect(container.querySelector('h1')?.textContent).toBe('Advent Calendar');
     expect(container.querySelector('.calendar-subtitle')?.textContent).toBe(
-      '24 doors until Christmas Eve',
+      '24 days until Christmas Eve',
     );
+  });
+
+  it('renders a thumbnail image and a number span per door', () => {
+    render(container, new Set(), DEC_5, vi.fn(), photoDoors());
+    for (const n of DOOR_ORDER) {
+      const door = doorByNumber(container, n);
+      expect(door.classList.contains('door--has-photo')).toBe(true);
+      const thumb = door.querySelector<HTMLImageElement>('img.door-thumb');
+      expect(thumb?.src).toBe(thumbDataUrl(photoDoors()[n - 1].photo!));
+      expect(thumb?.alt).toBe('');
+      expect(door.querySelector('.door-number')?.textContent).toBe(String(n));
+      expect(door.textContent?.trim()).toBe(String(n));
+    }
+  });
+
+  it('renders no thumbnail for text-only doors', () => {
+    render(container, new Set([5]), DEC_5);
+    const door = doorByNumber(container, 5);
+    expect(door.classList.contains('door--has-photo')).toBe(false);
+    expect(door.querySelector('img.door-thumb')).toBeNull();
+    expect(door.querySelector('.door-number')?.textContent).toBe('5');
+  });
+
+  it('attaches no frost canvas without a measurable door (tap fallback stays active)', () => {
+    const onActivate = render(container, new Set(), DEC_5);
+    const door = doorByNumber(container, 5);
+    expect(door.classList.contains('door--openable')).toBe(true);
+    expect(door.querySelector('canvas.door-frost')).toBeNull();
+    door.click();
+    expect(onActivate).toHaveBeenCalledWith(5);
   });
 
   it('creates exactly 24 door buttons in the frozen permutation order', () => {
@@ -151,9 +209,11 @@ describe('applyDoorState', () => {
   it('updates classes and aria-label of an existing door element', () => {
     render(container, new Set(), DEC_5);
     const door = doorByNumber(container, 5);
+    door.classList.add('door--frosted');
     applyDoorState(door, 5, new Set([5]), DEC_5);
     expect(door.classList.contains('door--opened')).toBe(true);
     expect(door.classList.contains('door--openable')).toBe(false);
+    expect(door.classList.contains('door--frosted')).toBe(false);
     expect(door.getAttribute('aria-label')).toBe('Door 5, opened');
   });
 });

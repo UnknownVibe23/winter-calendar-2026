@@ -3,11 +3,10 @@ export interface DoorPhoto {
   w: number;
   h: number;
   data: string;
+  thumb: string;
 }
 export interface Content {
   v: 1;
-  name: string;
-  greeting: string;
   doors: Array<{ n: number; text: string; photo?: DoorPhoto }>;
 }
 export interface Bundle {

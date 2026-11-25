@@ -56,6 +56,10 @@
   margin: 0 auto 12px;
   border-radius: 8px;
   object-fit: contain;
+  transform-origin: 0 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .lightbox-text {
