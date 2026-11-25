@@ -1,8 +1,7 @@
-import { SNOW_SEED, makeSnowParticles, particlePosition } from './snow';
+import { SNOW_LAYERS, SNOW_SEED, makeSnowParticles, particlePosition, type SnowLayer, type SnowParticle } from './snow';
 
 const MAX_DPR = 2;
 const SNOWFLAKE_RGB = '243, 226, 195';
-const SNOWFLAKE_ALPHA = 0.8;
 
 export interface SnowHandle {
   stop: () => void;
@@ -23,6 +22,17 @@ export function attachSnowfall(host: HTMLElement, day: number, seed: number = SN
   let height = 0;
   let dpr = 1;
   const particles = makeSnowParticles(day, seed);
+  const byLayer = new Map<SnowLayer, SnowParticle[]>(
+    SNOW_LAYERS.map((spec) => [spec.layer, []]),
+  );
+  for (const particle of particles) {
+    byLayer.get(particle.layer)?.push(particle);
+  }
+  const layerFill: Record<SnowLayer, string> = {
+    far: `rgba(${SNOWFLAKE_RGB}, ${SNOW_LAYERS[0].alpha})`,
+    mid: `rgba(${SNOWFLAKE_RGB}, ${SNOW_LAYERS[1].alpha})`,
+    near: `rgba(${SNOWFLAKE_RGB}, ${SNOW_LAYERS[2].alpha})`,
+  };
 
   function resize(): void {
     dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
@@ -48,12 +58,18 @@ export function attachSnowfall(host: HTMLElement, day: number, seed: number = SN
     const tSeconds = (nowMs - start) / 1000;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = `rgba(${SNOWFLAKE_RGB}, ${SNOWFLAKE_ALPHA})`;
-    for (const particle of particles) {
-      const pos = particlePosition(particle, tSeconds, width, height);
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, particle.radius, 0, Math.PI * 2);
-      ctx.fill();
+    for (const spec of SNOW_LAYERS) {
+      const layerParticles = byLayer.get(spec.layer) ?? [];
+      if (layerParticles.length === 0) {
+        continue;
+      }
+      ctx.fillStyle = layerFill[spec.layer];
+      for (const particle of layerParticles) {
+        const pos = particlePosition(particle, tSeconds, width, height);
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, particle.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     rafId = window.requestAnimationFrame(frame);
   }
