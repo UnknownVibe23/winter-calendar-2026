@@ -5,6 +5,7 @@ import { DOOR_COUNT } from './doors';
 
 const NOV_30 = new Date(2026, 10, 30, 12, 0, 0);
 const DEC_5 = new Date(2026, 11, 5, 15, 30, 0);
+const DEC_10 = new Date(2026, 11, 10, 12, 0, 0);
 const DEC_26 = new Date(2026, 11, 26, 12, 0, 0);
 
 function textDoors(): Content['doors'] {
@@ -232,6 +233,32 @@ describe('renderCalendar', () => {
     const onActivate = render(container, new Set([5]), DEC_5);
     doorByNumber(container, 5).click();
     expect(onActivate).toHaveBeenCalledWith(5);
+  });
+
+  it('shows snow caps on unopened doors, none on opened doors', () => {
+    render(container, new Set([5]), DEC_10);
+    expect(doorByNumber(container, 5).querySelector('svg.door-snow')).toBeNull();
+    for (const n of DOOR_ORDER.filter((door) => door !== 5)) {
+      expect(doorByNumber(container, n).querySelector('svg.door-snow')).not.toBeNull();
+    }
+  });
+
+  it('clears the snow cap and fires a one-shot sparkle burst when a door opens', () => {
+    const opened = new Set<number>();
+    const onActivate = vi.fn((doorNumber: number) => {
+      opened.add(doorNumber);
+    });
+    render(container, opened, DEC_10, onActivate);
+    const door = doorByNumber(container, 5);
+    expect(door.querySelector('svg.door-snow')).not.toBeNull();
+    door.click();
+    expect(onActivate).toHaveBeenCalledWith(5);
+    expect(door.querySelector('svg.door-snow')).toBeNull();
+    const sparkle = door.querySelector('.door-sparkle');
+    expect(sparkle).not.toBeNull();
+    expect(sparkle?.querySelectorAll('.door-sparkle-star').length).toBeGreaterThanOrEqual(6);
+    sparkle?.querySelector('.door-sparkle-star')?.dispatchEvent(new Event('animationend', { bubbles: true }));
+    expect(door.querySelector('.door-sparkle')).toBeNull();
   });
 });
 

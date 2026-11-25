@@ -1,6 +1,7 @@
 import { attachScratchOverlay, type ScratchHandle } from './scratch-canvas';
 import type { Content, DoorPhoto } from './content';
 import { countdownPhase, countdownText, daysUntilChristmasEve } from './countdown';
+import { sparkleBurst, syncDoorSnow } from './door-snow';
 import { doorState, todayDoor, type DoorState } from './doors';
 import { renderScene, syncSceneStages } from './scene';
 
@@ -82,8 +83,16 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
 
   function activate(doorNumber: number): void {
     handles.get(doorNumber)?.finish();
+    const wasOpened = options.opened.has(doorNumber);
     options.onDoorActivate(doorNumber);
     syncSceneStages(scene, options.opened);
+    const doorElement = grid.querySelector<HTMLElement>(`button.door[data-door="${doorNumber}"]`);
+    if (doorElement !== null) {
+      syncDoorSnow(doorElement, doorNumber, options.now, options.opened);
+      if (!wasOpened) {
+        sparkleBurst(doorElement, doorNumber);
+      }
+    }
   }
 
   for (const doorNumber of DOOR_ORDER) {
@@ -108,6 +117,7 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
     door.append(number);
 
     applyDoorState(door, doorNumber, options.opened, options.now);
+    syncDoorSnow(door, doorNumber, options.now, options.opened);
 
     door.addEventListener('click', () => {
       if (doorState(doorNumber, options.opened, options.now) === 'locked') {

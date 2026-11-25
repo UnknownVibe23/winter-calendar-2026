@@ -167,7 +167,52 @@
 
 .door--opened {
   opacity: 0.75;
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.45);
+  box-shadow:
+    0 0 14px rgba(243, 226, 195, 0.35),
+    0 0 4px rgba(243, 226, 195, 0.25),
+    inset 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.door-snow {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.door-sparkle {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.door-sparkle-star {
+  position: absolute;
+  transform: scale(0);
+  animation: door-sparkle-pop 600ms ease-out forwards;
+}
+
+@keyframes door-sparkle-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .door-sparkle-star {
+    animation-duration: 1ms;
+  }
 }
 
 @keyframes door-shake {
