@@ -361,7 +361,7 @@
   **Alternatives considered:** UMD/`module.exports` (breaks under
   `"type": "module"`), an `export` in the same file (syntax error in a classic
   script), duplicating the logic in TS and JS (drift).
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #7
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #7
 - **Context:** which request gets which caching strategy, and how "pass
   through untouched" is enforced.
   **Decision:** `SWCore.routeRequest` returns `cache-first` for same-origin
@@ -378,7 +378,7 @@
   SW never touches auth material (it caches only already-public bytes).
   **Alternatives considered:** caching all same-origin GETs (rejected:
   card limits caching to the listed classes). **Decided-by:** coding-agent.
-  **Status:** Proposed in PR #7
+  **Status:** Accepted in PR #7
 - **Context:** the invisible update flow and cache lifecycle across deploys.
   **Decision:** `SW_VERSION = 'v1'` lives in `public/sw.js` and is bumped
   whenever the SW changes; cache names are `wc-assets-<version>` and
@@ -389,7 +389,7 @@
   toast, prompt or reload UI. Hashed assets are cached keyed by full URL and
   never reused across deploys because new builds emit new hashed names.
   **Alternatives considered:** an update-available toast (forbidden by the
-  card). **Decided-by:** coding-agent. **Status:** Proposed in PR #7
+  card). **Decided-by:** coding-agent. **Status:** Accepted in PR #7
 - **Context:** on the very first visit the page's hashed assets are fetched
   before the SW controls the client, so runtime cache-first alone would leave
   no fully offline-capable cache after that first visit.
@@ -402,7 +402,7 @@
   gap on later visits. The SW source never hardcodes hashed names.
   **Alternatives considered:** runtime-only caching (fails offline after the
   first visit), hardcoding hashed asset names (forbidden, they change every
-  build). **Decided-by:** coding-agent. **Status:** Proposed in PR #7
+  build). **Decided-by:** coding-agent. **Status:** Accepted in PR #7
 - **Context:** registration must happen only in production builds, from the
   app bootstrap, and must never swallow the dev server.
   **Decision:** `src/main.ts` calls
@@ -415,7 +415,7 @@
   `npm run preview` (production build) does, which is what the manual smoke
   uses. **Alternatives considered:** registering on `window.load` (delays
   offline capability of the first visit for no benefit here).
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #7
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #7
 - **Context:** CI has no browser, so the SW lifecycle cannot be fully
   automated.
   **Decision:** automated in CI: all pure sw-core logic (base-path parsing,
@@ -428,4 +428,4 @@
   re-online reload serves fresh shell and prunes stale `wc-*` caches after a
   version bump. **Alternatives considered:** a headless-browser CI job (new
   dependency/CI weight, forbidden by the card's zero-dependency rule).
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #7
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #7
