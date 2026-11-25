@@ -1,3 +1,4 @@
+import { tintForDoor } from './door-palette';
 import {
   SCRATCH_GRID_SIZE,
   TAP_MAX_MOVEMENT_PX,
@@ -11,9 +12,7 @@ import {
   type PointerSample,
 } from './scratch';
 
-const FROST_BASE = '#0b1d3a';
 const FROST_PATTERN_CELL = 14;
-const NUMBER_COLOR = '#f3e2c3';
 const FADE_MS = 250;
 const MAX_DPR = 2;
 const PROGRESS_CHECK_INTERVAL_MOVES = 4;
@@ -27,18 +26,22 @@ export interface ScratchHandle {
 }
 
 function paintFrost(ctx: CanvasRenderingContext2D, width: number, height: number, doorNumber: number): void {
-  ctx.fillStyle = FROST_BASE;
+  const tint = tintForDoor(doorNumber);
+  ctx.fillStyle = tint.frost;
   ctx.fillRect(0, 0, width, height);
   const cell = FROST_PATTERN_CELL;
   for (let cy = 0; cy * cell < height; cy += 1) {
     for (let cx = 0; cx * cell < width; cx += 1) {
       const variant = (cx * 31 + cy * 17) % 5;
-      ctx.fillStyle = `rgba(243, 226, 195, ${0.03 + variant * 0.012})`;
+      ctx.fillStyle =
+        (cx + cy) % 2 === 0
+          ? `rgba(243, 226, 195, ${0.03 + variant * 0.012})`
+          : `rgba(0, 0, 0, ${0.04 + variant * 0.01})`;
       ctx.fillRect(cx * cell, cy * cell, cell - 1, cell - 1);
     }
   }
   const size = Math.round(Math.min(width, height) * 0.42);
-  ctx.fillStyle = NUMBER_COLOR;
+  ctx.fillStyle = tint.number;
   ctx.font = `700 ${size}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

@@ -1,11 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { tintForDoor } from './door-palette';
 import { attachScratchOverlay } from './scratch-canvas';
 
 const DOOR_RECT = { left: 0, top: 0, right: 200, bottom: 100, width: 200, height: 100, x: 0, y: 0 };
 
 function fakeContext(getAlpha: () => Uint8ClampedArray) {
+  const fillStyles: string[] = [];
   return {
-    fillStyle: '',
+    get fillStyle(): string {
+      return fillStyles[fillStyles.length - 1] ?? '';
+    },
+    set fillStyle(value: string) {
+      fillStyles.push(value);
+    },
+    fillStyles,
     strokeStyle: '',
     font: '',
     textAlign: '',
@@ -111,6 +119,45 @@ describe('attachScratchOverlay', () => {
     expect(canvas?.height).toBe(100);
     expect(ctx.fillRect).toHaveBeenCalled();
     expect(ctx.fillText).toHaveBeenCalledWith('5', 100, 50);
+  });
+
+  it('paints the frost base in the per-door tint and the number in the contrast-safe color', () => {
+    const ctx = fakeContext(frostedAlpha);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
+    const door = makeDoor();
+    attachScratchOverlay(door, 5, { onActivate: vi.fn() });
+    const tint = tintForDoor(5);
+    expect(tint.frost).toBe('#4a2545');
+    expect(ctx.fillStyles[0]).toBe(tint.frost);
+    expect(ctx.fillStyles[ctx.fillStyles.length - 1]).toBe(tint.number);
+    expect(ctx.fillStyles[ctx.fillStyles.length - 1]).toBe('#f3e2c3');
+  });
+
+  it('paints a gold-cream door with the night-blue number for contrast', () => {
+    const ctx = fakeContext(frostedAlpha);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
+    const door = makeDoor();
+    attachScratchOverlay(door, 4, { onActivate: vi.fn() });
+    expect(tintForDoor(4).frost).toBe('#c9a24b');
+    expect(ctx.fillStyles[0]).toBe('#c9a24b');
+    expect(ctx.fillStyles[ctx.fillStyles.length - 1]).toBe('#0b1d3a');
+  });
+
+  it('paints the woven pattern deterministically (same cells every time)', () => {
+    const paint = (): string[] => {
+      const ctx = fakeContext(frostedAlpha);
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+        ctx as unknown as CanvasRenderingContext2D,
+      );
+      const door = makeDoor();
+      attachScratchOverlay(door, 7, { onActivate: vi.fn() });
+      return ctx.fillStyles;
+    };
+    expect(paint()).toEqual(paint());
   });
 
   it('opens the door when scratching reaches the threshold and swallows the trailing click', async () => {
