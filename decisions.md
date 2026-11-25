@@ -429,3 +429,92 @@
   version bump. **Alternatives considered:** a headless-browser CI job (new
   dependency/CI weight, forbidden by the card's zero-dependency rule).
   **Decided-by:** coding-agent. **Status:** Accepted in PR #7
+- **Context:** WC-06 scene semantics: what one "stage" counts (locked ruling
+  "one stage per opened door, not per calendar day").
+  **Decision:** a scene stage = one OPENED door count. `earnedStages(opened)`
+  maps the EXISTING opened memory (`wc.opened` via `loadOpened`, no new
+  storage key) to stage keys 1..count; `src/scene-stages.ts` holds the
+  invariants (exactly 24 unique stages 1..24) and the mapping, fully
+  unit-tested. **Alternatives considered:** per calendar day (rejected by the
+  locked ruling), per door number (rejected: stages must be count-based).
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06 scene renderer and reveal mechanics.
+  **Decision:** `src/scene.ts` builds the strip with `createElementNS` (no
+  innerHTML) as one SVG (viewBox 0 0 360 300, fluid width, max-height 320px
+  => ~273px tall on the 360px reference device) placed directly below the
+  header, above the grid, scrolling with the page (not sticky). Each stage is
+  a `<g data-stage="N" class="scene-stage">`; hidden/earned purely via the
+  `scene-stage--earned` class; the reveal is CSS-only (opacity + scale 400ms,
+  `transform-box: fill-box`, `prefers-reduced-motion` respected). On initial
+  render the earned classes are applied while the element is still detached,
+  so no transition replays on load; `syncSceneStages` toggles classes when a
+  door opens. No per-stage JS logic beyond class toggling.
+  **Alternatives considered:** innerHTML SVG string (rejected: repo DOM
+  style), canvas-drawn scene (rejected: not inspectable/testable), JS-driven
+  animation (rejected: card demands CSS-only reveal). **Decided-by:**
+  coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06 festive frost look with per-door Christmassy tint
+  (planner-locked palette) and accessibility of the number on each tint.
+  **Decision:** `src/door-palette.ts` holds the five locked tints
+  (#7a1f2b, #1e4d2b, #0b1d3a, #c9a24b, #4a2545), `tint = PALETTE[(n - 1) % 5]`;
+  the frost canvas paints the tint as base plus a deterministic woven
+  two-tone cell pattern (cell 14px, variant `(cx*31 + cy*17) % 5`,
+  alternating cream/black at low alpha — same look on every device, no
+  runtime randomness); the door number is cream #f3e2c3 on all tints except
+  gold-cream, where it is night-blue #0b1d3a. WCAG contrast is computed in
+  code (`contrastRatio`) and unit-tested >= 4.5:1 for every pair (cream on
+  the dark tints: 8.01 / 7.66 / 13.17 / 10.04; night-blue on gold-cream:
+  7.00; cream on gold-cream would be 1.88 and is not used) — no shade
+  adjustments were needed. Scratch mechanics, 0.7 threshold, tap fallback
+  and zoom are untouched; only the paint changed. **Alternatives considered:**
+  random frost texture (rejected: determinism required), adjusting the locked
+  hex values (rejected: planner-locked; contrast passes as locked).
+  **Decided-by:** planner (palette), coding-agent (paint + contrast proof).
+  **Status:** Proposed in PR #8
+- **Context:** WC-06 snowfall rendering and density rule.
+  **Decision:** `src/snow.ts` (pure, unit-tested) provides a tiny seeded PRNG
+  (mulberry-style, `SNOW_SEED = 20261201`, no Math.random at runtime),
+  `particlesForDay(day) = min(60, 12 + day * 2)` with the day clamped to 1..24
+  (Dec 1 = 14 particles, Dec 24 = 60), per-particle size/speed/sway/phase
+  from the seed, and `wrapUnit`/`particlePosition` implementing the periodic
+  wrap (a flake leaving one edge re-enters at the opposite edge; coordinates
+  derived purely from seed + time). `snowDayForDate` uses the existing
+  calendar day (`todayDoor`): the December day itself, 1 before Dec 1 2026,
+  24 after Dec 24 2026. Rendering is a fixed canvas layer
+  (`src/snow-canvas.ts`, class `snow-layer`, z-index 0 below `#app` at
+  z-index 1, `pointer-events: none`), DPR capped at 2 like the scratch
+  overlay, rAF loop that clears and redraws the (at most 60) arcs in CSS px —
+  canvas cannot do transform-only updates, so positions are recomputed from
+  the pure model each frame. **Alternatives considered:** DOM particle nodes
+  (allowed by the card but heavier on the A55; canvas chosen, same 60-particle
+  cap), Math.random (rejected: determinism required). **Decided-by:**
+  coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06 places the scene between header and grid, which changes
+  the DOM adjacency an existing app test asserted.
+  **Decision:** `renderCalendar` appends header, `.living-room` scene, grid;
+  the app.test.ts assertion was adapted from "header directly above grid" to
+  "header -> scene -> grid" (structure change required by the card; the
+  no-welcome-line intent and the assertion strength are kept). **Alternatives
+  considered:** rendering the scene inside the header or grid (rejected: card
+  says directly below the header, above the grid). **Decided-by:**
+  coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06 polish pass and the door aspect ratio.
+  **Decision:** door tile geometry unchanged (min-height 96px kept, no 2:3
+  adjustment — no polish goal required it); grid breakpoints, gap, radius and
+  header text untouched. Polish limited to: static radial vignette page
+  background (deep night blue #14294d -> #0b1d3a -> #060f22, allowed by the
+  visual-theme ruling for backgrounds), door tile border + inner/outer shadows,
+  desktop-only hover (`@media (hover: hover)`), `:focus-visible` 2px cream
+  outline with 2px offset, and a 44px minimum tap target (min-width/min-height).
+  **Alternatives considered:** changing the 2:3 ratio (rejected: card prefers
+  not changing it). **Decided-by:** coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06 test coverage split between automated and manual smoke.
+  **Decision:** all logic is automated (212 unit tests: stage invariants and
+  earned mapping, palette assignment + WCAG contrast rule, seeded snow
+  determinism + density + wrap rule, snow canvas wiring, scene DOM builder
+  and sync, tinted frost paint; scratch mechanics tests unchanged and green).
+  The art itself (SVG shapes, CSS reveal feel, snow look, tint appearance,
+  A55 smoothness) is manual smoke via `npm run dev` with `?date=` overrides.
+  **Alternatives considered:** headless-browser visual CI (rejected: no new
+  dependencies allowed). **Decided-by:** coding-agent. **Status:** Proposed in
+  PR #8
