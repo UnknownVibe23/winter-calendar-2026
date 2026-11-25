@@ -192,8 +192,9 @@ describe('syncDoorSnow', () => {
 
   it('attaches a snow overlay to unopened doors from Dec 1 and removes it for opened doors', () => {
     syncDoorSnow(door, 5, DEC_10, new Set());
-    expect(door.querySelector('svg.door-snow')).not.toBeNull();
-    expect(door.querySelector('svg.door-snow')?.dataset.depth).toBe(
+    const overlay = door.querySelector<SVGSVGElement>('svg.door-snow');
+    expect(overlay).not.toBeNull();
+    expect(overlay?.dataset.depth).toBe(
       String(Math.round((SNOW_DUST_DEPTH + 5 * SNOW_GROWTH_PER_DAY) * 100) / 100),
     );
     syncDoorSnow(door, 5, DEC_10, new Set([5]));
@@ -209,7 +210,9 @@ describe('syncDoorSnow', () => {
     syncDoorSnow(door, 5, DEC_5, new Set());
     syncDoorSnow(door, 5, DEC_24, new Set());
     expect(door.querySelectorAll('svg.door-snow')).toHaveLength(1);
-    expect(door.querySelector('svg.door-snow')?.dataset.depth).toBe(String(SNOW_DEPTH_MAX));
+    expect(door.querySelector<SVGSVGElement>('svg.door-snow')?.dataset.depth).toBe(
+      String(SNOW_DEPTH_MAX),
+    );
   });
 });
 
@@ -228,14 +231,16 @@ describe('sparkleBurst', () => {
     sparkleBurst(door, 5);
     const container = door.querySelector('.door-sparkle');
     expect(container).not.toBeNull();
-    const stars = container?.querySelectorAll('.door-sparkle-star') ?? [];
+    const stars = container?.querySelectorAll<HTMLElement>('.door-sparkle-star') ?? [];
     expect(stars.length).toBeGreaterThanOrEqual(6);
     expect(stars.length).toBeLessThanOrEqual(8);
-    const positions = Array.from(stars).map((star) => `${star.style.left}|${star.style.top}`);
+    const positions = Array.from(stars).map(
+      (star) => `${star.style.left}|${star.style.top}`,
+    );
     sparkleBurst(door, 5);
     expect(door.querySelectorAll('.door-sparkle')).toHaveLength(1);
     expect(
-      Array.from(door.querySelectorAll('.door-sparkle-star')).map(
+      Array.from(door.querySelectorAll<HTMLElement>('.door-sparkle-star')).map(
         (star) => `${star.style.left}|${star.style.top}`,
       ),
     ).toEqual(positions);

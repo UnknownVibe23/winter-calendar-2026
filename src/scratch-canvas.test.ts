@@ -172,11 +172,10 @@ describe('attachScratchOverlay', () => {
     const loadPromise = new Promise<unknown>((resolve) => {
       resolveLoad = resolve;
     });
-    const fonts = { load: vi.fn(() => loadPromise), ready: Promise.resolve() };
-    const doc = document as Document & { fonts?: unknown };
-    const hadFonts = 'fonts' in doc;
+    const load = vi.fn(() => loadPromise);
+    const doc = document as unknown as { fonts?: unknown };
     const previous = doc.fonts;
-    doc.fonts = fonts;
+    doc.fonts = { load, ready: Promise.resolve() };
     try {
       const ctx = fakeContext(frostedAlpha);
       vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
@@ -184,16 +183,16 @@ describe('attachScratchOverlay', () => {
       );
       const door = makeDoor();
       attachScratchOverlay(door, 5, { onActivate: vi.fn() });
-      expect(fonts.load).toHaveBeenCalledWith('700 42px "Mountains of Christmas"');
+      expect(load).toHaveBeenCalledWith('700 42px "Mountains of Christmas"');
       expect(ctx.fillText).not.toHaveBeenCalled();
       resolveLoad([]);
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(ctx.fillText).toHaveBeenCalledWith('5', 100, 50);
     } finally {
-      if (hadFonts) {
-        doc.fonts = previous;
-      } else {
+      if (previous === undefined) {
         delete doc.fonts;
+      } else {
+        doc.fonts = previous;
       }
     }
   });
