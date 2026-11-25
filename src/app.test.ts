@@ -35,11 +35,13 @@ describe('renderApp', () => {
     document.body.append(container);
   });
 
-  it('renders no welcome line; the header sits directly above the grid', () => {
+  it('renders no welcome line; the header sits directly above the scene, then the grid', () => {
     renderApp(container, content, DEC_5);
     expect(container.querySelector('p.welcome')).toBeNull();
     const header = container.querySelector('header.calendar-header');
-    expect(header?.nextElementSibling).toBe(container.querySelector('.calendar-grid'));
+    const scene = container.querySelector('.living-room');
+    expect(header?.nextElementSibling).toBe(scene);
+    expect(scene?.nextElementSibling).toBe(container.querySelector('.calendar-grid'));
   });
 
   it('renders the English header and 24 doors in the frozen order', () => {
@@ -121,6 +123,10 @@ describe('renderApp', () => {
     expect(door?.querySelector<HTMLImageElement>('img.door-thumb')?.src).toBe(
       'data:image/jpeg;base64,VUhVTUI=',
     );
+    const earned = Array.from(container.querySelectorAll<SVGGElement>('g.scene-stage--earned')).map(
+      (stage) => stage.dataset.stage,
+    );
+    expect(earned).toEqual(['1']);
   });
 
   afterEach(() => {

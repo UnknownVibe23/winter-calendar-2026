@@ -1,5 +1,6 @@
 import './styles/base.css';
 import './styles/calendar.css';
+import './styles/scene.css';
 import './lightbox.css';
 import './login.css';
 import { renderApp } from './app';

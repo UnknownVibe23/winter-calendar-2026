@@ -1,6 +1,7 @@
 import { attachScratchOverlay, type ScratchHandle } from './scratch-canvas';
 import type { Content, DoorPhoto } from './content';
 import { doorState, todayDoor, type DoorState } from './doors';
+import { renderScene, syncSceneStages } from './scene';
 
 export const DOOR_ORDER: readonly number[] = [
   8, 13, 16, 4, 18, 3, 21, 19, 23, 20, 1, 10, 5, 24, 7, 9, 12, 15, 14, 17, 2, 11, 22, 6,
@@ -66,11 +67,14 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
   const grid = document.createElement('div');
   grid.className = 'calendar-grid';
 
+  const scene = renderScene(options.opened);
+
   const handles = new Map<number, ScratchHandle | null>();
 
   function activate(doorNumber: number): void {
     handles.get(doorNumber)?.finish();
     options.onDoorActivate(doorNumber);
+    syncSceneStages(scene, options.opened);
   }
 
   for (const doorNumber of DOOR_ORDER) {
@@ -112,7 +116,7 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
     grid.append(door);
   }
 
-  container.append(header, grid);
+  container.append(header, scene, grid);
 
   for (const doorNumber of DOOR_ORDER) {
     const door = grid.querySelector<HTMLElement>(`button.door[data-door="${doorNumber}"]`);

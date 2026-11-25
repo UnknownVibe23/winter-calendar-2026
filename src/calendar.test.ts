@@ -56,6 +56,37 @@ describe('renderCalendar', () => {
     document.body.append(container);
   });
 
+  it('renders the living-room scene between the header and the grid', () => {
+    render(container, new Set(), DEC_5);
+    const header = container.querySelector('header.calendar-header');
+    const scene = container.querySelector('.living-room');
+    const grid = container.querySelector('.calendar-grid');
+    expect(header?.nextElementSibling).toBe(scene);
+    expect(scene?.nextElementSibling).toBe(grid);
+  });
+
+  it('renders the earned scene stages for the opened doors on load', () => {
+    render(container, new Set([1, 2, 3, 4, 5, 6]), DEC_26);
+    const earned = Array.from(container.querySelectorAll<SVGGElement>('g.scene-stage--earned')).map(
+      (stage) => stage.dataset.stage,
+    );
+    expect(earned).toEqual(['1', '2', '3', '4', '5', '6']);
+  });
+
+  it('reveals the next scene stage when a door is activated', () => {
+    const opened = new Set<number>();
+    const onActivate = vi.fn((doorNumber: number) => {
+      opened.add(doorNumber);
+    });
+    render(container, opened, DEC_5, onActivate);
+    expect(container.querySelectorAll<SVGGElement>('g.scene-stage--earned')).toHaveLength(0);
+    doorByNumber(container, 5).click();
+    expect(onActivate).toHaveBeenCalledWith(5);
+    expect(
+      Array.from(container.querySelectorAll<SVGGElement>('g.scene-stage--earned')).map((stage) => stage.dataset.stage),
+    ).toEqual(['1']);
+  });
+
   it('renders the English header', () => {
     render(container, new Set(), DEC_5);
     expect(container.querySelector('h1')?.textContent).toBe('Advent Calendar');
