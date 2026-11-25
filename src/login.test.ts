@@ -139,7 +139,7 @@ describe('renderLogin', () => {
     expect(result.name).toBe('Tester');
     expect(result.keyBits).toHaveLength(32);
     expect(result.content).toEqual(content);
-    expect(fetchMock).toHaveBeenCalledWith('/content.enc');
+    expect(fetchMock).toHaveBeenCalledWith('/winter-calendar-2026/content.enc');
     expect(loadLockState()).toEqual({ attempts: 0, until: 0 });
   });
 });

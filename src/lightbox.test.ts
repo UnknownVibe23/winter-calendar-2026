@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { renderApp } from './app';
 import type { Content } from './content';
 import { lightboxHeader, openLightbox, photoDataUrl } from './lightbox';
