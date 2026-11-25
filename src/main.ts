@@ -35,4 +35,12 @@ async function boot(): Promise<void> {
   });
 }
 
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  void navigator.serviceWorker
+    .register(`${import.meta.env.BASE_URL}sw.js`)
+    .catch((error: unknown) => {
+      console.warn('Service worker registration failed', error);
+    });
+}
+
 void boot();
