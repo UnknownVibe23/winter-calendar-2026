@@ -44,3 +44,16 @@
   manifest are root-absolute (base '/'), and index.html additionally links the
   SVG as favicon. **Alternatives considered:** relative URLs, hand-made maskables.
   **Decided-by:** coding-agent. **Status:** Proposed in this PR
+- **Context:** where the header markup lives and the unspecified grid metrics.
+  **Decision:** renderCalendar builds the header ("Dezember 2026" + subtitle
+  "24 Türchen bis Heiligabend") and appends header + grid into the container without
+  clearing it; index.html holds only #app. Grid: gap 10px, padding 16px, door radius
+  14px, hover #1a3560, 120ms ease transition, content centered with max-width 1200px.
+  **Alternatives considered:** header hard-coded in index.html. **Decided-by:**
+  coding-agent. **Status:** Proposed in this PR
+- **Context:** manifest.test.ts must read files relative to the repo root, but
+  happy-dom rewrites import.meta.url to a non-file URL.
+  **Decision:** resolve the repo root via process.cwd() (vitest always runs from the
+  repo root via npm scripts). **Alternatives considered:** import.meta.url +
+  fileURLToPath (fails under happy-dom). **Decided-by:** coding-agent.
+  **Status:** Proposed in this PR
