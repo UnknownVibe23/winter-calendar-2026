@@ -5,6 +5,15 @@ import { DOOR_ORDER } from './calendar';
 
 const DEC_5 = new Date(2026, 11, 5, 15, 30, 0);
 
+function partialAlpha(fraction: number): Uint8ClampedArray {
+  const data = new Uint8ClampedArray(32 * 32 * 4).fill(255);
+  const cleared = Math.round(32 * 32 * fraction);
+  for (let index = 0; index < cleared; index += 1) {
+    data[index * 4 + 3] = 0;
+  }
+  return data;
+}
+
 const content: Content = {
   v: 1,
   doors: Array.from({ length: 24 }, (_, index) => ({
@@ -59,7 +68,7 @@ describe('renderApp', () => {
     expect(textOnly?.querySelector('.door-number')?.textContent).toBe('3');
   });
 
-  it('scratch-to-open end to end: frost canvas, scratch to 60%+ opens door and lightbox (stubbed canvas)', async () => {
+  it('scratch-to-open end to end: frost canvas, scratch to 70%+ opens door and lightbox (stubbed canvas)', async () => {
     let scratched = false;
     vi.spyOn(HTMLButtonElement.prototype, 'getBoundingClientRect').mockReturnValue({
       left: 0,
@@ -83,7 +92,7 @@ describe('renderApp', () => {
       arc: vi.fn(),
       fill: vi.fn(),
       getImageData: vi.fn(() => ({
-        data: scratched ? new Uint8ClampedArray(32 * 32 * 4).fill(0) : new Uint8ClampedArray(32 * 32 * 4).fill(255),
+        data: scratched ? partialAlpha(0.75) : new Uint8ClampedArray(32 * 32 * 4).fill(255),
         width: 32,
         height: 32,
       })),

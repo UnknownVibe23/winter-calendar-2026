@@ -257,7 +257,7 @@
 - **Context:** the card splits scratch-to-open and pinch-zoom into pure
   logic plus DOM glue but does not name the split points.
   **Decision:** `src/scratch.ts` holds all canvas-free scratch math
-  (32x32 sample-grid progress, >=60% threshold, pointer-path bookkeeping,
+  (32x32 sample-grid progress, threshold 0.7, tuned after smoke test, pointer-path bookkeeping,
   tap-vs-scratch classification with <6px / <350ms) and `src/zoom.ts` holds
   all zoom math (clamp 1x..4x, pinch scale by distance ratio, midpoint
   anchoring, pan bounds, double-tap toggle 1x<->2.5x within 300ms,
@@ -268,7 +268,7 @@
   `src/app.test.ts`) plus manual dev verification; the pure modules are
   fully unit tested (`src/scratch.test.ts`, `src/zoom.test.ts`).
   **Alternatives considered:** putting the math inline in the glue (untestable).
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #6
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #6
 - **Context:** the frost layer's exact look and how the door number stays
   visible on it.
   **Decision:** the frost canvas paints the night-blue base #0b1d3a with a
@@ -279,7 +279,7 @@
   is erased together with the frost once scratching starts.
   **Alternatives considered:** SVG text (renders empty without fonts),
   gradients (excluded by the card). **Decided-by:** coding-agent.
-  **Status:** Proposed in PR #6
+  **Status:** Accepted in PR #6
 - **Context:** how tap-vs-scratch interacts with the existing click path
   (keyboard Enter/Space and synthetic clicks must still open doors).
   **Decision:** with an active frost overlay, pointer sequences are
@@ -291,20 +291,20 @@
   WC-04 activation exactly once (guarded by a per-door flag).
   **Alternatives considered:** activating on pointerup directly (would
   double-fire with the trailing click). **Decided-by:** coding-agent.
-  **Status:** Proposed in PR #6
+  **Status:** Accepted in PR #6
 - **Context:** scratch performance details the card left open (planner
   target: mid-range phone).
   **Decision:** canvas sized tile x devicePixelRatio (DPR capped at 2),
   erasures batched through requestAnimationFrame, brush of round segments
   (radius max(18, min(tile w,h) * 0.16) CSS px) along the interpolated
   pointer path with `destination-out`, progress resampled on a 32x32 grid
-  only every 4th pointer move and on release; on >=60% the remaining frost
+  only every 4th pointer move and on release; on >=0.7 the remaining frost
   fades via a 250ms CSS opacity transition and the canvas is removed.
   `touch-action: none` is set only on `.door--openable` (and the lightbox
   photo), so the page around the grid still scrolls normally.
   **Alternatives considered:** per-pixel progress on every move (too slow),
   full-page touch-action none (breaks scrolling). **Decided-by:**
-  coding-agent. **Status:** Proposed in PR #6
+  coding-agent. **Status:** Accepted in PR #6
 - **Context:** how opened photo doors look in the grid, and the
   performance rule that the grid must never decode full-size photos.
   **Decision:** each photo door renders an `<img class="door-thumb">` with
@@ -317,7 +317,7 @@
   3.3 KB base64 per thumbnail (reported by the encoder).
   **Alternatives considered:** background-image divs, decoding full images
   in the grid (rejected: performance requirement). **Decided-by:**
-  coding-agent. **Status:** Proposed in PR #6
+  coding-agent. **Status:** Accepted in PR #6
 - **Context:** lightbox zoom interaction details beyond the card's list.
   **Decision:** `transform-origin: 0 0` on the photo, Pointer Events with
   two-pointer pinch anchored at the midpoint, one-finger pan only while
@@ -328,7 +328,7 @@
   only to taps on the overlay background; × and Escape always close). No
   zoom hint UI; photos keep their original aspect ratio at 1x.
   **Alternatives considered:** transform-origin center (harder pan-bounds
-  math). **Decided-by:** coding-agent. **Status:** Proposed in PR #6
+  math). **Decided-by:** coding-agent. **Status:** Accepted in PR #6
 - **Context:** the schema change (Content loses name/greeting) and the
   header rewording; the card fixes the new shapes but not the version
   handling.
@@ -339,7 +339,7 @@
   header reads "Advent Calendar" / "24 days until Christmas Eve". The
   login name + password pair is untouched (key material).
   **Alternatives considered:** bumping to v2 (card says v stays 1).
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #6
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #6
 - **Context:** graceful degradation when canvas 2D or layout metrics are
   unavailable.
   **Decision:** `attachScratchOverlay` returns null (no frost, tap-to-open
@@ -347,4 +347,4 @@
   returns null; this is also what makes the happy-dom test environment
   exercise the tap fallback.
   **Alternatives considered:** throwing (breaks exotic browsers).
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #6
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #6

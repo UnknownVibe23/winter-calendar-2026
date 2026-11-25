@@ -9,8 +9,10 @@ Single intended user.
 - P1 Foundation: trinity, CI, PWA shell, door grid (WC-01)
 - P2 Privacy: password gate + crypto, encoder tool (WC-02, WC-03)
 - P3 Calendar: door logic, unlock, lightbox, deployment (WC-04)
-- P4 Delight: living-room scene, scratch-off, door-24 mini-game
-  (WC-05, WC-06, WC-07)
+- P4 Hardening: white-box security reviews (WC-SEC, WC-SEC-2)
+- P5 Delight: scratch-off opening (WC-05), service worker offline
+  + data diet (WC-SW), living-room scene (WC-06), door-24 finale
+  animation "December Mosaic" (WC-07)
 
 ## Status
 - WC-01 Bootstrap & Calendar Grid: implemented (PR #1)
@@ -19,6 +21,7 @@ Single intended user.
 - WC-04 Door Logic, Lightbox, English UI, Deployment: implemented (PR #4)
 - WC-SEC Security Review: implemented (PR #5)
 - WC-05 Scratch-Off Opening + UX Round 1: implemented (PR #6)
+- WC-SW Service Worker, Offline & Data Diet: in progress
 
 ## Working agreements
 See AGENTS.md. Content rules are absolute (no plaintext personal
