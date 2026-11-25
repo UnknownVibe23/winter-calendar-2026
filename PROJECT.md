@@ -13,7 +13,8 @@ Single intended user.
   (WC-05, WC-06, WC-07)
 
 ## Status
-- WC-01 Bootstrap & Calendar Grid: in progress
+- WC-01 Bootstrap & Calendar Grid: implemented (PR #1)
+- WC-02 Password Gate & Content Encryption: in progress
 
 ## Working agreements
 See AGENTS.md. Content rules are absolute (no plaintext personal

@@ -8,6 +8,10 @@
 - The first commit of each card is housekeeping: flip any
   decisions.md entries with status "Proposed in PR #N" from the
   previous card to "Accepted in PR #N".
+- The PR body is ALWAYS the four-section template: (1) What was
+  implemented (one sentence per file/area), (2) Deviations from the
+  card and why, (3) New decisions.md entries, (4) Open questions for
+  the human.
 
 ## Scope discipline
 - Implement exactly what the task card says. No drive-by refactors,
@@ -24,6 +28,9 @@
   by the local encoder tool.
 - During development all content is generated placeholders.
 - No secrets in code, logs, or test output.
+- No person-related motivations or reasons anywhere in code, comments,
+  docs, decisions, or commit messages. The design may state what it
+  is; it never states whom it is for or why.
 
 ## Test policy
 - Every change ships tests. Tests run offline: node/jsdom only, stub
@@ -32,7 +39,7 @@
 - CI (lint + test + build) must pass before a PR is opened.
 
 ## Docs duties
-- Update the Status section of PROJECT.md at the end of each card.
+- At the end of each card, update PROJECT.md Status to '<Card title>: implemented (PR #N)'.
 - Append a decisions.md entry for every choice the card did not
   specify.
 
