@@ -20,7 +20,7 @@ const PHOTO_EXTENSIONS = ['.jpg', '.jpeg', '.png'];
 const PLACEHOLDER_LOGIN = 'tester';
 const PLACEHOLDER_PASSWORD = 'schnee123';
 const PLACEHOLDER_NAME = 'Tester';
-const PLACEHOLDER_GREETING = 'Willkommen';
+const PLACEHOLDER_GREETING = 'Welcome';
 const PLACEHOLDER_BACKGROUND = '#0b1d3a';
 const PLACEHOLDER_TEXT_COLOR = '#f3e2c3';
 
@@ -289,7 +289,7 @@ async function buildPlaceholderContent() {
       Buffer.from(placeholderSvg(n, width, height)),
       `${String(n).padStart(2, '0')}.jpg`,
     );
-    doors.push({ n, text: `Platzhalter Nummer ${n}`, photo });
+    doors.push({ n, text: `Placeholder number ${n}`, photo });
   }
   return { v: 1, name: PLACEHOLDER_NAME, greeting: PLACEHOLDER_GREETING, doors };
 }

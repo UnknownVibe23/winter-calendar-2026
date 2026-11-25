@@ -105,7 +105,7 @@
   repo root as before.
   **Alternatives considered:** resolving the root from the script location
   (would make temp-dir testing impossible). **Decided-by:** coding-agent.
-  **Status:** Proposed in PR #3
+  **Status:** Accepted in PR #3
 - **Context:** the WC-02 key derivation must be used by the .mjs CLI, which
   cannot import the app's TypeScript (the card mandates this duplication).
   **Decision:** scripts/encode.mjs duplicates the exact WC-02 formulas
@@ -115,21 +115,21 @@
   decrypts through src/crypto.ts) plus src/bundle.test.ts decrypting committed
   bundles through the app's own crypto.
   **Alternatives considered:** compiling crypto.ts for the CLI (would add
-  build complexity). **Decided-by:** coding-agent. **Status:** Proposed in PR #3
+  build complexity). **Decided-by:** coding-agent. **Status:** Accepted in PR #3
 - **Context:** fast tests need a lower PBKDF2 iteration count (the card
   mandates a test-only `--iterations` flag).
   **Decision:** `--iterations N` overrides the iteration count and is stored
   in `bundle.iter` (the app reads it from there); production runs never pass
   it and always use 600000.
   **Alternatives considered:** an environment variable. **Decided-by:**
-  coding-agent. **Status:** Proposed in PR #3
+  coding-agent. **Status:** Accepted in PR #3
 - **Context:** exact downscale behavior for door photos.
   **Decision:** sharp `resize` with `fit: 'inside'` in a 1600x1600 box and
   `withoutEnlargement: true` (original aspect ratio preserved, long edge at
   most 1600 px, smaller originals not upscaled), output JPEG quality 82; the
   JPEG re-encode drops most EXIF metadata (documented in docs/content-guide.md).
   **Alternatives considered:** upscaling small photos to 1600 px.
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #3
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #3
 - **Context:** placeholder door images must show the door number, but CI and
   minimal sandboxes have no fonts, so SVG `<text>` renders nothing there.
   **Decision:** the number is drawn as font-free seven-segment SVG rects in
@@ -137,25 +137,25 @@
   1200x1600, doors 13-24 landscape 1600x1200; embedded photo name `NN.jpg`.
   **Alternatives considered:** SVG `<text>` (renders empty without fonts),
   committing pre-rendered PNGs. **Decided-by:** coding-agent.
-  **Status:** Proposed in PR #3
+  **Status:** Accepted in PR #3
 - **Context:** the safety guard when `content/` is not git-ignored in
   placeholder mode (the card's parenthetical).
   **Decision:** placeholder mode still runs `git check-ignore
   content/content.json` but only warns and continues, because it reads no
   content; real mode refuses with exit code 1 and the fixed refusal message.
   **Alternatives considered:** refusing in both modes. **Decided-by:**
-  coding-agent. **Status:** Proposed in PR #3
+  coding-agent. **Status:** Accepted in PR #3
 - **Context:** size report units and the 8 MB warning threshold.
   **Decision:** sizes are reported in MB = 1024*1024 bytes of the written
   bundle file; the warning triggers when that exceeds 8 MB; the per-photo
   average is the mean base64 payload length per embedded photo.
   **Alternatives considered:** decimal MB (1000*1000). **Decided-by:**
-  coding-agent. **Status:** Proposed in PR #3
+  coding-agent. **Status:** Accepted in PR #3
 - **Context:** the "default pair" for placeholder mode.
   **Decision:** `--placeholders` uses `tester` / `schnee123` unless `--name` /
   `--password` are passed explicitly; `npm run bundle` uses the default pair.
   **Alternatives considered:** hard-coding the pair. **Decided-by:**
-  coding-agent. **Status:** Proposed in PR #3
+  coding-agent. **Status:** Accepted in PR #3
 - **Context:** details the card left open in the CLI.
   **Decision:** photo extensions are matched case-insensitively; the door
   number coverage and all per-door problems are collected and printed in one
@@ -164,4 +164,73 @@
   TTY); placeholder doors embed a photo each, so the committed dev bundle
   exercises the photo pipeline.
   **Alternatives considered:** failing on the first problem only.
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #3
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #3
+- **Context:** the calendar's date source (planner ruling: no server, single user).
+  **Decision:** the DEVICE LOCAL clock is the only date source; all pure state
+  functions (`doorState`, `todayDoor`) take an explicit `now: Date` parameter so
+  tests are deterministic; door n unlocks at local midnight of December n, 2026.
+  **Alternatives considered:** server time, UTC-only dates. **Decided-by:**
+  planner. **Status:** Proposed in PR #4
+- **Context:** dev-only date override `?date=YYYY-MM-DD`.
+  **Decision:** the parameter replaces "today" for all door logic only when
+  `import.meta.env.DEV` is true (dev server and tests); production builds ignore
+  it entirely so the calendar cannot be fast-forwarded. Invalid values fall back
+  to the real clock with a `console.warn` in dev only. `resolveNow(search, dev)`
+  takes the dev flag as a parameter so tests can exercise both modes.
+  **Alternatives considered:** honoring the parameter in production.
+  **Decided-by:** planner. **Status:** Proposed in PR #4
+- **Context:** where the new grid rendering lives (the card allowed extending
+  renderCalendar or adding a module).
+  **Decision:** `renderCalendar` is extended in place in src/calendar.ts with an
+  options object `{ opened, now, onDoorActivate }`; the frozen permutation
+  `DOOR_ORDER` is only the grid position, each door's identity stays its real
+  number. **Alternatives considered:** a separate render module.
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #4
+- **Context:** aria-label and today-marker when today's door is already opened.
+  **Decision:** `opened` wins the aria-label ("Door n, opened"); the
+  `.door--today` class is still applied to today's door in any state.
+  **Alternatives considered:** "opens today" even when already opened.
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #4
+- **Context:** parsing the stored opened set `wc.opened`.
+  **Decision:** missing value, invalid JSON or a non-array value yield an empty
+  set; array entries that are not integers are skipped individually; saving
+  writes a sorted JSON array so re-saving never duplicates entries.
+  **Alternatives considered:** discarding the whole array on any bad entry.
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #4
+- **Context:** removing the locked-door shake class.
+  **Decision:** the `door--shake` class is removed on the `animationend` event
+  (re-adding first with a reflow so repeated taps re-trigger the animation).
+  **Alternatives considered:** a timer-based removal. **Decided-by:**
+  coding-agent. **Status:** Proposed in PR #4
+- **Context:** lightbox photo and text rendering (XSS safety, privacy, aspect ratio).
+  **Decision:** the photo is an `<img>` with `src` `data:image/jpeg;base64,...`,
+  `object-fit: contain` with max-width 100% / max-height 55vh so the original
+  aspect ratio is preserved and nothing is cropped; `alt=""` (decorative, the
+  door text follows); `photo.name` is never rendered. The door text is inserted
+  via `textContent` only, never `innerHTML`. No swipe navigation between doors
+  and no pinch/swipe/zoom inside the lightbox (deferred polish).
+  **Alternatives considered:** showing the file name, innerHTML insertion,
+  swipe navigation. **Decided-by:** planner. **Status:** Proposed in PR #4
+- **Context:** PWA manifest English strings.
+  **Decision:** `name` "Winter Calendar 2026", `short_name` "Winter Calendar",
+  `description` "An advent calendar with 24 doors until Christmas Eve".
+  **Alternatives considered:** keeping the German short_name. **Decided-by:**
+  planner. **Status:** Proposed in PR #4
+- **Context:** dev placeholder content language in scripts/encode.mjs.
+  **Decision:** English dev DATA only: name "Tester", greeting "Welcome", door
+  texts "Placeholder number 1..24"; real content language stays the human's free
+  choice. **Alternatives considered:** keeping German placeholders.
+  **Decided-by:** planner. **Status:** Proposed in PR #4
+- **Context:** asset URLs under the Pages subpath base '/winter-calendar-2026/'
+  (supersedes the PR #1 root-absolute rule for the manifest).
+  **Decision:** Vite rewrites the absolute asset URLs in index.html with the
+  configured base at build time (verified in dist/index.html); the manifest in
+  public/ is copied verbatim, so its `start_url` and icon `src` values are now
+  relative ("./", "icons/...") and resolve correctly under the subpath.
+  **Alternatives considered:** keeping root-absolute manifest URLs (404 under
+  the Pages subpath). **Decided-by:** coding-agent. **Status:** Proposed in PR #4
+- **Context:** index.html title and meta description.
+  **Decision:** `<title>Winter Calendar 2026</title>` and meta description
+  "Winter Calendar 2026 – advent calendar with 24 doors until Christmas Eve".
+  **Alternatives considered:** leaving the title as "Winter Calendar".
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #4

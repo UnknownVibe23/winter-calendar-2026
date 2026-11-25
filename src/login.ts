@@ -20,8 +20,8 @@ export async function loadBundle(): Promise<Bundle> {
 }
 
 const COUNTDOWN_INTERVAL_MS = 500;
-const SUBMIT_LABEL = 'Aufmachen';
-const ERROR_TEXT = 'Das hat leider nicht gepasst.';
+const SUBMIT_LABEL = 'Unlock';
+const ERROR_TEXT = 'Sorry, that did not match.';
 
 function formatCountdown(msRemaining: number): string {
   const totalSeconds = Math.max(0, Math.ceil(msRemaining / 1000));
@@ -40,12 +40,12 @@ export function renderLogin(container: HTMLElement, onSuccess: OnLoginSuccess): 
   form.className = 'login-card';
 
   const heading = document.createElement('h1');
-  heading.textContent = 'Adventskalender';
+  heading.textContent = 'Advent Calendar';
 
   const nameLabel = document.createElement('label');
   nameLabel.className = 'login-field';
   const nameCaption = document.createElement('span');
-  nameCaption.textContent = 'Dein Name';
+  nameCaption.textContent = 'Your name';
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
   nameInput.name = 'name';
@@ -55,7 +55,7 @@ export function renderLogin(container: HTMLElement, onSuccess: OnLoginSuccess): 
   const passwordLabel = document.createElement('label');
   passwordLabel.className = 'login-field';
   const passwordCaption = document.createElement('span');
-  passwordCaption.textContent = 'Passwort';
+  passwordCaption.textContent = 'Password';
   const passwordInput = document.createElement('input');
   passwordInput.type = 'password';
   passwordInput.name = 'password';

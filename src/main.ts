@@ -1,8 +1,10 @@
 import './styles/base.css';
 import './styles/calendar.css';
+import './lightbox.css';
 import './login.css';
 import { renderApp } from './app';
 import { decryptBundle } from './crypto';
+import { resolveNow } from './doors';
 import { loadBundle, renderLogin } from './login';
 import { loadSession, saveSession } from './session';
 
@@ -20,7 +22,7 @@ async function boot(): Promise<void> {
     try {
       const bundle = await loadBundle();
       const content = await decryptBundle(bundle, session.keyBits);
-      renderApp(app, content);
+      renderApp(app, content, resolveNow());
       return;
     } catch {
       // Stored session does not decrypt the current bundle: show the login.
@@ -29,7 +31,7 @@ async function boot(): Promise<void> {
   renderLogin(app, ({ keyBits, name, content }) => {
     saveSession(keyBits, name);
     app.replaceChildren();
-    renderApp(app, content);
+    renderApp(app, content, resolveNow());
   });
 }
 

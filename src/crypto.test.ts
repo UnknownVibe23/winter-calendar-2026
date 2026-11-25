@@ -7,10 +7,10 @@ import { encryptForTest } from './test-utils';
 const content: Content = {
   v: 1,
   name: 'Tester',
-  greeting: 'Willkommen',
+  greeting: 'Welcome',
   doors: Array.from({ length: 24 }, (_, index) => ({
     n: index + 1,
-    text: `Platzhalter Nummer ${index + 1}`,
+    text: `Placeholder number ${index + 1}`,
   })),
 };
 

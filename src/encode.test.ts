@@ -67,7 +67,7 @@ async function writeValidFixture(dir: string): Promise<void> {
   await writeContentJson(dir, {
     v: 1,
     name: 'Tester',
-    greeting: 'Willkommen',
+    greeting: 'Welcome',
     doors: validDoors(),
   });
 }
@@ -128,7 +128,7 @@ describe('scripts/encode.mjs', () => {
       const content = await decryptWith(bundle, 'tester', 'schnee123');
       expect(content.v).toBe(1);
       expect(content.name).toBe('Tester');
-      expect(content.greeting).toBe('Willkommen');
+      expect(content.greeting).toBe('Welcome');
       expect(content.doors.map((door) => door.n)).toEqual(
         Array.from({ length: 24 }, (_, index) => index + 1),
       );
@@ -237,7 +237,7 @@ describe('scripts/encode.mjs', () => {
       expect(bundle.alg).toBe('PBKDF2-SHA256-AES-GCM');
       const content = await decryptWith(bundle, 'tester', 'schnee123');
       expect(content.name).toBe('Tester');
-      expect(content.greeting).toBe('Willkommen');
+      expect(content.greeting).toBe('Welcome');
       expect(content.doors).toHaveLength(24);
       expect(content.doors.map((door) => door.n)).toEqual(
         Array.from({ length: 24 }, (_, index) => index + 1),
@@ -247,8 +247,8 @@ describe('scripts/encode.mjs', () => {
         expectJpeg(photo);
         expect(photo.name).toBe(`${String(door.n).padStart(2, '0')}.jpg`);
       }
-      expect(content.doors[0].text).toBe('Platzhalter Nummer 1');
-      expect(content.doors[23].text).toBe('Platzhalter Nummer 24');
+      expect(content.doors[0].text).toBe('Placeholder number 1');
+      expect(content.doors[23].text).toBe('Placeholder number 24');
       expect(photoOf(content, 1).w).toBe(1200);
       expect(photoOf(content, 1).h).toBe(1600);
       expect(photoOf(content, 13).w).toBe(1600);
