@@ -5,14 +5,22 @@
 
 .calendar-header h1 {
   margin: 0;
-  font-size: 1.75rem;
+  font-family: var(--font-display);
+  font-size: 2.1rem;
   font-weight: 700;
 }
 
 .calendar-subtitle {
   margin: 4px 0 0;
-  font-size: 0.95rem;
-  opacity: 0.8;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  opacity: 0.9;
+}
+
+.countdown-number {
+  text-shadow:
+    0 0 8px rgba(217, 164, 65, 0.55),
+    0 0 2px rgba(217, 164, 65, 0.8);
 }
 
 .calendar-grid {
@@ -80,6 +88,9 @@
 .door-number {
   position: relative;
   z-index: 1;
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 700;
 }
 
 .door--openable .door-thumb,

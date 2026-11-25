@@ -1,5 +1,22 @@
+@font-face {
+  font-family: 'Mountains of Christmas';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/mountains-of-christmas-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Mountains of Christmas';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/mountains-of-christmas-latin-700-normal.woff2') format('woff2');
+}
+
 :root {
   color-scheme: dark light;
+  --font-display: 'Mountains of Christmas', Georgia, 'Times New Roman', serif;
 }
 
 #app {
