@@ -1,8 +1,14 @@
+export interface DoorPhoto {
+  name: string;
+  w: number;
+  h: number;
+  data: string;
+}
 export interface Content {
   v: 1;
   name: string;
   greeting: string;
-  doors: Array<{ n: number; text: string }>;
+  doors: Array<{ n: number; text: string; photo?: DoorPhoto }>;
 }
 export interface Bundle {
   v: 1;

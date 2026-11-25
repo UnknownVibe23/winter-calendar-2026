@@ -15,6 +15,7 @@ Single intended user.
 ## Status
 - WC-01 Bootstrap & Calendar Grid: implemented (PR #1)
 - WC-02 Password Gate & Content Encryption: implemented (PR #2)
+- WC-03 Local Content Encoder: implemented (PR #3)
 
 ## Working agreements
 See AGENTS.md. Content rules are absolute (no plaintext personal
