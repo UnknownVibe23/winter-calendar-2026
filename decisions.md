@@ -33,3 +33,14 @@
   bundler moduleResolution, noEmit (tsc is the typecheck half of `npm run build`).
   **Alternatives considered:** a separate tsconfig.build.json.
   **Decided-by:** coding-agent. **Status:** Proposed in this PR
+- **Context:** PWA icon artwork (card says "your design", flat, no gradients, no text).
+  **Decision:** gift box with bow, cream #f3e2c3 box + gold #d9a441 ribbon/bow on
+  night-blue #0b1d3a, 512x512 viewBox in public/icon.svg.
+  **Alternatives considered:** snowflake. **Decided-by:** coding-agent.
+  **Status:** Proposed in this PR
+- **Context:** maskable icon generation and asset URL style.
+  **Decision:** maskables render the SVG at 80% of the target size centered on a
+  solid #0b1d3a background (safe zone); all asset URLs in index.html and the
+  manifest are root-absolute (base '/'), and index.html additionally links the
+  SVG as favicon. **Alternatives considered:** relative URLs, hand-made maskables.
+  **Decided-by:** coding-agent. **Status:** Proposed in this PR
