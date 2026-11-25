@@ -348,3 +348,84 @@
   exercise the tap fallback.
   **Alternatives considered:** throwing (breaks exotic browsers).
   **Decided-by:** coding-agent. **Status:** Accepted in PR #6
+- **Context:** the card requires one dependency-free module usable by both the
+  service worker (as a classic script) and Vitest, with no import maps, no
+  bundler tricks and no new dependencies.
+  **Decision:** `public/sw-core.js` is a plain classic script with no
+  import/export statements; it attaches the `SWCore` object to every available
+  global (`self`, `globalThis`, `window`). `public/sw.js` loads it with a
+  same-origin-only `importScripts(self.registration.scope + 'sw-core.js')`
+  (never remote code), and `src/sw-core.test.ts` imports it for its side
+  effect (`import '../public/sw-core.js'`) and reads `globalThis.SWCore`;
+  `tsc --noEmit` accepts the side-effect import without declarations.
+  **Alternatives considered:** UMD/`module.exports` (breaks under
+  `"type": "module"`), an `export` in the same file (syntax error in a classic
+  script), duplicating the logic in TS and JS (drift).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #7
+- **Context:** which request gets which caching strategy, and how "pass
+  through untouched" is enforced.
+  **Decision:** `SWCore.routeRequest` returns `cache-first` for same-origin
+  GET requests whose path is a direct child of `<base>assets/` with a hashed
+  name (`-` + 8+ base64url chars + extension), `network-first` for
+  `content.enc`, the app shell (bare base, `index.html`,
+  `manifest.webmanifest`) and icons (`icon.svg`, `icons/*`), and
+  `passthrough` for everything else; non-GET requests and cross-origin
+  requests are always `passthrough`, and for `passthrough` the fetch handler
+  never calls `respondWith`, so those requests are handled by the browser
+  untouched and never cached. The network-first cache fallback matches with
+  `ignoreSearch: true` so navigations carrying a query string still hit the
+  cached shell. Only same-origin GET responses are ever put into a cache; the
+  SW never touches auth material (it caches only already-public bytes).
+  **Alternatives considered:** caching all same-origin GETs (rejected:
+  card limits caching to the listed classes). **Decided-by:** coding-agent.
+  **Status:** Proposed in PR #7
+- **Context:** the invisible update flow and cache lifecycle across deploys.
+  **Decision:** `SW_VERSION = 'v1'` lives in `public/sw.js` and is bumped
+  whenever the SW changes; cache names are `wc-assets-<version>` and
+  `wc-shell-<version>` (helpers in sw-core); on `activate` every cache whose
+  name starts with `wc-` but is not one of the current version's names is
+  deleted (foreign caches are never touched); `skipWaiting()` runs on install
+  and `clients.claim()` on activate, so a new deploy takes over without any
+  toast, prompt or reload UI. Hashed assets are cached keyed by full URL and
+  never reused across deploys because new builds emit new hashed names.
+  **Alternatives considered:** an update-available toast (forbidden by the
+  card). **Decided-by:** coding-agent. **Status:** Proposed in PR #7
+- **Context:** on the very first visit the page's hashed assets are fetched
+  before the SW controls the client, so runtime cache-first alone would leave
+  no fully offline-capable cache after that first visit.
+  **Decision:** the SW precaches on `install`: the shell set (bare base URL,
+  `index.html`, `manifest.webmanifest`, `icon.svg`, the four committed PNG
+  icons, `content.enc`) into the shell cache, plus the hashed `assets/*` URLs
+  discovered by parsing the fetched `index.html` (`SWCore.extractAssetUrls`)
+  into the asset cache; each `cache.add` failure is ignored individually so a
+  transient error cannot kill install, and runtime strategies still fill any
+  gap on later visits. The SW source never hardcodes hashed names.
+  **Alternatives considered:** runtime-only caching (fails offline after the
+  first visit), hardcoding hashed asset names (forbidden, they change every
+  build). **Decided-by:** coding-agent. **Status:** Proposed in PR #7
+- **Context:** registration must happen only in production builds, from the
+  app bootstrap, and must never swallow the dev server.
+  **Decision:** `src/main.ts` calls
+  `navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)`
+  only when `import.meta.env.PROD` is true and `'serviceWorker' in navigator`;
+  the registration URL uses `BASE_URL` so it resolves to
+  `/winter-calendar-2026/sw.js` on Pages, and the scope is the SW's own
+  directory. Registration failures are logged to the console only (no UI).
+  `npm run dev` has `PROD === false`, so the dev server never registers a SW;
+  `npm run preview` (production build) does, which is what the manual smoke
+  uses. **Alternatives considered:** registering on `window.load` (delays
+  offline capability of the first visit for no benefit here).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #7
+- **Context:** CI has no browser, so the SW lifecycle cannot be fully
+  automated.
+  **Decision:** automated in CI: all pure sw-core logic (base-path parsing,
+  hashed-asset/content/shell/icon predicates, routing incl. non-GET,
+  cross-origin, query-string and malformed-URL cases, cache naming, version
+  bump, orphan-pruning selection, shell precache URL list, asset extraction
+  from HTML) via `src/sw-core.test.ts`. Manual smoke (steps in the PR body,
+  devtools only): SW registers under `npm run preview` but not under
+  `npm run dev`; offline reload boots login/doors/lightbox fully from cache;
+  re-online reload serves fresh shell and prunes stale `wc-*` caches after a
+  version bump. **Alternatives considered:** a headless-browser CI job (new
+  dependency/CI weight, forbidden by the card's zero-dependency rule).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #7
