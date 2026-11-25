@@ -241,7 +241,7 @@
   docs/security-review.md plus housekeeping; residual risks are documented
   in the report, not fixed. **Alternatives considered:** speculative
   hardening (rejected by the card's fix policy). **Decided-by:** coding-agent.
-  **Status:** Proposed in PR #5
+  **Status:** Accepted in PR #5
 - **Context:** `npm audit --json` reports 5 advisories (3 critical, 1 high,
   1 moderate), all in dev-only packages (vitest, tinypool, @vitest/mocker,
   happy-dom, sharp); `npm ls --prod` is empty, so nothing ships to the
@@ -253,4 +253,4 @@
   (`npm audit --json`, shipped-surface check `npm audit --omit=dev`) for the
   human/CI to re-run. **Alternatives considered:** bumping dev dependencies
   in this card (out of scope, conflicts with the pinned set).
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #5
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #5
