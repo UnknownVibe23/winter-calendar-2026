@@ -21,7 +21,7 @@ Single intended user.
 - WC-04 Door Logic, Lightbox, English UI, Deployment: implemented (PR #4)
 - WC-SEC Security Review: implemented (PR #5)
 - WC-05 Scratch-Off Opening + UX Round 1: implemented (PR #6)
-- WC-SW Service Worker, Offline & Data Diet: in progress
+- WC-SW Service Worker, Offline & Data Diet: implemented (PR #7)
 
 ## Working agreements
 See AGENTS.md. Content rules are absolute (no plaintext personal
