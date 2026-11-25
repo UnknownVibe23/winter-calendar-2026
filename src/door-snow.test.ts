@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  DOOR_SNOW_SEED,
   ICICLE_MIN_DEPTH,
   SNOW_DEPTH_MAX,
   SNOW_DUST_DEPTH,

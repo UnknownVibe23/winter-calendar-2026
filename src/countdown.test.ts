@@ -5,7 +5,6 @@ import { resolveNow } from './doors';
 const NOV_15_2025 = new Date(2025, 10, 15, 12, 0, 0);
 const NOV_30_2026 = new Date(2026, 10, 30, 12, 0, 0);
 const DEC_1_2026 = new Date(2026, 11, 1, 0, 0, 0);
-const DEC_5_2026 = new Date(2026, 11, 5, 15, 30, 0);
 const DEC_6_2026 = new Date(2026, 11, 6, 9, 0, 0);
 const DEC_23_2026 = new Date(2026, 11, 23, 23, 59, 0);
 const DEC_24_2026 = new Date(2026, 11, 24, 0, 0, 0);

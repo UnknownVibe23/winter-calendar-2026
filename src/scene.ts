@@ -27,7 +27,6 @@ const CAT = '#3a3f4a';
 const WICK = '#3a2f23';
 const SEAT = '#8f2a38';
 const POT = '#4a2f24';
-const LEAF_DARK = '#163a20';
 const CRATER = '#d9c9a8';
 
 type Attrs = Record<string, string | number>;
@@ -99,6 +98,7 @@ function stage2FrostedPanes(): SVGGElement {
 
 function stage3RooftopSilhouette(): SVGGElement {
   return group([
+    svgEl('ellipse', { cx: 84, cy: 112, rx: 52, ry: 26, fill: CREAM, opacity: 0.07 }),
     rect(32, 116, 18, 16, SKYLINE),
     rect(50, 108, 16, 24, SKYLINE),
     rect(54, 103, 3, 6, SKYLINE),
@@ -139,26 +139,33 @@ function stage7WindowsillWithCandle(): SVGGElement {
 function stage8CandleFlame(): SVGGElement {
   return group([
     circle(71, 104, 14, GOLD, { opacity: 0.18 }),
-    path('M71 94 C75 100 75 106 71 108 C67 106 67 100 71 94 Z', GOLD),
-    path('M71 100 C73 103 73 106 71 107 C69 106 69 103 71 100 Z', CREAM),
+    svgEl('ellipse', { cx: 71, cy: 141, rx: 36, ry: 5, fill: GOLD, opacity: 0.18 }),
+    path('M71 94 C75 100 75 106 71 108 C67 106 67 100 71 94 Z', GOLD, {
+      class: 'scene-flame',
+      style: 'animation-delay:-0.8s',
+    }),
+    path('M71 100 C73 103 73 106 71 107 C69 106 69 103 71 100 Z', CREAM, {
+      class: 'scene-flame',
+      style: 'animation-delay:-1.3s',
+    }),
   ]);
 }
 
 function stage9TartanRug(): SVGGElement {
   const x = 158;
-  const y = 246;
+  const y = 264;
   const w = 100;
-  const h = 46;
+  const h = 34;
   return group([
     rect(x, y, w, h, RED, { rx: 6 }),
     rect(173, y, 5, h, GOLD_CREAM, { opacity: 0.55 }),
     rect(203, y, 5, h, GOLD_CREAM, { opacity: 0.55 }),
     rect(233, y, 5, h, GOLD_CREAM, { opacity: 0.55 }),
-    rect(x, 258, w, 5, PINE, { opacity: 0.6 }),
-    rect(x, 276, w, 5, PINE, { opacity: 0.6 }),
+    rect(x, y + 10, w, 5, PINE, { opacity: 0.6 }),
+    rect(x, y + 26, w, 5, PINE, { opacity: 0.6 }),
     rect(191, y, 2, h, CREAM, { opacity: 0.5 }),
     rect(220, y, 2, h, CREAM, { opacity: 0.5 }),
-    rect(x, 267, w, 2, CREAM, { opacity: 0.4 }),
+    rect(x, y + 18, w, 2, CREAM, { opacity: 0.4 }),
     rect(x + 3, y + 3, w - 6, h - 6, 'none', {
       rx: 4,
       stroke: CREAM,
@@ -176,17 +183,49 @@ function stage10Armchair(): SVGGElement {
     rect(106, 238, 36, 28, SEAT, { rx: 4 }),
     rect(100, 266, 6, 6, POT),
     rect(140, 266, 6, 6, POT),
+    rect(158, 240, 26, 5, WOOD),
+    rect(158, 240, 26, 2, WOOD_LIGHT),
+    rect(161, 245, 3, 24, WOOD_DARK),
+    rect(178, 245, 3, 24, WOOD_DARK),
+    rect(164, 229, 11, 11, RED, { rx: 2 }),
+    svgEl('path', {
+      d: 'M175 232 q5 2.5 0 6',
+      stroke: RED,
+      'stroke-width': 2,
+      fill: 'none',
+    }),
+    svgEl('path', {
+      d: 'M168 226 C166 222 170 219 168 215',
+      stroke: CREAM,
+      'stroke-width': 1.5,
+      fill: 'none',
+      'stroke-linecap': 'round',
+      class: 'scene-steam',
+    }),
   ]);
 }
 
+const WOOL = '#2f7a44';
+
 function stage11ThrowBlanket(): SVGGElement {
   return group([
-    rect(102, 188, 44, 26, PINE, { rx: 6 }),
-    rect(102, 208, 44, 3, LEAF_DARK),
-    rect(107, 214, 3, 6, PINE),
-    rect(117, 214, 3, 6, PINE),
-    rect(127, 214, 3, 6, PINE),
-    rect(137, 214, 3, 6, PINE),
+    rect(102, 188, 44, 26, WOOL, { rx: 6 }),
+    rect(102, 196, 44, 2, GOLD_CREAM, { opacity: 0.8 }),
+    rect(102, 208, 44, 3, CREAM, { opacity: 0.85 }),
+    rect(107, 214, 3, 6, WOOL),
+    rect(117, 214, 3, 6, WOOL),
+    rect(127, 214, 3, 6, WOOL),
+    rect(137, 214, 3, 6, WOOL),
+  ]);
+}
+
+function present(x: number, y: number, w: number, h: number, box: string, ribbon: string): SVGGElement {
+  return group([
+    rect(x, y, w, h, box, { rx: 2 }),
+    rect(x + w / 2 - 1.5, y, 3, h, ribbon),
+    rect(x, y + h / 2 - 1.5, w, 3, ribbon),
+    circle(x + w / 2 - 2.5, y - 1.5, 2, ribbon),
+    circle(x + w / 2 + 2.5, y - 1.5, 2, ribbon),
   ]);
 }
 
@@ -195,17 +234,28 @@ function stage12Fireplace(): SVGGElement {
     rect(236, 110, 108, 142, STONE),
     rect(262, 150, 56, 86, FIREBOX),
     rect(228, 252, 124, 12, STONE_DARK),
+    present(202, 254, 24, 18, RED, GOLD_CREAM),
+    present(210, 244, 15, 11, PINE, CREAM),
   ]);
 }
 
 function stage13FireGlows(): SVGGElement {
   return group([
     circle(290, 202, 34, GOLD, { opacity: 0.16 }),
+    svgEl('ellipse', { cx: 258, cy: 272, rx: 48, ry: 13, fill: ORANGE, opacity: 0.1 }),
     rect(272, 224, 36, 5, TRUNK, { rx: 2 }),
     rect(276, 218, 28, 5, TRUNK, { rx: 2 }),
-    path('M290 178 C300 194 302 206 290 214 C278 206 280 194 290 178 Z', GOLD),
-    path('M290 190 C296 199 297 207 290 212 C283 207 284 199 290 190 Z', ORANGE),
-    path('M290 199 C293 204 293 209 290 211 C287 209 287 204 290 199 Z', CREAM),
+    path('M290 178 C300 194 302 206 290 214 C278 206 280 194 290 178 Z', GOLD, {
+      class: 'scene-flame',
+    }),
+    path('M290 190 C296 199 297 207 290 212 C283 207 284 199 290 190 Z', ORANGE, {
+      class: 'scene-flame',
+      style: 'animation-delay:-0.5s',
+    }),
+    path('M290 199 C293 204 293 209 290 211 C287 209 287 204 290 199 Z', CREAM, {
+      class: 'scene-flame',
+      style: 'animation-delay:-1s',
+    }),
   ]);
 }
 
@@ -252,6 +302,14 @@ function stage17SecondStocking(): SVGGElement {
 
 function stage18WallShelfWithBook(): SVGGElement {
   return group([
+    rect(156, 22, 72, 4, WOOD_DARK),
+    rect(160, 26, 64, 32, RED),
+    rect(172, 26, 4, 32, GOLD_CREAM, { opacity: 0.7 }),
+    rect(196, 26, 4, 32, GOLD_CREAM, { opacity: 0.7 }),
+    rect(216, 26, 4, 32, GOLD_CREAM, { opacity: 0.7 }),
+    rect(160, 34, 64, 4, PINE, { opacity: 0.7 }),
+    rect(160, 48, 64, 4, PINE, { opacity: 0.7 }),
+    rect(160, 26, 64, 32, 'none', { stroke: CREAM, 'stroke-width': 1, opacity: 0.5 }),
     rect(160, 64, 64, 6, WOOD),
     rect(166, 70, 4, 6, WOOD_DARK),
     rect(214, 70, 4, 6, WOOD_DARK),
@@ -297,8 +355,14 @@ function stage21ChristmasTree(): SVGGElement {
     polygon('12,258 68,258 40,214', PINE),
     polygon('18,224 62,224 40,186', PINE),
     polygon('24,192 56,192 40,162', PINE),
+    present(10, 266, 18, 14, PLUM, GOLD_CREAM),
+    present(30, 272, 22, 12, RED, CREAM),
+    present(54, 268, 16, 12, PINE, GOLD_CREAM),
+    present(44, 262, 12, 9, GOLD_CREAM, RED),
   ]);
 }
+
+const LIGHT_COLORS: readonly string[] = [GOLD, CREAM, ORANGE];
 
 function stage22StringLights(): SVGGElement {
   const children: SVGElement[] = [];
@@ -310,7 +374,16 @@ function stage22StringLights(): SVGGElement {
   for (const [x1, y1, x2, y2] of strands) {
     for (let i = 0; i <= 6; i += 1) {
       const t = i / 6;
-      children.push(circle(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, 2, index % 2 === 0 ? GOLD : CREAM));
+      const x = x1 + (x2 - x1) * t;
+      const y = y1 + (y2 - y1) * t;
+      const color = LIGHT_COLORS[index % LIGHT_COLORS.length];
+      children.push(circle(x, y, 4.5, color, { opacity: 0.22 }));
+      children.push(
+        circle(x, y, 2, color, {
+          class: 'scene-light',
+          style: `animation-delay:-${((index * 0.45) % 2.8).toFixed(2)}s`,
+        }),
+      );
       index += 1;
     }
   }

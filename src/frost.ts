@@ -52,8 +52,6 @@ function clamp(value: number, min: number, max: number): number {
 export function frostBloomsForDoor(doorNumber: number, width: number, height: number): FrostBloom[] {
   const rand = createPrng(FROST_SEED + doorNumber * 104729);
   const count = BLOOM_MIN + Math.floor(rand() * BLOOM_EXTRA);
-  const marginX = width * CORNER_MARGIN;
-  const marginY = height * CORNER_MARGIN;
   const blooms: FrostBloom[] = [];
   for (let index = 0; index < count; index += 1) {
     const anchor = ANCHORS[Math.floor(rand() * ANCHORS.length)];

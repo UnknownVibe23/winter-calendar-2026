@@ -33,6 +33,57 @@ describe('renderScene', () => {
     const scene = renderScene(new Set(Array.from({ length: 24 }, (_, index) => index + 1)));
     expect(scene.querySelectorAll<SVGGElement>('g.scene-stage--earned')).toHaveLength(24);
   });
+
+  it('keeps the locked 24-stage order and enriches stages without adding stages', () => {
+    const scene = renderScene(new Set());
+    const stages = Array.from(scene.querySelectorAll<SVGGElement>('g.scene-stage'));
+    expect(stages.map((stage) => stage.dataset.stage)).toEqual(
+      Array.from({ length: 24 }, (_, index) => String(index + 1)),
+    );
+    expect(scene.querySelectorAll('g.scene-stage').length).toBe(24);
+  });
+
+  it('lays the rug fully in front of the hearth (no overlap with the fireplace stage)', () => {
+    const scene = renderScene(new Set());
+    const stageRects = (stage: string): SVGRectElement[] =>
+      Array.from(
+        scene.querySelectorAll<SVGGElement>(`g.scene-stage[data-stage="${stage}"]`),
+      ).flatMap((groupEl) =>
+        Array.from(groupEl.children).filter(
+          (child): child is SVGRectElement => child.tagName === 'rect',
+        ),
+      );
+    const rug = stageRects('9');
+    const hearth = stageRects('12');
+    expect(rug.length).toBeGreaterThan(0);
+    expect(hearth.length).toBeGreaterThan(0);
+    const rugTop = Math.min(...rug.map((r) => Number(r.getAttribute('y'))));
+    const hearthBottom = Math.max(
+      ...hearth.map((r) => Number(r.getAttribute('y')) + Number(r.getAttribute('height'))),
+    );
+    expect(rugTop).toBeGreaterThanOrEqual(hearthBottom);
+  });
+
+  it('adds presents, flickering flames, twinkling lights, steam, spill and banner inside existing stages', () => {
+    const scene = renderScene(new Set());
+    const stage = (n: number): SVGGElement => {
+      const el = scene.querySelector<SVGGElement>(`g.scene-stage[data-stage="${n}"]`);
+      if (!el) {
+        throw new Error(`stage ${n} missing`);
+      }
+      return el;
+    };
+    expect(stage(21).querySelectorAll('g rect').length).toBeGreaterThanOrEqual(4);
+    expect(stage(12).querySelectorAll('g rect').length).toBeGreaterThanOrEqual(2);
+    expect(stage(13).querySelectorAll('path.scene-flame').length).toBe(3);
+    expect(stage(8).querySelectorAll('path.scene-flame').length).toBe(2);
+    expect(stage(22).querySelectorAll('circle.scene-light').length).toBe(14);
+    expect(stage(10).querySelectorAll('path.scene-steam').length).toBe(1);
+    expect(stage(13).querySelectorAll('ellipse').length).toBeGreaterThanOrEqual(1);
+    expect(stage(8).querySelectorAll('ellipse').length).toBeGreaterThanOrEqual(1);
+    expect(stage(18).querySelectorAll('rect').length).toBeGreaterThanOrEqual(8);
+    expect(stage(3).querySelectorAll('ellipse').length).toBe(1);
+  });
 });
 
 describe('syncSceneStages', () => {
