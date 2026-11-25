@@ -518,3 +518,194 @@
   **Alternatives considered:** headless-browser visual CI (rejected: no new
   dependencies allowed). **Decided-by:** coding-agent. **Status:** Proposed in
   PR #8
+- **Context:** WC-06T display font "Mountains of Christmas": the card says
+  SIL OFL by SorkinType and an `public/fonts/OFL.txt`, but the upstream
+  Google Fonts metadata (google/fonts `apache/mountainsofchristmas`,
+  METADATA.pb and the fonts.google.com license tab) says the font is
+  designed by Tart Workshop (Crystal Kluge), copyright Font Diner, Inc
+  DBA Tart Workshop, licensed under the Apache License 2.0.
+  **Decision:** ship the woff2 files (latin 400/700, byte-identical to the
+  fontsource/font-files copies of the Google-served files, git blob SHAs
+  d734fed37b0775908075ec1dce909edc85a264b5 and
+  e922ef5ae7abc03e71d8250e4d9f7ab8a0c76572) in `public/fonts/` together with
+  the font's actual license text as `public/fonts/LICENSE.txt` (Apache
+  2.0, from google/fonts), NOT a file named OFL.txt — committing Apache
+  text under an OFL name would be wrong. README.md carries the attribution
+  (font name, designer Tart Workshop, Apache-2.0). No npm dependency, no
+  runtime CDN reference; `@font-face` with `font-display: swap` in
+  `src/styles/base.css` points at the local `/fonts/...` files (Vite
+  prefixes the Pages base at build; verified in dist CSS). The fs test
+  `src/fonts.test.ts` asserts the two woff2 files (wOF2 magic) and the
+  license text. The card's OFL/SorkinType attribution is reported as a
+  deviation in the PR addendum and open questions.
+  **Alternatives considered:** following the card literally and shipping
+  an OFL.txt (rejected: factually wrong license for these binaries);
+  using the Google CDN at runtime (rejected: offline + privacy rule).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T where the display font is used vs the body sans.
+  **Decision:** `--font-display: 'Mountains of Christmas', Georgia,
+  'Times New Roman', serif` in `:root`; used by the header title
+  (`.calendar-header h1`), the countdown line (`.calendar-subtitle`), the
+  DOM door numbers (`.door-number`), and the lightbox door texts
+  (`.lightbox-header`, `.lightbox-text`). Body usage is unchanged clean
+  sans (login screen, inputs, buttons, error messages, lightbox close).
+  **Alternatives considered:** display font everywhere (rejected:
+  readability first for form controls). **Decided-by:** coding-agent.
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T scratch-canvas number font: never render a fallback
+  font on slow devices.
+  **Decision:** `paintFrost` uses `700 <size>px "Mountains of Christmas",
+  Georgia, serif` and `attachScratchOverlay` defers the FIRST paint until
+  `document.fonts.load('700 <size>px "Mountains of Christmas"')` and
+  `document.fonts.ready` settle (`whenDisplayFontReady` in
+  `src/scratch-canvas.ts`); if the FontFaceSet API is missing (happy-dom
+  tests) or the load rejects, it paints immediately as a failure fallback
+  so a door can never get stuck. A `painted` flag additionally gates the
+  scratch-threshold check so an unpainted (transparent) canvas can never
+  read as 100% scratched. Scratch mechanics, 0.7 threshold and tap
+  fallback are untouched. happy-dom has no `document.fonts`, so the unit
+  tests exercise the synchronous path plus one test that stubs a
+  FontFaceSet and asserts the paint waits for `load`.
+  **Alternatives considered:** painting immediately with the fallback
+  (rejected by the card), CSS-only number (rejected: the number must be
+  scratched away with the frost). **Decided-by:** coding-agent.
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T a11y after the font swap: door numbers must stay >=
+  4.5:1 on their tint.
+  **Decision:** contrast is a pure function of the two colors, so the font
+  swap cannot change it: the locked 5 tints and the computed number colors
+  are unchanged (cream #f3e2c3 on deep-red/pine/midnight/plum, night-blue
+  #0b1d3a on gold-cream; ratios 8.01/7.66/13.17/10.04 and 7.00, all >= 4.5,
+  unit-tested in `src/door-palette.test.ts`). The canvas number uses the
+  same `tint.number` (asserted in scratch-canvas tests), the DOM
+  `.door-number` sits on the door background, not the frost tint. The new
+  font's different x-height affects legibility, not the WCAG contrast
+  ratio; manual smoke checks legibility.
+  **Alternatives considered:** darkening tints (rejected: palette is
+  locked). **Decided-by:** coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T real countdown text and phases.
+  **Decision:** `src/countdown.ts` (pure, unit-tested): `countdownPhase`
+  = counting before Dec 24 2026, christmasEve on Dec 24, after from
+  Dec 25 on; `daysUntilChristmasEve` counts whole local calendar days
+  (UTC-midnight diff, rounded, clamped at 0: 0 on Dec 24, never negative);
+  `countdownText` = "X days until Christmas Eve" / "1 day until Christmas
+  Eve" / "It’s Christmas Eve!" / "Merry Christmas!". The card only pins
+  Dec 25-26 for the after-phase line; the whole after phase (Dec 25+,
+  incl. later dates) shows "Merry Christmas!" — logged here as the minimal
+  reading of the three phase states. The subtitle is rendered from the
+  already override-aware `now` (`resolveNow` handles `?date=` in dev), so
+  the override path is respected end to end (tested). In the counting
+  phase the number is wrapped in `span.countdown-number` carrying a soft
+  golden CSS text-shadow glow (no gradient text). Existing header tests
+  were adapted to the date-dependent strings (strength kept).
+  **Alternatives considered:** static subtitle (rejected by the card),
+  separate "after Dec 26" phase (rejected: card lists exactly three
+  phases). **Decided-by:** coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T snowfall depth overhaul and the A55 perf budget.
+  **Decision:** `src/snow.ts` now models THREE depth layers with constant
+  proportions (far 50% fine/fast, mid 35% medium, near 15% large/slow/few,
+  disjoint radius and speed ranges, per-layer alpha 0.45/0.65/0.9).
+  Density: `particlesForDay(day) = min(180, 36 + day*6)` (day clamped
+  1..24) — 42 flakes on Dec 1, full 180 on Dec 24; pre-Dec-1 and
+  post-Dec-24 behavior of `snowDayForDate` unchanged (1 / 24).
+  `layerCountsForDay` uses largest-remainder rounding so the proportions
+  stay constant and the counts always sum to the total. Each layer is
+  seeded with its own PRNG (`seed + layerIndex * 7919`), so the field is
+  fully deterministic. Perf note: the rAF loop still clears once and draws
+  at most 180 arcs with only 3 fillStyle changes per frame (one per layer,
+  particles grouped by layer), DPR capped at 2 as before — well inside
+  the A55 budget alongside the scene and grid; no new loops or layers.
+  **Alternatives considered:** keeping 60 flakes (rejected: card wants
+  ~180 in three perceptible layers), DOM flakes (rejected: canvas is
+  cheaper at 180 nodes). **Decided-by:** coding-agent. **Status:**
+  Proposed in PR #8
+- **Context:** WC-06T festive frost instead of the woven checkerboard.
+  **Decision:** new pure `src/frost.ts`: `frostBloomsForDoor` (7-10 soft
+  rounded blooms anchored at the four corners and four edge midpoints
+  within 30% margin, each a base circle plus 3-5 overlapping puffs,
+  translucent cream alpha 0.05-0.12) and `frostStarsForDoor` (5-8 tiny
+  cross-stroke stars, kept outside the central number area), both seeded
+  per door number (`FROST_SEED + door * prime`) so every door differs but
+  is identical on every device. `paintFrost` keeps the locked per-door
+  tint base and contrast-safe number, paints blooms as arcs and stars as
+  strokes over it. Scratch-canvas tests were adapted at full strength:
+  they now record fill/arc/stroke calls and assert bloom counts, the
+  translucent cream paint list, per-door determinism (identical paint
+  list) and per-door variation, the tint base, the number color and the
+  display-font string — no assertion was weakened, only translated.
+  **Alternatives considered:** keeping the weave (rejected by the card),
+  random per-paint texture (rejected: determinism required).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T unopened doors frost over day by day.
+  **Decision:** new pure `src/door-snow.ts` (fully unit-tested):
+  `snowDepthForDoor(n, now, opened)` = 0 for opened doors; otherwise a
+  base dusting of 0.15 from Dec 1 (0 before Dec 1) plus 0.05 per whole
+  local day since that door's own unlock date, clamped to 0.55 (fraction
+  of door height). Cap shape: seeded 2-3 bumps across the width
+  (`snowCapShapeForDoor`); icicles: none below depth 0.3, else 2-4 seeded
+  translucent icicles at the left/right corners/edges (`iciclesForDoor`).
+  Rendering: a static per-door SVG overlay (`viewBox 0 0 100 100`,
+  `preserveAspectRatio="none"`, class `door-snow`, pointer-events none,
+  z-index above the scratch frost) with a soft under-cap + cream cap path
+  and icicle paths — no animation loop. Opened doors instead get a warm
+  cream CSS box-shadow glow on the tile (`.door--opened`). Opening a not-
+  yet-opened door fires `sparkleBurst`: 6-8 seeded star shapes with a
+  one-shot 600ms CSS scale/fade (deterministic positions/delays from the
+  door seed), removed on animationend or after 750ms — no lasting
+  particles, no loop. `syncDoorSnow` is called at render and on activate.
+  **Alternatives considered:** canvas caps (rejected: static SVG is
+  cheaper and inspectable), animated snow (rejected: A55 budget).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T rug/hearth geometry fix.
+  **Decision:** the tartan rug (stage 9) moved from y=246 h=46 to y=264
+  h=34 (x=158 w=100 unchanged, stripes rebased), so it now lies fully in
+  front of the hearth slab (bottom y=264) and no longer extends under the
+  fireplace body (bottom y=252); the stage-12 fireplace still paints after
+  stage 9, and a scene test asserts rugTop >= hearthBottom over the direct
+  rects of both stage groups. No other stage moved. **Alternatives
+  considered:** reordering stages (rejected: stage order is locked).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T cozy living-room upgrade inside the locked stages.
+  **Decision:** all enrichment lives inside existing stage groups (the
+  24-stage list and order are unchanged, tested): 4 wrapped presents under
+  the tree (stage 21) and 2 beside the fireplace (stage 12); flame shapes
+  in stages 8 and 13 get class `scene-flame` (CSS opacity/scale flicker
+  1.6s infinite, per-shape delays, `transform-box: fill-box`); the 14
+  string-light dots (stage 22) get a halo plus class `scene-light` with
+  deterministic inline `animation-delay` (2.8s alternating twinkle, warm
+  gold/cream/orange); warm low-opacity ellipse spills from the fire onto
+  the rug (stage 13) and from the candle onto the sill (stage 8); a side
+  table with a steaming mug next to the armchair (stage 10, `scene-steam`
+  opacity wisp 2.6s); a higher-contrast wool blanket (stage 11, brighter
+  green + cream/gold stripes); a tartan wall banner above the shelf
+  (stage 18); a soft cream glow behind the castle silhouette (stage 3).
+  All animations are pure CSS keyframes with `prefers-reduced-motion`
+  fallbacks; allowed loops only: fire flicker, string lights, steam, star
+  twinkle. No external images, no fonts inside SVG. **Alternatives
+  considered:** new stages for the extras (rejected: stage list locked).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T starry page background.
+  **Decision:** new pure `src/stars.ts`: 48 seeded stars in viewport
+  fractions (`STAR_SEED`), every third twinkling with a seeded delay (0-4s)
+  and duration (2.5-5s); `renderStarLayer` prepends a fixed
+  `pointer-events: none` `div.star-layer` (z-index 0) to the body in
+  `main.ts` AFTER `attachSnowfall`, so DOM order puts the snow canvas
+  above the stars and `#app` (z-index 1) above both; the deep night-blue
+  base and vignette are unchanged; no aurora (reserved for WC-07).
+  **Alternatives considered:** canvas stars (rejected: CSS twinkle needs
+  DOM), more than ~50 stars (rejected: A55 budget). **Decided-by:**
+  coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T automated-vs-manual split after the tuning round.
+  **Decision:** automated: 267 unit tests (fonts fs test, countdown
+  phases/edges/override, snow layers/counts/bounds/density, snow canvas,
+  frost bloom layout + paint-list assertions, door-snow depth/cap/icicles/
+  overlay/sparkle, stars, scene stage invariants incl. the rug/hearth fix
+  and the enriched stages, calendar wiring incl. snow caps + sparkle,
+  all pre-existing scratch/zoom/login/crypto/SW tests unchanged or
+  translated at full strength). Manual smoke (human art verdict via
+  `npm run dev` with `?date=` overrides): actual look of blooms, snow
+  depth layers, cap/icicle shapes, sparkle feel, fire/lights/steam motion,
+  font rendering, A55 smoothness, countdown lines per date.
+  **Alternatives considered:** headless-browser visual CI (rejected: no
+  new dependencies allowed). **Decided-by:** coding-agent. **Status:**
+  Proposed in PR #8
