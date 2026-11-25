@@ -87,12 +87,28 @@ describe('renderCalendar', () => {
     ).toEqual(['1']);
   });
 
-  it('renders the English header', () => {
+  it('renders the English header with the live countdown for the current date', () => {
     render(container, new Set(), DEC_5);
     expect(container.querySelector('h1')?.textContent).toBe('Advent Calendar');
     expect(container.querySelector('.calendar-subtitle')?.textContent).toBe(
-      '24 days until Christmas Eve',
+      '19 days until Christmas Eve',
     );
+    expect(container.querySelector('.calendar-subtitle .countdown-number')?.textContent).toBe('19');
+  });
+
+  it('renders the singular countdown, Christmas Eve and Merry Christmas lines', () => {
+    const DEC_23 = new Date(2026, 11, 23, 12, 0, 0);
+    render(container, new Set(), DEC_23);
+    expect(container.querySelector('.calendar-subtitle')?.textContent).toBe(
+      '1 day until Christmas Eve',
+    );
+    container.replaceChildren();
+    render(container, new Set(), new Date(2026, 11, 24, 12, 0, 0));
+    expect(container.querySelector('.calendar-subtitle')?.textContent).toBe('It’s Christmas Eve!');
+    expect(container.querySelector('.calendar-subtitle .countdown-number')).toBeNull();
+    container.replaceChildren();
+    render(container, new Set(), DEC_26);
+    expect(container.querySelector('.calendar-subtitle')?.textContent).toBe('Merry Christmas!');
   });
 
   it('renders a thumbnail image and a number span per door', () => {

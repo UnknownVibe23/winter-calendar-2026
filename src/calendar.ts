@@ -1,5 +1,6 @@
 import { attachScratchOverlay, type ScratchHandle } from './scratch-canvas';
 import type { Content, DoorPhoto } from './content';
+import { countdownPhase, countdownText, daysUntilChristmasEve } from './countdown';
 import { doorState, todayDoor, type DoorState } from './doors';
 import { renderScene, syncSceneStages } from './scene';
 
@@ -60,7 +61,15 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
 
   const subtitle = document.createElement('p');
   subtitle.className = 'calendar-subtitle';
-  subtitle.textContent = '24 days until Christmas Eve';
+  if (countdownPhase(options.now) === 'counting') {
+    const days = daysUntilChristmasEve(options.now);
+    const number = document.createElement('span');
+    number.className = 'countdown-number';
+    number.textContent = String(days);
+    subtitle.append(number, ` ${days === 1 ? 'day' : 'days'} until Christmas Eve`);
+  } else {
+    subtitle.textContent = countdownText(options.now);
+  }
 
   header.append(title, subtitle);
 

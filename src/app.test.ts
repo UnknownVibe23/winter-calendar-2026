@@ -48,7 +48,7 @@ describe('renderApp', () => {
     renderApp(container, content, DEC_5);
     expect(container.querySelector('h1')?.textContent).toBe('Advent Calendar');
     expect(container.querySelector('.calendar-subtitle')?.textContent).toBe(
-      '24 days until Christmas Eve',
+      '19 days until Christmas Eve',
     );
     const doors = Array.from(container.querySelectorAll('button.door'));
     expect(doors).toHaveLength(24);
