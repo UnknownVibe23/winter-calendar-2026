@@ -170,7 +170,7 @@
   functions (`doorState`, `todayDoor`) take an explicit `now: Date` parameter so
   tests are deterministic; door n unlocks at local midnight of December n, 2026.
   **Alternatives considered:** server time, UTC-only dates. **Decided-by:**
-  planner. **Status:** Proposed in PR #4
+  planner. **Status:** Accepted in PR #4
 - **Context:** dev-only date override `?date=YYYY-MM-DD`.
   **Decision:** the parameter replaces "today" for all door logic only when
   `import.meta.env.DEV` is true (dev server and tests); production builds ignore
@@ -178,30 +178,30 @@
   to the real clock with a `console.warn` in dev only. `resolveNow(search, dev)`
   takes the dev flag as a parameter so tests can exercise both modes.
   **Alternatives considered:** honoring the parameter in production.
-  **Decided-by:** planner. **Status:** Proposed in PR #4
+  **Decided-by:** planner. **Status:** Accepted in PR #4
 - **Context:** where the new grid rendering lives (the card allowed extending
   renderCalendar or adding a module).
   **Decision:** `renderCalendar` is extended in place in src/calendar.ts with an
   options object `{ opened, now, onDoorActivate }`; the frozen permutation
   `DOOR_ORDER` is only the grid position, each door's identity stays its real
   number. **Alternatives considered:** a separate render module.
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #4
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #4
 - **Context:** aria-label and today-marker when today's door is already opened.
   **Decision:** `opened` wins the aria-label ("Door n, opened"); the
   `.door--today` class is still applied to today's door in any state.
   **Alternatives considered:** "opens today" even when already opened.
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #4
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #4
 - **Context:** parsing the stored opened set `wc.opened`.
   **Decision:** missing value, invalid JSON or a non-array value yield an empty
   set; array entries that are not integers are skipped individually; saving
   writes a sorted JSON array so re-saving never duplicates entries.
   **Alternatives considered:** discarding the whole array on any bad entry.
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #4
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #4
 - **Context:** removing the locked-door shake class.
   **Decision:** the `door--shake` class is removed on the `animationend` event
   (re-adding first with a reflow so repeated taps re-trigger the animation).
   **Alternatives considered:** a timer-based removal. **Decided-by:**
-  coding-agent. **Status:** Proposed in PR #4
+  coding-agent. **Status:** Accepted in PR #4
 - **Context:** lightbox photo and text rendering (XSS safety, privacy, aspect ratio).
   **Decision:** the photo is an `<img>` with `src` `data:image/jpeg;base64,...`,
   `object-fit: contain` with max-width 100% / max-height 55vh so the original
@@ -210,17 +210,17 @@
   via `textContent` only, never `innerHTML`. No swipe navigation between doors
   and no pinch/swipe/zoom inside the lightbox (deferred polish).
   **Alternatives considered:** showing the file name, innerHTML insertion,
-  swipe navigation. **Decided-by:** planner. **Status:** Proposed in PR #4
+  swipe navigation. **Decided-by:** planner. **Status:** Accepted in PR #4
 - **Context:** PWA manifest English strings.
   **Decision:** `name` "Winter Calendar 2026", `short_name` "Winter Calendar",
   `description` "An advent calendar with 24 doors until Christmas Eve".
   **Alternatives considered:** keeping the German short_name. **Decided-by:**
-  planner. **Status:** Proposed in PR #4
+  planner. **Status:** Accepted in PR #4
 - **Context:** dev placeholder content language in scripts/encode.mjs.
   **Decision:** English dev DATA only: name "Tester", greeting "Welcome", door
   texts "Placeholder number 1..24"; real content language stays the human's free
   choice. **Alternatives considered:** keeping German placeholders.
-  **Decided-by:** planner. **Status:** Proposed in PR #4
+  **Decided-by:** planner. **Status:** Accepted in PR #4
 - **Context:** asset URLs under the Pages subpath base '/winter-calendar-2026/'
   (supersedes the PR #1 root-absolute rule for the manifest).
   **Decision:** Vite rewrites the absolute asset URLs in index.html with the
@@ -228,9 +228,29 @@
   public/ is copied verbatim, so its `start_url` and icon `src` values are now
   relative ("./", "icons/...") and resolve correctly under the subpath.
   **Alternatives considered:** keeping root-absolute manifest URLs (404 under
-  the Pages subpath). **Decided-by:** coding-agent. **Status:** Proposed in PR #4
+  the Pages subpath). **Decided-by:** coding-agent. **Status:** Accepted in PR #4
 - **Context:** index.html title and meta description.
   **Decision:** `<title>Winter Calendar 2026</title>` and meta description
   "Winter Calendar 2026 – advent calendar with 24 doors until Christmas Eve".
   **Alternatives considered:** leaving the title as "Winter Calendar".
-  **Decided-by:** coding-agent. **Status:** Proposed in PR #4
+  **Decided-by:** coding-agent. **Status:** Accepted in PR #4
+- **Context:** the WC-SEC audit found no Critical/High finding in the shipped
+  code (all 10 scope items pass or are accepted risks), so the card's fix
+  policy calls for no code changes.
+  **Decision:** WC-SEC is report-only: the deliverable is
+  docs/security-review.md plus housekeeping; residual risks are documented
+  in the report, not fixed. **Alternatives considered:** speculative
+  hardening (rejected by the card's fix policy). **Decided-by:** coding-agent.
+  **Status:** Proposed in PR #5
+- **Context:** `npm audit --json` reports 5 advisories (3 critical, 1 high,
+  1 moderate), all in dev-only packages (vitest, tinypool, @vitest/mocker,
+  happy-dom, sharp); `npm ls --prod` is empty, so nothing ships to the
+  deployed site.
+  **Decision:** accept the dev-only advisory exposure without version bumps
+  in this card — the suggested majors (vitest 5, happy-dom 21, sharp 0.35.5)
+  conflict with the pinned dependency set accepted in PR #1, and the exposed
+  surface is CI/local dev machines only; the report records the exact command
+  (`npm audit --json`, shipped-surface check `npm audit --omit=dev`) for the
+  human/CI to re-run. **Alternatives considered:** bumping dev dependencies
+  in this card (out of scope, conflicts with the pinned set).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #5
