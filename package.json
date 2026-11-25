@@ -9,7 +9,7 @@
     "test": "vitest run",
     "lint": "eslint .",
     "icons": "node scripts/generate-icons.mjs",
-    "bundle": "node scripts/make-test-bundle.mjs"
+    "bundle": "node scripts/encode.mjs --placeholders"
   },
   "devDependencies": {
     "eslint": "^9.39.5",
