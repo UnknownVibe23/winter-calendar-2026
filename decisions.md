@@ -57,3 +57,43 @@
   repo root via npm scripts). **Alternatives considered:** import.meta.url +
   fileURLToPath (fails under happy-dom). **Decided-by:** coding-agent.
   **Status:** Accepted in PR #1
+- **Context:** the `iterations` parameter of `deriveKeyBits` (the card fixes
+  600000 for production but wants fast tests).
+  **Decision:** `deriveKeyBits(name, password, saltBytes, iterations = 600000)`;
+  the optional parameter defaults to 600000 and exists only so tests can run
+  faster; production callers never pass it.
+  **Alternatives considered:** a separate test-only derive function.
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #2
+- **Context:** what the persisted session stores, and what happens when a
+  stored session no longer decrypts the bundle.
+  **Decision:** `wc.key` holds the base64-encoded derived key bits and
+  `wc.name` the entered name; the password is never stored. A session that
+  fails the silent decrypt falls back to the login and is overwritten on the
+  next successful login.
+  **Alternatives considered:** storing the password (rejected: the password
+  itself would sit in localStorage).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #2
+- **Context:** the login lockout is client-side only.
+  **Decision:** the delay ladder (2/4/8/16/32 s by failed attempt number,
+  capped at 32 s) is a cosmetic fallback, documented as such in a comment in
+  src/lockout.ts; its state lives in `wc.attempts` / `wc.until` and a
+  successful login resets it.
+  **Alternatives considered:** none feasible for a fully offline static site.
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #2
+- **Context:** shared base64 helpers and the encrypt direction needed by tests.
+  **Decision:** base64 encode/decode live in src/base64.ts and are used by
+  crypto.ts and session.ts; the encrypt direction (only needed to build test
+  fixtures) lives in src/test-utils.ts, which the app bundle never imports.
+  **Alternatives considered:** exporting an encrypt function from crypto.ts
+  (would widen the production API beyond the card).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #2
+- **Context:** placement of the welcome line relative to header and grid.
+  **Decision:** renderApp inserts `<p class="welcome">` between the header and
+  the grid via insertBefore, leaving renderCalendar unchanged.
+  **Alternatives considered:** welcome line above the header.
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #2
+- **Context:** URL used to fetch the encrypted bundle at runtime.
+  **Decision:** `${import.meta.env.BASE_URL}content.enc`, so the fetch follows
+  the configured vite base.
+  **Alternatives considered:** hard-coded '/content.enc'.
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #2
