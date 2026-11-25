@@ -66,8 +66,6 @@ async function writeValidFixture(dir: string): Promise<void> {
     .toFile(path.join(dir, 'content', 'photos', '02.png'));
   await writeContentJson(dir, {
     v: 1,
-    name: 'Tester',
-    greeting: 'Welcome',
     doors: validDoors(),
   });
 }
@@ -101,6 +99,16 @@ function expectJpeg(photo: DoorPhoto): void {
   expect(photo.h).toBeGreaterThan(0);
 }
 
+async function expectThumb(photo: DoorPhoto): Promise<void> {
+  const bytes = base64ToBytes(photo.thumb);
+  expect(bytes[0]).toBe(0xff);
+  expect(bytes[1]).toBe(0xd8);
+  const metadata = await sharp(bytes).metadata();
+  expect(metadata.width).toBe(320);
+  expect(metadata.height).toBe(320);
+  expect(metadata.format).toBe('jpeg');
+}
+
 function photoOf(content: Content, n: number): DoorPhoto {
   const door = content.doors.find((entry) => entry.n === n);
   if (!door?.photo) {
@@ -127,14 +135,15 @@ describe('scripts/encode.mjs', () => {
 
       const content = await decryptWith(bundle, 'tester', 'schnee123');
       expect(content.v).toBe(1);
-      expect(content.name).toBe('Tester');
-      expect(content.greeting).toBe('Welcome');
+      expect('name' in content).toBe(false);
+      expect('greeting' in content).toBe(false);
       expect(content.doors.map((door) => door.n)).toEqual(
         Array.from({ length: 24 }, (_, index) => index + 1),
       );
       for (const door of content.doors) {
         if (door.n === 1 || door.n === 2) {
           expectJpeg(photoOf(content, door.n));
+          await expectThumb(photoOf(content, door.n));
         } else {
           expect(door.photo).toBeUndefined();
         }
@@ -166,10 +175,7 @@ describe('scripts/encode.mjs', () => {
   it(
     'rejects a missing door and names it',
     async () => {
-      await expectValidationFailure(
-        { v: 1, name: 'T', greeting: 'G', doors: textDoors().slice(0, 23) },
-        /door 24: missing/,
-      );
+      await expectValidationFailure({ v: 1, doors: textDoors().slice(0, 23) }, /door 24: missing/);
     },
     TEST_TIMEOUT,
   );
@@ -179,7 +185,7 @@ describe('scripts/encode.mjs', () => {
     async () => {
       const doors = textDoors();
       doors[23] = { n: 5, text: 'duplicate' };
-      await expectValidationFailure({ v: 1, name: 'T', greeting: 'G', doors }, /door 5: duplicate/);
+      await expectValidationFailure({ v: 1, doors }, /door 5: duplicate/);
     },
     TEST_TIMEOUT,
   );
@@ -189,10 +195,7 @@ describe('scripts/encode.mjs', () => {
     async () => {
       const doors = textDoors();
       doors[2] = { n: 3, text: 'T3', photo: 'photos/03.jpg' };
-      await expectValidationFailure(
-        { v: 1, name: 'T', greeting: 'G', doors },
-        /door 3: photo file not found/,
-      );
+      await expectValidationFailure({ v: 1, doors }, /door 3: photo file not found/);
     },
     TEST_TIMEOUT,
   );
@@ -202,10 +205,7 @@ describe('scripts/encode.mjs', () => {
     async () => {
       const doors = textDoors();
       doors[6] = { n: 7, text: '' };
-      await expectValidationFailure(
-        { v: 1, name: 'T', greeting: 'G', doors },
-        /door 7: text must be a non-empty string/,
-      );
+      await expectValidationFailure({ v: 1, doors }, /door 7: text must be a non-empty string/);
     },
     TEST_TIMEOUT,
   );
@@ -235,9 +235,8 @@ describe('scripts/encode.mjs', () => {
       const bundle = await readBundle(dir);
       expect(bundle.v).toBe(1);
       expect(bundle.alg).toBe('PBKDF2-SHA256-AES-GCM');
+      expect(outputOf(result)).toMatch(/Average thumbnail payload: [\d.]+ KB base64 per photo/);
       const content = await decryptWith(bundle, 'tester', 'schnee123');
-      expect(content.name).toBe('Tester');
-      expect(content.greeting).toBe('Welcome');
       expect(content.doors).toHaveLength(24);
       expect(content.doors.map((door) => door.n)).toEqual(
         Array.from({ length: 24 }, (_, index) => index + 1),
@@ -245,6 +244,7 @@ describe('scripts/encode.mjs', () => {
       for (const door of content.doors) {
         const photo = photoOf(content, door.n);
         expectJpeg(photo);
+        await expectThumb(photo);
         expect(photo.name).toBe(`${String(door.n).padStart(2, '0')}.jpg`);
       }
       expect(content.doors[0].text).toBe('Placeholder number 1');

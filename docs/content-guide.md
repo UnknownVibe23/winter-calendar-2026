@@ -23,8 +23,6 @@ content/
 ```json
 {
   "v": 1,
-  "name": "shown in the welcome line",
-  "greeting": "shown in the welcome line",
   "doors": [
     { "n": 1, "text": "the message of the door", "photo": "photos/01.jpg" }
   ]
@@ -45,7 +43,11 @@ Rules:
 - Any orientation works. The encoder normalizes the size, not the aspect
   ratio: each photo is scaled to fit inside a 1600 px long edge with its
   original aspect ratio preserved, then re-encoded as JPEG (quality 82).
-  Photos already smaller than 1600 px are kept as they are.
+  Photos already smaller than 1600 px are kept as they are. This full-size
+  image is used only by the lightbox.
+- Additionally the encoder derives a square 320x320 center-crop JPEG
+  thumbnail (quality 70) per photo. The grid shows only this thumbnail for
+  opened doors, so full-size images are never decoded in the grid.
 - Recommended source resolution: at least 1200 px on the long edge, so the
   downscaled result stays crisp.
 - The JPEG re-encode drops most EXIF metadata (camera info, GPS, …) — that is
@@ -75,6 +77,7 @@ and the bundle path with its size, e.g.:
 ```
 Doors encoded: 24 (photos embedded: 18)
 Average photo payload: 412.3 KB base64 per photo
+Average thumbnail payload: 12.4 KB base64 per photo (320x320 JPEG q70)
 Bundle written to public/content.enc (7.91 MB)
 ```
 

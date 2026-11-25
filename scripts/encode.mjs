@@ -13,14 +13,14 @@ const DOOR_COUNT = 24;
 const DEFAULT_ITERATIONS = 600000;
 const MAX_LONG_EDGE = 1600;
 const JPEG_QUALITY = 82;
+const THUMB_SIZE = 320;
+const THUMB_QUALITY = 70;
 const MAX_TEXT_LENGTH = 4000;
 const WARN_BUNDLE_BYTES = 8 * 1024 * 1024;
 const PHOTO_PREFIX = 'photos/';
 const PHOTO_EXTENSIONS = ['.jpg', '.jpeg', '.png'];
 const PLACEHOLDER_LOGIN = 'tester';
 const PLACEHOLDER_PASSWORD = 'schnee123';
-const PLACEHOLDER_NAME = 'Tester';
-const PLACEHOLDER_GREETING = 'Welcome';
 const PLACEHOLDER_BACKGROUND = '#0b1d3a';
 const PLACEHOLDER_TEXT_COLOR = '#f3e2c3';
 
@@ -128,12 +128,6 @@ function validate(parsed, contentDir) {
   if (parsed.v !== 1) {
     problems.push(`v must be 1 (got ${JSON.stringify(parsed.v)})`);
   }
-  if (typeof parsed.name !== 'string' || parsed.name.trim() === '') {
-    problems.push('name must be a non-empty string');
-  }
-  if (typeof parsed.greeting !== 'string' || parsed.greeting.trim() === '') {
-    problems.push('greeting must be a non-empty string');
-  }
   if (!Array.isArray(parsed.doors)) {
     problems.push('doors must be an array');
     return problems;
@@ -188,11 +182,21 @@ function validate(parsed, contentDir) {
 }
 
 async function encodePhoto(input, name) {
-  const { data, info } = await sharp(input)
+  const full = await sharp(input)
     .resize({ width: MAX_LONG_EDGE, height: MAX_LONG_EDGE, fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: JPEG_QUALITY })
     .toBuffer({ resolveWithObject: true });
-  return { name, w: info.width, h: info.height, data: data.toString('base64') };
+  const thumb = await sharp(input)
+    .resize({ width: THUMB_SIZE, height: THUMB_SIZE, fit: 'cover' })
+    .jpeg({ quality: THUMB_QUALITY })
+    .toBuffer();
+  return {
+    name,
+    w: full.info.width,
+    h: full.info.height,
+    data: full.data.toString('base64'),
+    thumb: thumb.toString('base64'),
+  };
 }
 
 async function buildRealContent(contentDir) {
@@ -224,7 +228,7 @@ async function buildRealContent(contentDir) {
     }
     doors.push(entry);
   }
-  return { v: 1, name: parsed.name, greeting: parsed.greeting, doors };
+  return { v: 1, doors };
 }
 
 const SEGMENT_MAP = {
@@ -291,7 +295,7 @@ async function buildPlaceholderContent() {
     );
     doors.push({ n, text: `Placeholder number ${n}`, photo });
   }
-  return { v: 1, name: PLACEHOLDER_NAME, greeting: PLACEHOLDER_GREETING, doors };
+  return { v: 1, doors };
 }
 
 async function encryptAndWrite(content, name, password, iterations, outPath) {
@@ -333,7 +337,11 @@ function report(content, bytes, outPath, root) {
   console.log(`Doors encoded: ${content.doors.length} (photos embedded: ${photos.length})`);
   if (photos.length > 0) {
     const totalChars = photos.reduce((sum, door) => sum + door.photo.data.length, 0);
+    const totalThumbChars = photos.reduce((sum, door) => sum + door.photo.thumb.length, 0);
     console.log(`Average photo payload: ${(totalChars / photos.length / 1024).toFixed(1)} KB base64 per photo`);
+    console.log(
+      `Average thumbnail payload: ${(totalThumbChars / photos.length / 1024).toFixed(1)} KB base64 per photo (${THUMB_SIZE}x${THUMB_SIZE} JPEG q${THUMB_QUALITY})`,
+    );
   }
   console.log(`Bundle written to ${path.relative(root, outPath)} (${sizeMb.toFixed(2)} MB)`);
 }
