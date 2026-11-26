@@ -14,7 +14,6 @@ import {
   type PointerSample,
 } from './scratch';
 
-const FADE_MS = 250;
 const MAX_DPR = 2;
 const PROGRESS_CHECK_INTERVAL_MOVES = 4;
 const DISPLAY_FONT = '"Mountains of Christmas", Georgia, serif';
@@ -23,6 +22,11 @@ const FROST_CREAM_RGB = '243, 226, 195';
 export interface ScratchOptions {
   onActivate: () => void;
   snowDepth?: number;
+  frostDensity?: number;
+}
+
+export interface StaticSurfaceOptions {
+  frostDensity?: number;
 }
 
 export interface ScratchHandle {
@@ -72,18 +76,28 @@ function paintSnowCap(
   }
 }
 
+const FROST_BLOOM_ALPHA_MAX = 0.45;
+
+/**
+ * Paints the door's festive scratch surface: the palette tint as the base,
+ * seeded frost blooms (alpha scaled by the waiting-time frost density,
+ * clamped so the base keeps dominating), frost stars, and the day number
+ * LAST at full opacity so it stays readable even at the density clamp.
+ * The snow cap (absolute-date depth) is painted on top when present.
+ */
 function paintFrost(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   doorNumber: number,
   snowDepth: number,
+  frostDensity: number,
 ): void {
   const tint = tintForDoor(doorNumber);
   ctx.fillStyle = tint.frost;
   ctx.fillRect(0, 0, width, height);
   for (const bloom of frostBloomsForDoor(doorNumber, width, height)) {
-    ctx.fillStyle = `rgba(${FROST_CREAM_RGB}, ${bloom.alpha})`;
+    ctx.fillStyle = `rgba(${FROST_CREAM_RGB}, ${Math.min(FROST_BLOOM_ALPHA_MAX, bloom.alpha * frostDensity)})`;
     ctx.beginPath();
     ctx.arc(bloom.x, bloom.y, bloom.radius, 0, Math.PI * 2);
     ctx.fill();
@@ -161,11 +175,12 @@ export function attachScratchOverlay(
   let opened = false;
   const fontSize = Math.round(Math.min(width, height) * 0.42);
   const snowDepth = options.snowDepth ?? 0;
+  const frostDensity = options.frostDensity ?? 1;
   whenDisplayFontReady(() => {
     if (erased || opened) {
       return;
     }
-    paintFrost(ctx, width, height, doorNumber, snowDepth);
+    paintFrost(ctx, width, height, doorNumber, snowDepth, frostDensity);
     painted = true;
   }, `700 ${fontSize}px "Mountains of Christmas"`);
   door.append(canvas);
@@ -244,12 +259,22 @@ export function attachScratchOverlay(
     });
   }
 
-  function fadeOutAndRemove(): void {
-    canvas.style.transition = `opacity ${FADE_MS}ms ease`;
-    canvas.style.opacity = '0';
-    window.setTimeout(() => {
-      canvas.remove();
-    }, FADE_MS + 60);
+  /**
+   * An opened door KEEPS its full colored festive surface: the scratch canvas
+   * is repainted complete (no snow cap, base frost density) and stays on the
+   * tile together with the glow state class — the tile is never swapped out.
+   */
+  function settleOpenedSurface(): void {
+    ctx.clearRect(0, 0, width, height);
+    paintFrost(ctx, width, height, doorNumber, 0, 1);
+    painted = true;
+    erased = false;
+    whenDisplayFontReady(() => {
+      if (opened) {
+        ctx.clearRect(0, 0, width, height);
+        paintFrost(ctx, width, height, doorNumber, 0, 1);
+      }
+    }, `700 ${fontSize}px \"Mountains of Christmas\"`);
   }
 
   function openNow(): void {
@@ -258,8 +283,7 @@ export function attachScratchOverlay(
     }
     opened = true;
     suppressClick = true;
-    door.classList.remove('door--frosted');
-    fadeOutAndRemove();
+    settleOpenedSurface();
     options.onActivate();
   }
 
@@ -269,9 +293,8 @@ export function attachScratchOverlay(
     }
     finished = true;
     opened = true;
-    door.classList.remove('door--frosted');
-    fadeOutAndRemove();
     teardown();
+    settleOpenedSurface();
   }
 
   function onPointerDown(event: PointerEvent): void {
@@ -370,4 +393,48 @@ export function attachScratchOverlay(
   door.parentElement?.addEventListener('click', onCaptureClick, true);
 
   return { finish };
+}
+
+/**
+ * Static festive door surface for doors that are not scratchable (locked
+ * future doors and already opened doors): the same painted layer as the
+ * scratch canvas (tint base + density-scaled frost blooms + stars + day
+ * number, no snow cap — locked doors get their cap as the SVG overlay), with
+ * NO pointer handlers, so scratch mechanics stay untouched. Idempotent:
+ * repaints an existing surface canvas instead of stacking.
+ */
+export function attachStaticDoorSurface(
+  door: HTMLElement,
+  doorNumber: number,
+  options: StaticSurfaceOptions = {},
+): void {
+  const rect = door.getBoundingClientRect();
+  const width = rect.width;
+  const height = rect.height;
+  if (width < 8 || height < 8) {
+    return;
+  }
+  let canvas = door.querySelector<HTMLCanvasElement>('canvas.door-frost');
+  if (canvas === null) {
+    canvas = document.createElement('canvas');
+    canvas.className = 'door-frost door-frost--static';
+    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+    canvas.width = Math.max(1, Math.round(width * dpr));
+    canvas.height = Math.max(1, Math.round(height * dpr));
+    door.append(canvas);
+    door.classList.add('door--frosted');
+  }
+  const maybeCtx = canvas.getContext('2d');
+  if (maybeCtx === null) {
+    return;
+  }
+  const ctx: CanvasRenderingContext2D = maybeCtx;
+  const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const frostDensity = options.frostDensity ?? 1;
+  const fontSize = Math.round(Math.min(width, height) * 0.42);
+  whenDisplayFontReady(() => {
+    ctx.clearRect(0, 0, width, height);
+    paintFrost(ctx, width, height, doorNumber, 0, frostDensity);
+  }, `700 ${fontSize}px \"Mountains of Christmas\"`);
 }

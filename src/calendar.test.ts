@@ -1,7 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DOOR_ORDER, applyDoorState, ariaLabelFor, renderCalendar, thumbDataUrl } from './calendar';
 import type { Content } from './content';
 import { DOOR_COUNT } from './doors';
+import { tintForDoor } from './door-palette';
 
 const NOV_30 = new Date(2026, 10, 30, 12, 0, 0);
 const DEC_5 = new Date(2026, 11, 5, 15, 30, 0);
@@ -289,14 +292,148 @@ describe('applyDoorState', () => {
     document.body.append(container);
   });
 
-  it('updates classes and aria-label of an existing door element', () => {
+  it('updates classes and aria-label of an existing door element; the painted-surface class is not a state class', () => {
     render(container, new Set(), DEC_5);
     const door = doorByNumber(container, 5);
     door.classList.add('door--frosted');
     applyDoorState(door, 5, new Set([5]), DEC_5);
     expect(door.classList.contains('door--opened')).toBe(true);
     expect(door.classList.contains('door--openable')).toBe(false);
-    expect(door.classList.contains('door--frosted')).toBe(false);
+    expect(door.classList.contains('door--frosted')).toBe(true);
     expect(door.getAttribute('aria-label')).toBe('Door 5, opened');
+  });
+
+  it('manages the opened mark badge and the per-door tint custom property', () => {
+    render(container, new Set(), DEC_5);
+    const door = doorByNumber(container, 5);
+    expect(door.querySelector('.door-opened-mark')).toBeNull();
+    expect(door.style.getPropertyValue('--door-tint')).toBe(tintForDoor(5).frost);
+    applyDoorState(door, 5, new Set([5]), DEC_5);
+    expect(door.querySelector('.door-opened-mark')).not.toBeNull();
+    applyDoorState(door, 5, new Set(), DEC_5);
+    expect(door.classList.contains('door--openable')).toBe(true);
+    expect(door.querySelector('.door-opened-mark')).toBeNull();
+  });
+});
+
+describe('door glow state machine (WC-06T6: honest colored surfaces in every state)', () => {
+  let container: HTMLElement;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.append(container);
+    vi.spyOn(HTMLButtonElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 200,
+      bottom: 100,
+      width: 200,
+      height: 100,
+      x: 0,
+      y: 0,
+    } as DOMRect);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      setTransform: vi.fn(),
+      fillRect: vi.fn(),
+      fillText: vi.fn(),
+      clearRect: vi.fn(),
+      drawImage: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+      getImageData: vi.fn(() => ({
+        data: new Uint8ClampedArray(32 * 32 * 4).fill(255),
+        width: 32,
+        height: 32,
+      })),
+    } as unknown as CanvasRenderingContext2D);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    container.remove();
+  });
+
+  it('e2e: every door in every state shows its colored painted surface + day number; glow classes and mark per state', () => {
+    render(container, new Set([5]), DEC_10);
+    for (const n of DOOR_ORDER) {
+      const door = doorByNumber(container, n);
+      // colored festive surface (painted canvas) + number in EVERY state — never a bare tile
+      expect(door.querySelector('canvas.door-frost')).not.toBeNull();
+      expect(door.classList.contains('door--frosted')).toBe(true);
+      expect(door.style.getPropertyValue('--door-tint')).toBe(tintForDoor(n).frost);
+      expect(door.querySelector('.door-number')?.textContent).toBe(String(n));
+      const expectedState = n <= 10 ? (n === 5 ? 'opened' : 'openable') : 'locked';
+      expect(door.classList.contains(`door--${expectedState}`)).toBe(true);
+      // exactly one state class
+      const stateClasses = ['door--locked', 'door--openable', 'door--opened'].filter((c) =>
+        door.classList.contains(c),
+      );
+      expect(stateClasses).toEqual([`door--${expectedState}`]);
+    }
+    // opened: warm glow state + check badge; scratchable: glow, no badge; locked: no badge, keeps snow cap overlay
+    expect(doorByNumber(container, 5).classList.contains('door--opened')).toBe(true);
+    expect(doorByNumber(container, 5).querySelector('.door-opened-mark')).not.toBeNull();
+    for (const n of [1, 2, 3, 4, 6, 7, 8, 9, 10]) {
+      expect(doorByNumber(container, n).classList.contains('door--openable')).toBe(true);
+      expect(doorByNumber(container, n).querySelector('.door-opened-mark')).toBeNull();
+      expect(doorByNumber(container, n).querySelector('svg.door-snow')).toBeNull();
+    }
+    for (const n of DOOR_ORDER.filter((door) => door >= 11)) {
+      const door = doorByNumber(container, n);
+      expect(door.classList.contains('door--locked')).toBe(true);
+      expect(door.querySelector('.door-opened-mark')).toBeNull();
+      expect(door.querySelector('svg.door-snow')).not.toBeNull();
+    }
+    expect(doorByNumber(container, 5).querySelector('svg.door-snow')).toBeNull();
+  });
+
+  it('e2e state transition on open: locked -> openable stays colored; openable -> opened keeps surface + glow + badge', () => {
+    const opened = new Set<number>();
+    const onActivate = vi.fn((doorNumber: number) => {
+      opened.add(doorNumber);
+      const door = doorByNumber(container, doorNumber);
+      applyDoorState(door, doorNumber, opened, DEC_10);
+    });
+    render(container, opened, DEC_10, onActivate);
+    const door = doorByNumber(container, 5);
+    expect(door.classList.contains('door--openable')).toBe(true);
+    door.click();
+    expect(onActivate).toHaveBeenCalledWith(5);
+    expect(door.classList.contains('door--opened')).toBe(true);
+    expect(door.classList.contains('door--openable')).toBe(false);
+    expect(door.querySelector('canvas.door-frost')).not.toBeNull();
+    expect(door.querySelector('.door-opened-mark')).not.toBeNull();
+    expect(door.getAttribute('aria-label')).toBe('Door 5, opened');
+  });
+
+  it('CSS: scratchable and opened share the same warm glow, locked has none and is not dimmed; reduced motion is static; no thumb swap', () => {
+    const css = readFileSync(path.join(process.cwd(), 'src', 'styles', 'calendar.css'), 'utf8');
+    const glowRule = /\.door--openable,\s*\.door--opened\s*\{[^}]*\}/.exec(css)?.[0] ?? '';
+    expect(glowRule).toContain('rgba(217, 164, 65, 0.4)');
+    expect(glowRule).toContain('rgba(217, 164, 65, 0.24)');
+    const pulseRule = /\.door--openable::after,\s*\.door--opened::after\s*\{[^}]*\}/.exec(css)?.[0] ?? '';
+    expect(pulseRule).toContain('door-glow-pulse 2.8s');
+    expect(css).toContain('@keyframes door-glow-pulse');
+    const lockedRule = /\.door--locked\s*\{[^}]*\}/.exec(css)?.[0] ?? '';
+    expect(lockedRule).not.toContain('rgba(217, 164, 65');
+    expect(lockedRule).not.toContain('opacity: 0.45');
+    const openedRule = /\.door--opened\s*\{[^}]*\}/.exec(css)?.[0] ?? '';
+    expect(openedRule).not.toContain('opacity: 0.75');
+    const reduced = /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(reduced).toContain('.door--openable::after');
+    expect(reduced).toContain('animation: none');
+    expect(css).toContain('.door-opened-mark');
+    // the photo thumb is never swapped onto the tile anymore
+    expect(css).not.toContain('.door--openable .door-thumb');
+    expect(css).not.toContain('.door--opened .door-thumb');
+    expect(css).not.toContain('.door--opened.door--has-photo .door-number');
+    // the door base uses the per-door tint
+    expect(/\.door\s*\{[^}]*background-color:\s*var\(--door-tint/.exec(css)).not.toBeNull();
   });
 });

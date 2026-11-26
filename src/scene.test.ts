@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { TREE_FOLIAGE_BOTTOM_Y, TREE_FOLIAGE_TOP_Y, TREE_PALETTE_REMAP, TREE_PATHS } from './assets/tree-adapted';
+import { COO_PATHS } from './assets/coo-adapted';
 import { REVEAL_MOMENT_MS, REVEAL_PULSES } from './reveal';
 import { giftsForOpenedDoors } from './gifts';
 import {
@@ -14,6 +17,7 @@ import {
   TREE_AXIS_X,
   applyRevealMoment,
   renderScene,
+  treeHalfWidthAt,
   revealSceneGifts,
   revealSceneStages,
   scrollToPageTop,
@@ -29,6 +33,9 @@ const DEC_1 = new Date(2026, 11, 1, 12, 0, 0);
 const DEC_2 = new Date(2026, 11, 2, 12, 0, 0);
 const DEC_6 = new Date(2026, 11, 6, 12, 0, 0);
 const DEC_13 = new Date(2026, 11, 13, 12, 0, 0);
+const DEC_15 = new Date(2026, 11, 15, 12, 0, 0);
+const DEC_16 = new Date(2026, 11, 16, 12, 0, 0);
+const DEC_17 = new Date(2026, 11, 17, 12, 0, 0);
 const DEC_20 = new Date(2026, 11, 20, 12, 0, 0);
 const DEC_24 = new Date(2026, 11, 24, 12, 0, 0);
 
@@ -231,18 +238,15 @@ describe('renderScene', () => {
 });
 
 describe('bare base room before the 1st of Advent and date-aware calendar items', () => {
-  it('shows the bare base room WITH the fully decorated tree on Nov 28: walls/floor, bare side table, chair rail, dog, tree (no star), empty gift pile — no wreath, picture stage not earned, bulb chain not visible, no glow', () => {
+  it('shows the bare base room on Nov 28 WITHOUT the tree: walls/floor, bare side table, chair rail, dog, empty gift pile — no tree, no wreath, no stockings; picture stage not earned, bulb chain not visible, no glow', () => {
     const scene = renderScene(new Set(), NOV_28);
     expect(scene.querySelector('g.scene-wreath')).toBeNull();
+    expect(scene.querySelector('g.scene-tree')).toBeNull();
+    expect(scene.querySelector('g.scene-stockings')).toBeNull();
+    expect(scene.querySelectorAll('g.scene-stocking')).toHaveLength(0);
     expect(scene.querySelector('g.scene-dog')).not.toBeNull();
     expect(scene.querySelector('g.scene-side-table')).not.toBeNull();
     expect(scene.querySelector('rect.scene-chair-rail')).not.toBeNull();
-    const tree = scene.querySelector<SVGGElement>('g.scene-tree');
-    expect(tree).not.toBeNull();
-    expect(tree?.closest('g.scene-stage')).toBeNull();
-    expect(tree?.querySelectorAll('polygon.scene-tree-tier')).toHaveLength(5);
-    expect(tree?.querySelectorAll('circle.scene-bauble').length).toBeGreaterThanOrEqual(10);
-    expect(tree?.querySelectorAll('circle.scene-bauble').length).toBeLessThanOrEqual(14);
     expect(scene.querySelector('.scene-tree-star')?.closest('g.scene-stage--earned')).toBeNull();
     const pile = scene.querySelector<SVGGElement>('g.scene-gift-pile');
     expect(pile).not.toBeNull();
@@ -260,11 +264,20 @@ describe('bare base room before the 1st of Advent and date-aware calendar items'
     expect(scene.querySelectorAll('g.scene-stage')).toHaveLength(24);
   });
 
-  it('shows the wreath alone from Nov 29 (1st of Advent) with 1 lit candle and its reveal moment; the picture stays stage-gated (not date-driven)', () => {
-    for (const date of [NOV_29, NOV_30, DEC_1, DEC_24]) {
+  it('shows the wreath alone from Nov 29 (1st of Advent) with 1 lit candle and its reveal moment; no tree, no stockings; the picture stays stage-gated (not date-driven)', () => {
+    for (const date of [NOV_29, NOV_30]) {
       const scene = renderScene(new Set(), date);
       const wreath = scene.querySelector<SVGGElement>('g.scene-wreath');
       expect(wreath?.dataset.item).toBe('wreath');
+      expect(scene.querySelector('g.scene-tree')).toBeNull();
+      expect(scene.querySelector('g.scene-stockings')).toBeNull();
+      const picture = scene.querySelector<SVGGElement>('g.scene-picture');
+      expect(picture?.closest('g.scene-stage--earned')).toBeNull();
+    }
+    for (const date of [DEC_1, DEC_24]) {
+      const scene = renderScene(new Set(), date);
+      expect(scene.querySelector<SVGGElement>('g.scene-wreath')?.dataset.item).toBe('wreath');
+      expect(scene.querySelector('g.scene-tree')).not.toBeNull();
       const picture = scene.querySelector<SVGGElement>('g.scene-picture');
       expect(picture?.closest('g.scene-stage--earned')).toBeNull();
     }
@@ -287,19 +300,54 @@ describe('bare base room before the 1st of Advent and date-aware calendar items'
     expect(picture?.closest('g.scene-stage--earned')).not.toBeNull();
     const dec1 = renderScene(new Set([1, 2]), DEC_1);
     expect(dec1.querySelector<SVGGElement>('g.scene-wreath')?.dataset.item).toBe('wreath');
-    expect(dec1.querySelectorAll('.scene-reveal')).toHaveLength(0);
+    expect(dec1.querySelector('g.scene-tree')).not.toBeNull();
+    // Dec 1 plays exactly the tree's own reveal moment
+    expect(dec1.querySelectorAll('.scene-reveal')).toHaveLength(1);
+    expect(dec1.querySelector('g.scene-tree')?.classList.contains('scene-reveal')).toBe(true);
   });
 
-  it('plays the calendar reveal moment on the wreath start date only: Nov 29, none from Nov 30 / Dec 1 on', () => {
+  it('plays the calendar reveal moment on each item start date only: wreath Nov 29, tree Dec 1, stockings Dec 16 — none on any other day', () => {
     const nov29 = renderScene(new Set(), NOV_29);
     expect(nov29.querySelector('g.scene-wreath')?.classList.contains('scene-reveal')).toBe(true);
     expect(nov29.querySelectorAll('.scene-reveal')).toHaveLength(1);
 
-    for (const date of [NOV_30, DEC_1, DEC_2, DEC_24]) {
+    const dec1 = renderScene(new Set(), DEC_1);
+    expect(dec1.querySelector('g.scene-tree')?.classList.contains('scene-reveal')).toBe(true);
+    expect(dec1.querySelector('g.scene-wreath')?.classList.contains('scene-reveal')).toBe(false);
+    expect(dec1.querySelectorAll('.scene-reveal')).toHaveLength(1);
+
+    const dec16 = renderScene(new Set(), DEC_16);
+    expect(dec16.querySelector('g.scene-stockings')?.classList.contains('scene-reveal')).toBe(true);
+    expect(dec16.querySelector('g.scene-tree')?.classList.contains('scene-reveal')).toBe(false);
+    expect(dec16.querySelectorAll('.scene-reveal')).toHaveLength(1);
+
+    for (const date of [NOV_28, NOV_30, DEC_2, DEC_15, DEC_17, DEC_24]) {
       const scene = renderScene(new Set(), date);
-      expect(scene.querySelector('g.scene-wreath')).not.toBeNull();
       expect(scene.querySelectorAll('.scene-reveal')).toHaveLength(0);
       expect(scene.querySelectorAll('.scene-reveal-stars')).toHaveLength(0);
+    }
+    for (const date of [NOV_30, DEC_1]) {
+      const scene = renderScene(new Set(), date);
+      expect(scene.querySelector('g.scene-wreath')).not.toBeNull();
+    }
+  });
+
+  it('shows the tree as permanent room art from Dec 1 (not a stage) and the stockings as one calendar item from Dec 16 (not a stage)', () => {
+    for (const date of [DEC_1, DEC_2, DEC_15]) {
+      const scene = renderScene(new Set(), date);
+      const tree = scene.querySelector<SVGGElement>('g.scene-tree');
+      expect(tree).not.toBeNull();
+      expect(tree?.closest('g.scene-stage')).toBeNull();
+      expect(scene.querySelector('g.scene-stockings')).toBeNull();
+    }
+    for (const date of [DEC_16, DEC_24]) {
+      const scene = renderScene(new Set(), date);
+      const stockings = scene.querySelector<SVGGElement>('g.scene-stockings');
+      expect(stockings).not.toBeNull();
+      expect(stockings?.dataset.item).toBe('stockings');
+      expect(stockings?.closest('g.scene-stage')).toBeNull();
+      expect(stockings?.querySelectorAll('g.scene-stocking')).toHaveLength(3);
+      expect(scene.querySelector('g.scene-tree')).not.toBeNull();
     }
   });
 });
@@ -570,21 +618,21 @@ describe('approved vectorized dog silhouette on the rug', () => {
     expect(dog?.querySelector('.scene-collar')).toBeNull();
   });
 
-  it('stage 24 is the Christmas-Eve moment: Santa hat on the dog head (separate element), red bow centered ON the gift at the paws, and the glowing tree star', () => {
+  it('stage 24 is the Christmas-Eve moment: Santa hat on the dog head (separate element), the wrapped gift at the paws, NO bow, and the glowing tree star on the new treetop', () => {
     const scene = renderScene(allOpened(), DEC_10);
     const stage24 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="24"]');
     expect(stage24?.classList.contains('scene-stage--earned')).toBe(true);
     const hat = stage24?.querySelector<SVGGElement>('g.scene-dog-hat');
-    const bow = stage24?.querySelector<SVGGElement>('g.scene-dog-bow');
     const gift = stage24?.querySelector<SVGGElement>('g.scene-dog-gift');
     const star = stage24?.querySelector<SVGGElement>('path.scene-tree-star');
     const starGlow = stage24?.querySelector<SVGCircleElement>('circle.scene-tree-star-glow');
     expect(hat).not.toBeNull();
-    expect(bow).not.toBeNull();
-    expect(bow?.children).toHaveLength(3);
     expect(gift).not.toBeNull();
     expect(star).not.toBeNull();
     expect(starGlow).not.toBeNull();
+    // the dog's bow is retired
+    expect(stage24?.querySelector('g.scene-dog-bow')).toBeNull();
+    expect(scene.querySelector('.scene-dog-bow')).toBeNull();
     expect(star?.getAttribute('fill')).toBe('#d9b64f');
     expect(starGlow?.getAttribute('fill')).toBe('#d9b64f');
     const { box } = dogGeometry(scene);
@@ -598,33 +646,21 @@ describe('approved vectorized dog silhouette on the rug', () => {
     const hatCenterX = (hatBox.minX + hatBox.maxX) / 2;
     expect(hatCenterX).toBeGreaterThan((box.minX + box.maxX) / 2);
     expect(hatBox.minY).toBeGreaterThanOrEqual(box.minY - 25);
-    // the gift stays at the paws, the bow sits centered ON it
+    // the gift stays at the paws
     const giftBox = bboxOf(Array.from(gift?.querySelectorAll('rect, circle') ?? []));
     expect(giftBox.maxY).toBeGreaterThanOrEqual(box.maxY - 12);
     expect(giftBox.maxY).toBeLessThanOrEqual(RUG.y + RUG.h);
     expect(giftBox.maxX).toBeLessThan(HEARTH_EDGE_X);
     expect(giftBox.minX).toBeGreaterThanOrEqual(box.minX);
-    const bowBox = bboxOf(Array.from(bow?.querySelectorAll('path, circle') ?? []));
-    const giftBody = gift?.querySelector<SVGRectElement>('rect');
-    const giftCenterX =
-      Number(giftBody?.getAttribute('x')) + Number(giftBody?.getAttribute('width')) / 2;
-    const giftCenterY =
-      Number(giftBody?.getAttribute('y')) + Number(giftBody?.getAttribute('height')) / 2;
-    expect(Math.abs((bowBox.minX + bowBox.maxX) / 2 - giftCenterX)).toBeLessThanOrEqual(1.5);
-    expect(Math.abs((bowBox.minY + bowBox.maxY) / 2 - giftCenterY)).toBeLessThanOrEqual(1.5);
-    // the tree star sits on top of the tree apex
+    // the tree star sits on the new treetop geometry, spanning the trunk axis
     const starBox = bboxOf([star as SVGPathElement]);
     expect(starBox.minX).toBeLessThanOrEqual(TREE_AXIS_X);
     expect(starBox.maxX).toBeGreaterThanOrEqual(TREE_AXIS_X);
-    const tree = scene.querySelector<SVGGElement>('g.scene-tree');
-    const tierBoxes = Array.from(tree?.querySelectorAll('polygon.scene-tree-tier') ?? []).map((t) =>
-      bboxOf([t as SVGPolygonElement]),
-    );
-    const topTier = tierBoxes.reduce((a, b) => (a.minY < b.minY ? a : b));
-    expect(starBox.maxY).toBeLessThanOrEqual(topTier.minY + 1);
+    expect(starBox.maxY).toBeLessThanOrEqual(TREE_FOLIAGE_TOP_Y + 1);
+    expect(starBox.minY).toBeGreaterThanOrEqual(TREE_FOLIAGE_TOP_Y - 16);
   });
 
-  it('earns the christmas-eve moment (hat+bow+gift+star) only at 24 opened doors, keeping the 24-stage invariants', () => {
+  it('earns the christmas-eve moment (hat+gift+star, no bow) only at 24 opened doors, keeping the 24-stage invariants', () => {
     const scene = renderScene(allOpened(), DEC_10);
     const stages = Array.from(scene.querySelectorAll<SVGGElement>('g.scene-stage'));
     expect(stages.map((stage) => stage.dataset.stage)).toEqual(
@@ -893,44 +929,61 @@ describe('framed picture — actual Scottish highlands (heather glen + stags), e
   });
 });
 
-describe('base-art Christmas tree — straight, symmetric, fully decorated from the first visit, castle clearance guaranteed', () => {
-  it('is base art (not a stage) with 5 tiers sharing the trunk axis x, symmetric cones, two-tone green, pot and skirt', () => {
-    const scene = renderScene(new Set(), NOV_28);
+describe('traced spruce tree — calendar item from Dec 1, night-graded, castle clearance guaranteed', () => {
+  it('is absent before Dec 1 and present from Dec 1 on as room art (not a stage), with the traced structure, pot and skirt', () => {
+    for (const date of [NOV_28, NOV_29, NOV_30]) {
+      expect(renderScene(new Set(), date).querySelector('g.scene-tree')).toBeNull();
+    }
+    const scene = renderScene(new Set(), DEC_1);
     const tree = scene.querySelector<SVGGElement>('g.scene-tree');
     expect(tree).not.toBeNull();
     expect(tree?.closest('g.scene-stage')).toBeNull();
-    const tiers = Array.from(tree?.querySelectorAll<SVGPolygonElement>('polygon.scene-tree-tier') ?? []);
-    expect(tiers).toHaveLength(5);
-    const fills = new Set(tiers.map((t) => t.getAttribute('fill')));
-    expect(fills).toEqual(new Set(['#1e4d2b', '#2e6b3f']));
-    for (const tier of tiers) {
-      const pts = pathPoints(tier.getAttribute('points') ?? '');
-      expect(pts).toHaveLength(3);
-      expect(pts[0][0]).toBe(TREE_AXIS_X);
-      expect((pts[1][0] + pts[2][0]) / 2).toBe(TREE_AXIS_X);
-      expect(Math.abs(pts[1][0] - TREE_AXIS_X)).toBeCloseTo(Math.abs(pts[2][0] - TREE_AXIS_X), 5);
-      expect(pts[1][1]).toBe(pts[2][1]);
-      expect(pts[0][1]).toBeLessThan(pts[1][1]);
+    // the traced structure carries over: shade underlay, tiers, mid, accent, garland, trunk
+    expect(tree?.querySelectorAll('path.scene-tree-shade').length).toBeGreaterThanOrEqual(1);
+    expect(tree?.querySelectorAll('path.scene-tree-tiers').length).toBeGreaterThanOrEqual(1);
+    expect(tree?.querySelectorAll('path.scene-tree-mid').length).toBeGreaterThanOrEqual(1);
+    expect(tree?.querySelectorAll('path.scene-tree-accent').length).toBeGreaterThanOrEqual(1);
+    expect(tree?.querySelectorAll('path.scene-tree-garland').length).toBeGreaterThanOrEqual(1);
+    expect(tree?.querySelectorAll('path.scene-tree-trunk').length).toBeGreaterThanOrEqual(1);
+    // the traced baubles are dropped (the seeded 13-bauble system replaces them)
+    expect(tree?.querySelectorAll('path.scene-tree-bauble')).toHaveLength(0);
+    // night-graded palette only: every traced tree path fill is a remapped scene color
+    const allowedFills = new Set(Object.values(TREE_PALETTE_REMAP));
+    const tracedPaths = Array.from(
+      tree?.querySelectorAll(
+        'path.scene-tree-shade, path.scene-tree-tiers, path.scene-tree-mid, path.scene-tree-accent, path.scene-tree-garland, path.scene-tree-trunk',
+      ) ?? [],
+    );
+    expect(tracedPaths.length).toBe(TREE_PATHS.length);
+    for (const p of tracedPaths) {
+      expect(allowedFills.has(p.getAttribute('fill') ?? '')).toBe(true);
     }
     const trunk = tree?.querySelector<SVGRectElement>('rect.scene-tree-trunk');
     expect(trunk).not.toBeNull();
     expect(Number(trunk?.getAttribute('x')) + Number(trunk?.getAttribute('width')) / 2).toBe(TREE_AXIS_X);
+    const trunkPath = tree?.querySelector<SVGPathElement>('path.scene-tree-trunk');
+    const trunkBox = bboxOf([trunkPath as SVGPathElement]);
+    expect((trunkBox.minX + trunkBox.maxX) / 2).toBeCloseTo(TREE_AXIS_X, 1);
     const pot = tree?.querySelector<SVGRectElement>('rect.scene-tree-pot');
     expect(pot).not.toBeNull();
     expect(Number(pot?.getAttribute('x')) + Number(pot?.getAttribute('width')) / 2).toBe(TREE_AXIS_X);
     expect(tree?.querySelector('ellipse.scene-tree-skirt')).not.toBeNull();
     expect(tree?.querySelector('ellipse.scene-tree-pool')).not.toBeNull();
-    const box = bboxOf(Array.from(tree?.querySelectorAll('rect, polygon, ellipse, circle') ?? []));
+    const box = bboxOf([
+      ...Array.from(tree?.querySelectorAll('rect, polygon, ellipse, circle') ?? []),
+      ...tracedPaths,
+    ]);
     expect(box.maxY - box.minY).toBeGreaterThanOrEqual(180);
     expect(box.maxY).toBeLessThanOrEqual(300);
+    expect(box.minX).toBeGreaterThanOrEqual(-4);
+    expect(box.maxX).toBeLessThanOrEqual(72);
   });
 
-  it('is fully decorated from the start: 10-14 tricolor baubles with cream accents, deterministic, inside the tiers', () => {
-    const scene = renderScene(new Set(), NOV_28);
+  it('is fully decorated: exactly 13 tricolor baubles with cream accents, deterministic, inside the silhouette', () => {
+    const scene = renderScene(new Set(), DEC_1);
     const tree = scene.querySelector<SVGGElement>('g.scene-tree');
     const baubles = Array.from(tree?.querySelectorAll<SVGCircleElement>('circle.scene-bauble') ?? []);
-    expect(baubles.length).toBeGreaterThanOrEqual(10);
-    expect(baubles.length).toBeLessThanOrEqual(14);
+    expect(baubles).toHaveLength(13);
     const allowed = ['#a3262e', '#d9b64f', '#2e6b3f', '#f3e2c3'];
     for (const bauble of baubles) {
       expect(allowed).toContain(bauble.getAttribute('fill'));
@@ -941,38 +994,28 @@ describe('base-art Christmas tree — straight, symmetric, fully decorated from 
     for (const color of ['#a3262e', '#d9b64f', '#2e6b3f']) {
       expect(baubles.some((b) => b.getAttribute('fill') === color)).toBe(true);
     }
-    const again = renderScene(new Set(), NOV_28);
+    const again = renderScene(new Set(), DEC_1);
     const baubles2 = Array.from(
       again.querySelectorAll<SVGCircleElement>('g.scene-tree circle.scene-bauble') ?? [],
     );
     expect(baubles2.map((b) => `${b.getAttribute('cx')},${b.getAttribute('cy')},${b.getAttribute('fill')}`)).toEqual(
       baubles.map((b) => `${b.getAttribute('cx')},${b.getAttribute('cy')},${b.getAttribute('fill')}`),
     );
-    const tiers = Array.from(tree?.querySelectorAll<SVGPolygonElement>('polygon.scene-tree-tier') ?? []);
     for (const bauble of baubles) {
       const cx = Number(bauble.getAttribute('cx'));
       const cy = Number(bauble.getAttribute('cy'));
       const r = Number(bauble.getAttribute('r'));
-      const insideSomeTier = tiers.some((tier) => {
-        const pts = pathPoints(tier.getAttribute('points') ?? '');
-        const apexY = pts[0][1];
-        const baseY = pts[1][1];
-        if (cy < apexY || cy > baseY) {
-          return false;
-        }
-        const hwAt = (Math.abs(pts[2][0] - TREE_AXIS_X) * (cy - apexY)) / (baseY - apexY);
-        return Math.abs(cx - TREE_AXIS_X) <= hwAt - r + 0.01;
-      });
-      expect(insideSomeTier).toBe(true);
+      expect(Math.abs(cx - TREE_AXIS_X)).toBeLessThanOrEqual(treeHalfWidthAt(cy) - r + 0.01);
+      expect(cy).toBeGreaterThanOrEqual(TREE_FOLIAGE_TOP_Y);
+      expect(cy).toBeLessThanOrEqual(TREE_FOLIAGE_BOTTOM_Y + 1);
     }
   });
 
-  it('carries 2-3 spiral strand swags (wide at the bottom, narrowing up) with <=22 capped tricolor drop bulbs, each cap+halo+body', () => {
-    const scene = renderScene(new Set(), NOV_28);
+  it('carries exactly 3 spiral strand swags (wide at the bottom, narrowing up) with 18 capped tricolor drop bulbs (<=22), each cap+halo+body', () => {
+    const scene = renderScene(new Set(), DEC_1);
     const tree = scene.querySelector<SVGGElement>('g.scene-tree');
     const strands = Array.from(tree?.querySelectorAll<SVGGElement>('g.scene-tree-strand') ?? []);
-    expect(strands.length).toBeGreaterThanOrEqual(2);
-    expect(strands.length).toBeLessThanOrEqual(3);
+    expect(strands).toHaveLength(3);
     const widths = strands.map((s) => {
       const wire = s.querySelector<SVGPathElement>('path.scene-strand-wire');
       const pts = pathPoints(wire?.getAttribute('d') ?? '');
@@ -982,7 +1025,7 @@ describe('base-art Christmas tree — straight, symmetric, fully decorated from 
       expect(widths[i]).toBeLessThan(widths[i - 1]);
     }
     const bulbs = Array.from(tree?.querySelectorAll<SVGGElement>('g.scene-strand-bulb-group') ?? []);
-    expect(bulbs.length).toBeGreaterThanOrEqual(10);
+    expect(bulbs).toHaveLength(18);
     expect(bulbs.length).toBeLessThanOrEqual(22);
     const bodyColors: string[] = [];
     for (const bulb of bulbs) {
@@ -1000,7 +1043,7 @@ describe('base-art Christmas tree — straight, symmetric, fully decorated from 
     expect(new Set(bodyColors)).toEqual(new Set(['#a3262e', '#d9b64f', '#2e6b3f']));
   });
 
-  it('guarantees the castle silhouette and city lights stay fully uncovered: every tree shape (incl. stage-24 star) clears the protected box', () => {
+  it('guarantees the castle silhouette and city lights stay fully uncovered: no tree/star POINT enters the protected box (slight pane overlap allowed)', () => {
     const scene = renderScene(allOpened(), DEC_10);
     const protectedShapes = [
       ...Array.from(scene.querySelectorAll('g.scene-castle rect, g.scene-castle polygon')),
@@ -1014,8 +1057,56 @@ describe('base-art Christmas tree — straight, symmetric, fully decorated from 
     const tree = scene.querySelector<SVGGElement>('g.scene-tree');
     const treeShapes = Array.from(tree?.querySelectorAll('rect, polygon, ellipse, circle, path, line') ?? []);
     expect(treeShapes.length).toBeGreaterThan(0);
+    const shapePoints = (shape: Element): Array<[number, number]> => {
+      if (shape.tagName === 'rect') {
+        const x = Number(shape.getAttribute('x'));
+        const y = Number(shape.getAttribute('y'));
+        const w = Number(shape.getAttribute('width'));
+        const h = Number(shape.getAttribute('height'));
+        return [
+          [x, y],
+          [x + w, y],
+          [x, y + h],
+          [x + w, y + h],
+        ];
+      }
+      if (shape.tagName === 'line') {
+        return [
+          [Number(shape.getAttribute('x1')), Number(shape.getAttribute('y1'))],
+          [Number(shape.getAttribute('x2')), Number(shape.getAttribute('y2'))],
+        ];
+      }
+      if (shape.tagName === 'circle') {
+        const cx = Number(shape.getAttribute('cx'));
+        const cy = Number(shape.getAttribute('cy'));
+        const r = Number(shape.getAttribute('r'));
+        return [
+          [cx - r, cy - r],
+          [cx + r, cy - r],
+          [cx - r, cy + r],
+          [cx + r, cy + r],
+          [cx, cy],
+        ];
+      }
+      if (shape.tagName === 'ellipse') {
+        const cx = Number(shape.getAttribute('cx'));
+        const cy = Number(shape.getAttribute('cy'));
+        const rx = Number(shape.getAttribute('rx'));
+        const ry = Number(shape.getAttribute('ry'));
+        return [
+          [cx - rx, cy - ry],
+          [cx + rx, cy + ry],
+          [cx, cy],
+        ];
+      }
+      return pathPoints(shape.getAttribute('points') ?? shape.getAttribute('d') ?? '');
+    };
+    const insideProtected = (p: [number, number]): boolean =>
+      p[0] > protectedBox.minX && p[0] < protectedBox.maxX && p[1] > protectedBox.minY && p[1] < protectedBox.maxY;
     for (const shape of treeShapes) {
-      expect(overlaps(bboxOf([shape]), protectedBox)).toBe(false);
+      for (const p of shapePoints(shape)) {
+        expect(insideProtected(p)).toBe(false);
+      }
     }
     const treeBox = bboxOf(treeShapes);
     expect(treeBox.minY).toBeLessThanOrEqual(PANE.y + PANE.h);
@@ -1024,7 +1115,9 @@ describe('base-art Christmas tree — straight, symmetric, fully decorated from 
     const starShapes = Array.from(stage24?.querySelectorAll('.scene-tree-star, .scene-tree-star-glow') ?? []);
     expect(starShapes.length).toBe(2);
     for (const shape of starShapes) {
-      expect(overlaps(bboxOf([shape]), protectedBox)).toBe(false);
+      for (const p of shapePoints(shape)) {
+        expect(insideProtected(p)).toBe(false);
+      }
     }
   });
 });
@@ -1057,19 +1150,31 @@ describe('Scottish accents, mug and thistle placement', () => {
     );
   });
 
-  it('places a bigger Highland-cow figurine on the shelf board (stage 18), next to the book', () => {
+  it('places the traced Highland-cow figurine on the shelf board (stage 18), next to the book, in the same placement zone', () => {
     const scene = renderScene(new Set(), DEC_10);
     const stage18 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="18"]');
     const coo = stage18?.querySelector<SVGGElement>('g.scene-coo');
     expect(coo).not.toBeNull();
-    expect(coo?.querySelector('ellipse')?.getAttribute('fill')).toBe('#2a211c');
-    expect(coo?.querySelector('path[fill="#b06a2f"]')).not.toBeNull();
-    expect(Array.from(coo?.querySelectorAll('path[stroke="#e8dcc8"]') ?? [])).toHaveLength(2);
+    // structure survives: caramel body, cream fringe, dark horns/hooves, black face details
+    expect(coo?.querySelectorAll('path.scene-coo-body').length).toBeGreaterThanOrEqual(1);
+    expect(coo?.querySelectorAll('path.scene-coo-fringe').length).toBeGreaterThanOrEqual(1);
+    expect(coo?.querySelectorAll('path.scene-coo-horn').length).toBeGreaterThanOrEqual(1);
+    expect(coo?.querySelectorAll('path.scene-coo-detail').length).toBeGreaterThanOrEqual(1);
+    const cooFills = new Set(COO_PATHS.map((p) => p.fill));
+    for (const p of Array.from(coo?.querySelectorAll('path') ?? [])) {
+      expect(cooFills.has(p.getAttribute('fill') ?? '')).toBe(true);
+    }
     const board = stage18?.querySelector<SVGRectElement>('rect[x="156"][y="126"]');
     expect(board).not.toBeNull();
     const box = bboxOf(Array.from(coo?.querySelectorAll('rect, ellipse, circle, path') ?? []));
     expect(box.maxY - box.minY).toBeGreaterThanOrEqual(20);
     expect(box.maxY).toBeLessThanOrEqual(126);
+    expect(box.minX).toBeGreaterThanOrEqual(200);
+    expect(box.maxX).toBeLessThanOrEqual(238);
+    // clear of the book on the left
+    const book = stage18?.querySelector<SVGRectElement>('rect[x="160"][y="88"]');
+    expect(book).not.toBeNull();
+    expect(overlaps(box, bboxOf([book as SVGRectElement]))).toBe(false);
   });
 
   it('moves the steaming mug onto the windowsill (stage 10), clear of the candle and the heather vase', () => {
@@ -1093,7 +1198,7 @@ describe('Scottish accents, mug and thistle placement', () => {
   });
 
   it('gives the thistle vase a fixed spot on the mantelpiece (stage 19), clear of the picture, stockings and Saltire', () => {
-    const scene = renderScene(new Set(), DEC_10);
+    const scene = renderScene(new Set(), DEC_24);
     const stage19 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="19"]');
     const vase = stage19?.querySelector<SVGRectElement>('rect.scene-thistle-vase');
     expect(vase).not.toBeNull();
@@ -1114,12 +1219,11 @@ describe('Scottish accents, mug and thistle placement', () => {
     for (const shape of thistleShapes) {
       expect(overlaps(bboxOf([shape]), pictureBox)).toBe(false);
     }
-    for (const stage of ['16', '17']) {
-      const stockings = Array.from(
-        scene.querySelectorAll<SVGGElement>(`g.scene-stage[data-stage="${stage}"]`),
-      ).flatMap((g) => Array.from(g.querySelectorAll('rect, circle')));
-      expect(overlaps(thistleBox, bboxOf(stockings))).toBe(false);
-    }
+    const stockingShapes = Array.from(
+      scene.querySelectorAll<SVGGElement>('g.scene-stockings rect, g.scene-stockings circle'),
+    );
+    expect(stockingShapes.length).toBeGreaterThan(0);
+    expect(overlaps(thistleBox, bboxOf(stockingShapes))).toBe(false);
     const saltireBox = bboxOf(Array.from(scene.querySelectorAll('g.scene-saltire rect, g.scene-saltire path')));
     expect(overlaps(thistleBox, saltireBox)).toBe(false);
   });
@@ -1272,7 +1376,13 @@ describe('growing gift pile under the tree (every third opened door)', () => {
       const box = bboxOf(Array.from(gift.querySelectorAll('rect, circle, ellipse, path')));
       expect(box.maxX - box.minX).toBeLessThanOrEqual(9);
       expect(box.maxY - box.minY).toBeLessThanOrEqual(11);
+      // no cap shapes: every pile gift is a cross-ribbon box or a sack, never a bulb-look cylinder
+      expect(gift.querySelector('ellipse')).toBeNull();
+      const isBox = gift.querySelectorAll('rect').length >= 3;
+      const isSack = gift.querySelector('path.scene-gift-sack') !== null;
+      expect(isBox !== isSack).toBe(true);
     }
+    expect(pile?.outerHTML).not.toContain('cylinder');
   });
 
   it('plays the reveal moment on a newly appearing gift only (revealSceneGifts), once per gift', () => {
@@ -1299,30 +1409,28 @@ describe('growing gift pile under the tree (every third opened door)', () => {
   });
 });
 
-describe('three stockings with labels on the mantel (stages 16/17)', () => {
-  it('hangs one stocking labeled M at stage 16 and two more (M, N with paw print) together at stage 17 — three total', () => {
-    const at16 = renderScene(new Set(Array.from({ length: 16 }, (_, i) => i + 1)), DEC_10);
-    const stockings16 = Array.from(at16.querySelectorAll<SVGGElement>('g.scene-stocking')).filter(
-      (s) => s.closest('g.scene-stage--earned') !== null,
-    );
-    expect(stockings16).toHaveLength(1);
-    expect(stockings16[0].dataset.label).toBe('M');
-    expect(stockings16[0].querySelector('g.scene-paw-print')).toBeNull();
-    expect(stockings16[0].dataset.stage).toBe('16');
-    expect(
-      at16.querySelector('g.scene-stage[data-stage="17"]')?.classList.contains('scene-stage--earned'),
-    ).toBe(false);
-
-    const at17 = renderScene(new Set(Array.from({ length: 17 }, (_, i) => i + 1)), DEC_10);
-    const stockings = Array.from(at17.querySelectorAll<SVGGElement>('g.scene-stocking')).filter(
-      (s) => s.closest('g.scene-stage--earned') !== null,
-    );
+describe('three stockings with labels on the mantel — one calendar item from Dec 16 (stages 16/17 freed)', () => {
+  it('hangs all three stockings together (labels M / M / N with paw print) as a calendar item from Dec 16, not in any stage, absent before', () => {
+    for (const date of [NOV_28, NOV_29, DEC_1, DEC_15]) {
+      const scene = renderScene(new Set(), date);
+      expect(scene.querySelector('g.scene-stockings')).toBeNull();
+      expect(scene.querySelectorAll('g.scene-stocking')).toHaveLength(0);
+    }
+    const at16 = renderScene(new Set(), DEC_16);
+    const item = at16.querySelector<SVGGElement>('g.scene-stockings');
+    expect(item).not.toBeNull();
+    expect(item?.dataset.item).toBe('stockings');
+    expect(item?.closest('g.scene-stage')).toBeNull();
+    const stockings = Array.from(at16.querySelectorAll<SVGGElement>('g.scene-stocking'));
     expect(stockings).toHaveLength(3);
     expect(stockings.map((s) => s.dataset.label)).toEqual(['M', 'M', 'N']);
-    const stage17Stockings = Array.from(
-      at17.querySelectorAll<SVGGElement>('g.scene-stage[data-stage="17"]'),
-    ).flatMap((stage) => Array.from(stage.querySelectorAll<SVGGElement>('g.scene-stocking')));
-    expect(stage17Stockings).toHaveLength(2);
+    // stages 16/17 no longer carry stockings (robin + radio live there)
+    expect(
+      at16.querySelector('g.scene-stage[data-stage="16"]')?.querySelectorAll('g.scene-stocking'),
+    ).toHaveLength(0);
+    expect(
+      at16.querySelector('g.scene-stage[data-stage="17"]')?.querySelectorAll('g.scene-stocking'),
+    ).toHaveLength(0);
     const labels = stockings.map(
       (s) => s.querySelector('text.scene-stocking-label')?.textContent,
     );
@@ -1339,7 +1447,7 @@ describe('three stockings with labels on the mantel (stages 16/17)', () => {
   });
 
   it('hangs the three stockings at deterministic heights with tidy spacing on the mantel, clear of the Saltire and the thistle', () => {
-    const scene = renderScene(allOpened(), DEC_10);
+    const scene = renderScene(allOpened(), DEC_24);
     const stockings = Array.from(scene.querySelectorAll<SVGGElement>('g.scene-stocking'));
     expect(stockings).toHaveLength(3);
     const boxes = stockings.map((s) => bboxOf(Array.from(s.querySelectorAll('rect, circle, ellipse'))));
@@ -1374,6 +1482,225 @@ describe('three stockings with labels on the mantel (stages 16/17)', () => {
     const rule = /\.scene-stocking-label\s*\{[^}]*\}/.exec(css)?.[0] ?? '';
     expect(rule).toContain('var(--font-display)');
     expect(rule).toContain('fill: #f3e2c3');
+  });
+});
+
+describe('stage 16 robin on the windowsill (WC-06T6)', () => {
+  const stage16scene = () =>
+    renderScene(new Set(Array.from({ length: 16 }, (_, i) => i + 1)), DEC_10);
+
+  it('sits a small flat robin on the sill: body, red-orange breast, head, eye, beak, tail, legs, soft halo', () => {
+    const scene = stage16scene();
+    const stage16 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="16"]');
+    expect(stage16?.classList.contains('scene-stage--earned')).toBe(true);
+    const robin = stage16?.querySelector<SVGGElement>('g.scene-robin');
+    expect(robin).not.toBeNull();
+    expect(robin?.querySelector('ellipse.scene-robin-back')).not.toBeNull();
+    expect(robin?.querySelector('ellipse.scene-robin-breast')?.getAttribute('fill')).toBe('#d96b3a');
+    expect(robin?.querySelector('circle.scene-robin-head')).not.toBeNull();
+    expect(robin?.querySelector('circle.scene-robin-eye')).not.toBeNull();
+    expect(robin?.querySelector('polygon.scene-robin-beak')).not.toBeNull();
+    expect(robin?.querySelector('polygon.scene-robin-tail')).not.toBeNull();
+    expect(robin?.querySelectorAll('line.scene-robin-leg')).toHaveLength(2);
+    expect(robin?.querySelector('circle.scene-robin-halo')).not.toBeNull();
+    const box = bboxOf(
+      Array.from(
+        robin?.querySelectorAll('rect, circle, ellipse, polygon, line, path') ?? [],
+      ).filter((el) => !el.classList.contains('scene-robin-halo')),
+    );
+    const sill = scene.querySelector<SVGRectElement>('g.scene-stage[data-stage="7"] > rect');
+    const sillX = Number(sill?.getAttribute('x'));
+    const sillW = Number(sill?.getAttribute('width'));
+    const sillTop = Number(sill?.getAttribute('y'));
+    expect(box.minX).toBeGreaterThanOrEqual(sillX);
+    expect(box.maxX).toBeLessThanOrEqual(sillX + sillW);
+    expect(box.maxY).toBeLessThanOrEqual(sillTop + 0.01);
+    expect(box.maxY).toBeGreaterThanOrEqual(sillTop - 0.01);
+    // clear of the sill candle, the mug and the heather vase
+    const candle = scene.querySelector<SVGRectElement>('g.scene-stage[data-stage="7"] rect[x="66"]');
+    const mug = scene.querySelector<SVGRectElement>('rect.scene-mug');
+    const heather = bboxOf(
+      Array.from(
+        scene.querySelectorAll<SVGElement>('g.scene-stage[data-stage="20"] path, g.scene-stage[data-stage="20"] ellipse, g.scene-stage[data-stage="20"] circle, g.scene-stage[data-stage="20"] line'),
+      ),
+    );
+    for (const other of [candle, mug]) {
+      expect(other).not.toBeNull();
+      expect(overlaps(box, bboxOf([other as SVGRectElement]))).toBe(false);
+    }
+    expect(overlaps(box, heather)).toBe(false);
+    // clear of the castle in the pane
+    const castleBox = bboxOf(
+      Array.from(scene.querySelectorAll('g.scene-castle rect, g.scene-castle polygon')),
+    );
+    expect(overlaps(box, castleBox)).toBe(false);
+  });
+
+  it('is stage-gated (not earned before 16 doors) and breathes in CSS, reduced-motion safe', () => {
+    const notYet = renderScene(new Set(Array.from({ length: 15 }, (_, i) => i + 1)), DEC_10);
+    expect(
+      notYet.querySelector('g.scene-stage[data-stage="16"]')?.classList.contains('scene-stage--earned'),
+    ).toBe(false);
+    const css = readFileSync(path.join(process.cwd(), 'src', 'styles', 'scene.css'), 'utf8');
+    expect(css).toMatch(/\.scene-robin\s*\{[^}]*animation:\s*scene-robin-breathe 2\.4s/);
+    const keyframes = /@keyframes scene-robin-breathe \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(keyframes).toContain('scale(1)');
+    expect(keyframes).toContain('scale(1.05)');
+    const reduced = /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(reduced).toContain('.scene-robin');
+  });
+});
+
+function dogPolygonPoints(): Array<[number, number]> {
+  const nums = (DOG_SILHOUETTE_PATH.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+  const m = /translate\(\s*(-?[\d.]+)\s+(-?[\d.]+)\s*\)\s*scale\(\s*(-?[\d.]+)\s+(-?[\d.]+)\s*\)/.exec(
+    DOG_TRANSFORM,
+  );
+  const tx = Number(m?.[1]);
+  const ty = Number(m?.[2]);
+  const sx = Number(m?.[3]);
+  const sy = Number(m?.[4]);
+  const pts: Array<[number, number]> = [];
+  for (let i = 0; i + 1 < nums.length; i += 2) {
+    pts.push([tx + sx * nums[i], ty + sy * nums[i + 1]]);
+  }
+  return pts;
+}
+
+function pointInPolygon(p: [number, number], poly: Array<[number, number]>): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i, i += 1) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+describe('stage 17 retro radio on the floor next to the armchair (WC-06T6)', () => {
+  const stage17scene = () =>
+    renderScene(new Set(Array.from({ length: 17 }, (_, i) => i + 1)), DEC_10);
+
+  it('has the retro structure: wood body, cream panel, speaker grid, dial + needle, feet, antenna', () => {
+    const scene = stage17scene();
+    const stage17 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="17"]');
+    expect(stage17?.classList.contains('scene-stage--earned')).toBe(true);
+    const radio = stage17?.querySelector<SVGGElement>('g.scene-radio');
+    expect(radio).not.toBeNull();
+    expect(radio?.querySelector('rect.scene-radio-body')?.getAttribute('fill')).toBe('#8a6b4f');
+    expect(radio?.querySelector('rect.scene-radio-panel')).not.toBeNull();
+    expect(radio?.querySelectorAll('line.scene-radio-speaker')).toHaveLength(3);
+    expect(radio?.querySelector('circle.scene-radio-dial')).not.toBeNull();
+    expect(radio?.querySelector('line.scene-radio-dial-needle')).not.toBeNull();
+    expect(radio?.querySelectorAll('rect.scene-radio-foot')).toHaveLength(2);
+    expect(radio?.querySelector('line.scene-radio-antenna')).not.toBeNull();
+  });
+
+  it('sits on the floor next to (left of) the armchair, clear of chair, tree pool, rug, hearth and the dog silhouette', () => {
+    const scene = stage17scene();
+    const stage17 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="17"]');
+    const box = bboxOf(
+      Array.from(stage17?.querySelectorAll('rect, circle, ellipse, polygon, line, path') ?? []),
+    );
+    expect(box.minY).toBeGreaterThanOrEqual(232);
+    expect(box.maxY).toBeLessThanOrEqual(300);
+    const chair = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="10"]');
+    const chairBox = bboxOf(Array.from(chair?.querySelectorAll('rect') ?? []));
+    expect(box.maxX).toBeLessThanOrEqual(chairBox.minX);
+    const pool = scene.querySelector<SVGEllipseElement>('g.scene-tree ellipse.scene-tree-pool');
+    expect(overlaps(box, bboxOf([pool as SVGEllipseElement]))).toBe(false);
+    const rugBox: Box = { minX: RUG.x, minY: RUG.y, maxX: RUG.x + RUG.w, maxY: RUG.y + RUG.h };
+    expect(overlaps(box, rugBox)).toBe(false);
+    expect(box.maxX).toBeLessThan(HEARTH_EDGE_X);
+    const dog = dogPolygonPoints();
+    for (const corner of [
+      [box.minX, box.minY],
+      [box.maxX, box.minY],
+      [box.minX, box.maxY],
+      [box.maxX, box.maxY],
+    ] as Array<[number, number]>) {
+      expect(pointInPolygon(corner, dog)).toBe(false);
+    }
+  });
+
+  it('floats 2-3 music notes with staggered deterministic delays (no audio)', () => {
+    const stage17 = stage17scene().querySelector<SVGGElement>('g.scene-stage[data-stage="17"]');
+    const notes = Array.from(stage17?.querySelectorAll<SVGGElement>('g.scene-radio-note') ?? []);
+    expect(notes.length).toBeGreaterThanOrEqual(2);
+    expect(notes.length).toBeLessThanOrEqual(3);
+    for (const note of notes) {
+      expect(note.querySelector('.scene-radio-note-head')).not.toBeNull();
+      expect(note.querySelector('.scene-radio-note-stem')).not.toBeNull();
+      expect(note.style.animationDelay).toMatch(/^-?\d+s$/);
+    }
+    expect(notes.map((n) => n.style.animationDelay)).toEqual(['0s', '-2s', '-4s']);
+  });
+
+  it('is stage-gated (not earned before 17 doors); bob ~3s ±1 unit and note float in CSS, reduced-motion static/hidden', () => {
+    const notYet = renderScene(new Set(Array.from({ length: 16 }, (_, i) => i + 1)), DEC_10);
+    expect(
+      notYet.querySelector('g.scene-stage[data-stage="17"]')?.classList.contains('scene-stage--earned'),
+    ).toBe(false);
+    const css = readFileSync(path.join(process.cwd(), 'src', 'styles', 'scene.css'), 'utf8');
+    expect(css).toMatch(/\.scene-radio\s*\{[^}]*animation:\s*scene-radio-bob 3s/);
+    const bob = /@keyframes scene-radio-bob \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(bob).toContain('translateY(1)');
+    expect(bob).toContain('translateY(-1)');
+    const float = /@keyframes scene-note-float \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(float).toContain('translateY(-16)');
+    expect(float).toContain('opacity');
+    const reduced = /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(reduced).toContain('.scene-radio');
+    expect(reduced).toContain('.scene-radio-note');
+    expect(reduced).toContain('display: none');
+  });
+});
+
+describe('adapted reference assets (WC-06T6)', () => {
+  it('tree palette remap constants are the night grading; no reference hex ships in the scene', () => {
+    expect(TREE_PALETTE_REMAP).toEqual({
+      '#16bd3a': '#1d4d2b',
+      '#15bc39': '#2e6b3f',
+      '#3df869': '#35785a',
+      '#000c00': '#0a1610',
+      '#fad92a': '#d9b64f',
+      '#803f29': '#6b4a2f',
+    });
+    for (const p of TREE_PATHS) {
+      expect(Object.values(TREE_PALETTE_REMAP)).toContain(p.fill);
+    }
+    const scene = renderScene(allOpened(), DEC_24);
+    const svgText = scene.querySelector('svg')?.outerHTML ?? '';
+    for (const refHex of [
+      '#16bd3a',
+      '#15bc39',
+      '#3df869',
+      '#000c00',
+      '#fad92a',
+      '#803f29',
+      '#a42133',
+      '#e22c3b',
+      '#bd932f',
+    ]) {
+      expect(svgText).not.toContain(refHex);
+    }
+  });
+
+  it('coo asset keeps the traced caramel/cream/dark regions (identity remap, 8 paths)', () => {
+    expect(COO_PATHS).toHaveLength(8);
+    const classes = new Set(COO_PATHS.map((p) => p.cls));
+    expect(classes).toEqual(new Set(['scene-coo-body', 'scene-coo-fringe', 'scene-coo-horn', 'scene-coo-detail']));
+  });
+
+  it('stays within the bundle budget: <= 40 KB raw and <= 15 KB gzip per adapted asset', () => {
+    const treeSrc = readFileSync(path.join(process.cwd(), 'src', 'assets', 'tree-adapted.ts'), 'utf8');
+    const cooSrc = readFileSync(path.join(process.cwd(), 'src', 'assets', 'coo-adapted.ts'), 'utf8');
+    expect(treeSrc.length).toBeLessThanOrEqual(40 * 1024);
+    expect(cooSrc.length).toBeLessThanOrEqual(40 * 1024);
+    expect(gzipSync(treeSrc).length).toBeLessThanOrEqual(15 * 1024);
+    expect(gzipSync(cooSrc).length).toBeLessThanOrEqual(15 * 1024);
   });
 });
 

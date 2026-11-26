@@ -167,8 +167,15 @@
   .scene-bulb-chain,
   .scene-reveal,
   .scene-reveal-star,
-  .scene-tree-star-glow {
+  .scene-tree-star-glow,
+  .scene-robin,
+  .scene-radio,
+  .scene-radio-note {
     animation: none;
+  }
+
+  .scene-radio-note {
+    display: none;
   }
 }
 
@@ -224,6 +231,60 @@
 
 .scene-steam {
   animation: scene-steam-rise 2.6s ease-in-out infinite;
+}
+
+.scene-robin {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: scene-robin-breathe 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes scene-robin-breathe {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.05);
+  }
+}
+
+.scene-radio {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: scene-radio-bob 3s ease-in-out infinite alternate;
+}
+
+@keyframes scene-radio-bob {
+  from {
+    transform: translateY(1);
+  }
+  to {
+    transform: translateY(-1);
+  }
+}
+
+.scene-radio-note {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  opacity: 0;
+  animation: scene-note-float 6s linear infinite;
+}
+
+@keyframes scene-note-float {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  70% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(-16);
+    opacity: 0;
+  }
 }
 
 @keyframes scene-steam-rise {

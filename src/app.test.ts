@@ -123,7 +123,11 @@ describe('renderApp', () => {
 
     expect(localStorage.getItem('wc.opened')).toBe('[5]');
     expect(door?.classList.contains('door--opened')).toBe(true);
-    expect(door?.classList.contains('door--frosted')).toBe(false);
+    // the opened door keeps its colored painted surface (repainted full) + the opened badge
+    expect(door?.classList.contains('door--frosted')).toBe(true);
+    expect(door?.querySelector('canvas.door-frost')).not.toBeNull();
+    expect(door?.querySelector('.door-opened-mark')).not.toBeNull();
+    expect(door?.style.getPropertyValue('--door-tint')).not.toBe('');
     expect(container.querySelector('.lightbox-overlay')).not.toBeNull();
     expect(container.querySelector('.lightbox-header')?.textContent).toBe('Door 5 — December 5');
     expect(door?.querySelector<HTMLImageElement>('img.door-thumb')?.src).toBe(

@@ -1,4 +1,6 @@
 import { CREAM, NIGHT_BLUE } from './door-palette';
+import { COO_PATHS } from './assets/coo-adapted';
+import { TREE_FOLIAGE_BOTTOM_Y, TREE_FOLIAGE_TOP_Y, TREE_PATHS, TREE_PROFILE } from './assets/tree-adapted';
 import { calendarItemsForDate } from './calendar-items';
 import { decemberDayForDate } from './doors';
 import { GIFT_SLOTS, giftSpecForIndex, giftsForOpenedDoors } from './gifts';
@@ -38,9 +40,6 @@ const TRUNK = '#6b4a2f';
 const DOG_BLACK = '#0d0d10';
 const DOG_LINE = '#34343c';
 const SALTIRE_BLUE = '#1d4f91';
-const COO_DARK = '#2a211c';
-const COO_FRINGE = '#b06a2f';
-const COO_HORN = '#e8dcc8';
 const WICK = '#3a2f23';
 const SEAT = '#8f2a38';
 const POT = '#4a2f24';
@@ -61,7 +60,6 @@ const XMAS_GOLD = '#d9b64f';
 const XMAS_GREEN = '#2e6b3f';
 const BRASS = '#d9b64f';
 const GARLAND_DARK = '#1d4d2b';
-const TREE_LIGHT = '#2e6b3f';
 const POT_RIM = '#3a241b';
 const COOKIE = '#a06a3a';
 const XMAS_TRICOLOR: readonly string[] = [XMAS_RED, XMAS_GOLD, XMAS_GREEN];
@@ -79,23 +77,32 @@ export const ROD_H = 3.5;
 export const TREE_AXIS_X = 34;
 const TREE_SEED = 20261224;
 
-/** Five symmetric tiers of the base-art tree, all sharing the trunk axis x. */
-const TREE_TIERS: ReadonlyArray<{ apexY: number; baseY: number; hw: number }> = [
-  { apexY: 106, baseY: 142, hw: 8 },
-  { apexY: 138, baseY: 174, hw: 13 },
-  { apexY: 166, baseY: 202, hw: 19 },
-  { apexY: 194, baseY: 230, hw: 25 },
-  { apexY: 222, baseY: 258, hw: 31 },
-];
+/**
+ * Half-width of the adapted spruce silhouette at scene height y, read from
+ * the generated TREE_PROFILE (linear interpolation between samples).
+ */
+export function treeHalfWidthAt(y: number): number {
+  const profile = TREE_PROFILE;
+  if (y <= profile[0][0]) {
+    return profile[0][1];
+  }
+  for (let i = 1; i < profile.length; i += 1) {
+    if (y <= profile[i][0]) {
+      const [y0, hw0] = profile[i - 1];
+      const [y1, hw1] = profile[i];
+      const t = (y - y0) / (y1 - y0);
+      return hw0 + t * (hw1 - hw0);
+    }
+  }
+  return profile[profile.length - 1][1];
+}
 
-/** Spiral strand swags across the cone (widely at the bottom, narrowing up). */
-const TREE_STRANDS: ReadonlyArray<{ y: number; hw: number; bulbs: number }> = [
-  { y: 244, hw: 19, bulbs: 7 },
-  { y: 212, hw: 12.5, bulbs: 6 },
-  { y: 182, hw: 8.4, bulbs: 5 },
-];
+/** 13 baubles spread over 5 silhouette bands (2/2/3/3/3, top to bottom). */
+const TREE_BAUBLES_PER_BAND: readonly number[] = [2, 2, 3, 3, 3];
 
-const TREE_BAUBLES_PER_TIER: readonly number[] = [2, 2, 3, 3, 3];
+/** Spiral strand swags across the silhouette (widely at the bottom, narrowing up). */
+const TREE_STRAND_OFFSETS: readonly number[] = [14, 46, 78];
+const TREE_STRAND_BULBS: readonly number[] = [7, 6, 5];
 
 const REVEAL_CLASS = 'scene-reveal';
 
@@ -694,44 +701,112 @@ function stocking(x: number, fill: string, label: string, withPaw: boolean): SVG
   return g;
 }
 
-function stage16FirstStocking(): SVGGElement {
-  return stocking(244, RED, 'M', false);
+/**
+ * The three mantel stockings (labels M / M / N with paw print) as ONE
+ * calendar-date item (Dec 16): they appear together and hang on the mantel
+ * in the same spots and draw order as before.
+ */
+function stockingsItem(): SVGGElement {
+  const g = group([
+    stocking(244, RED, 'M', false),
+    stocking(268, PINE, 'M', false),
+    stocking(292, RED, 'N', true),
+  ]);
+  g.classList.add('scene-stockings');
+  g.dataset.item = 'stockings';
+  return g;
 }
 
-/** Stage 17: two stockings together — label M and label N with a paw print. */
-function stage17TwoStockings(): SVGGElement {
-  return group([stocking(268, PINE, 'M', false), stocking(292, RED, 'N', true)]);
+const ROBIN_BACK = '#6b5a4a';
+const ROBIN_BREAST = '#d96b3a';
+
+/**
+ * Stage 16: a small flat robin on the left end of the windowsill — round
+ * winter body, red-orange breast and face patch, brown-grey back, tiny beak
+ * and tail, softly lit by a warm halo, with a gentle breathing idle.
+ */
+function stage16Robin(): SVGGElement {
+  const robin = group([
+    circle(33, 139, 7.5, GOLD, { opacity: 0.12, class: 'scene-robin-halo' }),
+    svgEl('polygon', { points: '28,140 24,143.5 28.5,143.8', fill: ROBIN_BACK, class: 'scene-robin-tail' }),
+    svgEl('ellipse', { cx: 32, cy: 139, rx: 4.5, ry: 4, fill: ROBIN_BACK, class: 'scene-robin-back' }),
+    svgEl('ellipse', { cx: 34.5, cy: 140.5, rx: 2.6, ry: 3, fill: ROBIN_BREAST, class: 'scene-robin-breast' }),
+    circle(34.8, 135.8, 2.9, ROBIN_BACK, { class: 'scene-robin-head' }),
+    circle(35.6, 136.6, 1.9, ROBIN_BREAST, { class: 'scene-robin-face' }),
+    circle(36.2, 135.6, 0.6, FIREBOX, { class: 'scene-robin-eye' }),
+    svgEl('polygon', { points: '37.6,136.3 39.6,137 37.6,137.6', fill: '#3a2f23', class: 'scene-robin-beak' }),
+    svgEl('line', { x1: 30.8, y1: 142.8, x2: 30.8, y2: 145, stroke: '#3a2f23', 'stroke-width': 0.7, class: 'scene-robin-leg' }),
+    svgEl('line', { x1: 33.2, y1: 142.8, x2: 33.2, y2: 145, stroke: '#3a2f23', 'stroke-width': 0.7, class: 'scene-robin-leg' }),
+  ]);
+  robin.classList.add('scene-robin');
+  return group([robin]);
 }
 
 /**
- * Flat-art Highland-cow figurine, ~1.5x the previous size: dark silhouette
- * with an orange-brown fringe over the face and tiny horns, standing on the
- * shelf board.
+ * Stage 17: a small retro radio on the floor next to the armchair — warm wood
+ * body, cream front panel with a speaker grid and a dial, tiny feet and a
+ * thin antenna. It gently bobs while 2-3 music notes float up from it and
+ * fade out (pure CSS, no sound).
  */
-function highlandCoo(): SVGGElement {
-  const coo = group([
-    rect(206, 118, 2.5, 8, COO_DARK),
-    rect(211, 118, 2.5, 8, COO_DARK),
-    rect(216, 118, 2.5, 8, COO_DARK),
-    rect(221, 118, 2.5, 8, COO_DARK),
-    svgEl('ellipse', { cx: 213.5, cy: 113, rx: 12.5, ry: 7.5, fill: COO_DARK }),
-    circle(203.5, 110, 5.5, COO_DARK),
-    path('M200 107 C202 104.5 207.5 104.5 209.5 107.5 C208 110.5 202 110.8 200 107 Z', COO_FRINGE),
-    svgEl('path', {
-      d: 'M200.3 106 C199 104.8 198 103.5 198.3 102.2',
-      stroke: COO_HORN,
-      'stroke-width': 1.5,
-      'stroke-linecap': 'round',
-      fill: 'none',
+function radioNote(x: number, y: number, delay: number): SVGGElement {
+  const note = group([
+    svgEl('ellipse', {
+      cx: x,
+      cy: y,
+      rx: 1.1,
+      ry: 0.8,
+      fill: XMAS_GOLD,
+      transform: `rotate(-20 ${x} ${y})`,
+      class: 'scene-radio-note-head',
     }),
     svgEl('path', {
-      d: 'M206.5 105.7 C207.5 104.5 208.5 103.2 208.2 101.8',
-      stroke: COO_HORN,
-      'stroke-width': 1.5,
-      'stroke-linecap': 'round',
+      d: `M ${x + 0.95} ${y - 0.3} L ${x + 0.95} ${y - 4.6} Q ${x + 2.6} ${y - 4.2} ${x + 2.2} ${y - 2.4}`,
+      stroke: XMAS_GOLD,
+      'stroke-width': 0.7,
       fill: 'none',
+      'stroke-linecap': 'round',
+      class: 'scene-radio-note-stem',
     }),
   ]);
+  note.classList.add('scene-radio-note');
+  note.style.animationDelay = `${delay}s`;
+  return note;
+}
+
+function stage17Radio(): SVGGElement {
+  const radio = group([
+    svgEl('line', { x1: 77, y1: 263, x2: 71, y2: 253, stroke: WOOD_DARK, 'stroke-width': 0.8, class: 'scene-radio-antenna' }),
+    circle(71, 253, 0.9, GOLD_CREAM, { class: 'scene-radio-antenna-tip' }),
+    rect(74, 263, 16, 9.5, WOOD, { rx: 2, class: 'scene-radio-body' }),
+    rect(76, 264.5, 12, 6.5, CREAM, { rx: 1, opacity: 0.92, class: 'scene-radio-panel' }),
+    svgEl('line', { x1: 77.5, y1: 265.8, x2: 77.5, y2: 269.8, stroke: WOOD_DARK, 'stroke-width': 0.8, class: 'scene-radio-speaker' }),
+    svgEl('line', { x1: 79.5, y1: 265.8, x2: 79.5, y2: 269.8, stroke: WOOD_DARK, 'stroke-width': 0.8, class: 'scene-radio-speaker' }),
+    svgEl('line', { x1: 81.5, y1: 265.8, x2: 81.5, y2: 269.8, stroke: WOOD_DARK, 'stroke-width': 0.8, class: 'scene-radio-speaker' }),
+    circle(85, 267.8, 2.6, 'none', { stroke: WOOD_DARK, 'stroke-width': 0.6, class: 'scene-radio-dial-rim' }),
+    circle(85, 267.8, 2, NIGHT_BLUE, { class: 'scene-radio-dial' }),
+    svgEl('line', { x1: 85, y1: 267.8, x2: 86, y2: 266.6, stroke: CREAM, 'stroke-width': 0.5, class: 'scene-radio-dial-needle' }),
+    rect(76, 272.5, 2.5, 1.8, WOOD_DARK, { class: 'scene-radio-foot' }),
+    rect(87.5, 272.5, 2.5, 1.8, WOOD_DARK, { class: 'scene-radio-foot' }),
+  ]);
+  radio.classList.add('scene-radio');
+  return group([
+    radio,
+    radioNote(79, 261, 0),
+    radioNote(83, 259, -2),
+    radioNote(86, 261.5, -4),
+  ]);
+}
+
+/**
+ * Highland-cow figurine from the approved traced reference (adapted by
+ * scripts/adapt-references.mjs into scene coordinates): caramel body,
+ * cream fringe, dark horns/hooves, black face details, standing on the
+ * shelf board right of the book.
+ */
+function highlandCoo(): SVGGElement {
+  const coo = group(
+    COO_PATHS.map((p) => path(p.d, p.fill, { class: p.cls, 'fill-rule': p.rule })),
+  );
   coo.classList.add('scene-coo');
   return coo;
 }
@@ -790,22 +865,27 @@ function stage20HeatherBouquet(): SVGGElement {
 }
 
 /**
- * Deterministically scattered baubles across the five tiers: 10-14 circles
- * in the Christmas tricolor palette with cream accents, each kept inside its
- * tier silhouette (so the top tier stays clear of the castle view).
+ * Deterministically scattered baubles across five bands of the adapted
+ * spruce silhouette: exactly 13 circles in the Christmas tricolor palette
+ * with cream accents, each kept inside the silhouette (its half-width at the
+ * bauble's height comes from the generated TREE_PROFILE, so the top stays
+ * clear of the castle view).
  */
 function treeBaubles(): SVGElement[] {
   const rand = createPrng(TREE_SEED);
   const els: SVGElement[] = [];
   let index = 0;
-  for (let tier = 0; tier < TREE_TIERS.length; tier += 1) {
-    const { apexY, baseY, hw } = TREE_TIERS[tier];
-    const count = TREE_BAUBLES_PER_TIER[tier];
+  const top = TREE_FOLIAGE_TOP_Y;
+  const bottom = TREE_FOLIAGE_BOTTOM_Y;
+  const span = bottom - top - 10;
+  for (let band = 0; band < TREE_BAUBLES_PER_BAND.length; band += 1) {
+    const count = TREE_BAUBLES_PER_BAND[band];
+    const y0 = top + 5 + (span * band) / TREE_BAUBLES_PER_BAND.length;
+    const y1 = top + 5 + (span * (band + 1)) / TREE_BAUBLES_PER_BAND.length;
     for (let k = 0; k < count; k += 1) {
       const r = 1.7 + rand() * 0.9;
-      const y = apexY + 5 + rand() * (baseY - apexY - 10);
-      const hwAt = (hw * (y - apexY)) / (baseY - apexY);
-      const maxOff = Math.max(hwAt - r - 0.6, 0.5);
+      const y = y0 + rand() * Math.max(y1 - y0, 1);
+      const maxOff = Math.max(treeHalfWidthAt(y) - r - 0.8, 0.5);
       const x = TREE_AXIS_X + (rand() * 2 - 1) * maxOff;
       const color = index % 5 === 4 ? CREAM : XMAS_TRICOLOR[index % XMAS_TRICOLOR.length];
       els.push(circle(x, y, r, color, { class: 'scene-bauble', stroke: 'rgba(0,0,0,0.25)', 'stroke-width': 0.4 }));
@@ -853,11 +933,12 @@ function treeStrand(spec: { y: number; hw: number; bulbs: number }, strandIndex:
 }
 
 /**
- * The Christmas tree as BASE ART, visible from the very first visit: straight
- * vertical trunk axis (all five tiers share x = TREE_AXIS_X), symmetric
- * conical two-tone green shape, trunk in a small pot, welcoming skirt and
- * light pool — fully decorated from the start with tricolor baubles and the
- * spiral light strands (only the top star waits for stage 24).
+ * The Christmas tree from the approved traced reference (adapted by
+ * scripts/adapt-references.mjs, night-graded palette): the wavy organic
+ * spruce silhouette with its dark shading underlay, the gold zigzag garland
+ * band and the trunk carry over; the traced baubles are dropped in favour of
+ * the existing 13 seeded tricolor baubles + 3 spiral strands. Calendar item
+ * from Dec 1 (only the stage-24 star waits). Trunk axis x = TREE_AXIS_X.
  */
 function baseTree(): SVGGElement {
   const children: SVGElement[] = [
@@ -872,21 +953,16 @@ function baseTree(): SVGGElement {
     }),
     svgEl('ellipse', { cx: TREE_AXIS_X, cy: 288, rx: 30, ry: 8, fill: CRATER, class: 'scene-tree-skirt' }),
     rect(TREE_AXIS_X - 2.5, 256, 5, 14, TRUNK, { class: 'scene-tree-trunk' }),
-    rect(TREE_AXIS_X - 10, 266, 20, 4, POT_RIM),
-    rect(TREE_AXIS_X - 9, 268, 18, 12, POT, { class: 'scene-tree-pot' }),
   ];
-  TREE_TIERS.forEach((tier, index) => {
-    children.push(
-      svgEl('polygon', {
-        points: `${TREE_AXIS_X},${tier.apexY} ${TREE_AXIS_X - tier.hw},${tier.baseY} ${TREE_AXIS_X + tier.hw},${tier.baseY}`,
-        fill: index % 2 === 0 ? PINE : TREE_LIGHT,
-        class: 'scene-tree-tier',
-      }),
-    );
-  });
+  for (const adapted of TREE_PATHS) {
+    children.push(path(adapted.d, adapted.fill, { class: adapted.cls }));
+  }
+  children.push(rect(TREE_AXIS_X - 10, 266, 20, 4, POT_RIM), rect(TREE_AXIS_X - 9, 268, 18, 12, POT, { class: 'scene-tree-pot' }));
   children.push(...treeBaubles());
   let bulbOffset = 0;
-  TREE_STRANDS.forEach((spec, index) => {
+  TREE_STRAND_OFFSETS.forEach((offset, index) => {
+    const y = TREE_FOLIAGE_BOTTOM_Y - offset;
+    const spec = { y, hw: Math.max(treeHalfWidthAt(y) - 1.5, 3), bulbs: TREE_STRAND_BULBS[index] };
     children.push(treeStrand(spec, index, bulbOffset));
     bulbOffset += spec.bulbs;
   });
@@ -908,12 +984,6 @@ function buildGift(index: number): SVGGElement {
       rect(cx - spec.w / 2, by - spec.h / 2 - 1, spec.w, 2, spec.ribbon),
       circle(cx - 2, by - spec.h - 0.8, 1.4, spec.ribbon),
       circle(cx + 2, by - spec.h - 0.8, 1.4, spec.ribbon),
-    );
-  } else if (spec.shape === 'cylinder') {
-    children.push(
-      rect(cx - spec.w / 2, by - spec.h, spec.w, spec.h, spec.wrap),
-      svgEl('ellipse', { cx, cy: by - spec.h, rx: spec.w / 2, ry: 1.6, fill: spec.ribbon }),
-      rect(cx - 1.2, by - spec.h, 2.4, spec.h, spec.ribbon, { opacity: 0.9 }),
     );
   } else {
     children.push(
@@ -1037,8 +1107,8 @@ function stage23SantaTreat(): SVGGElement {
 /**
  * Stage 24 — the Christmas-Eve moment: a Santa hat on the dog's head (a
  * separate element on the silhouette's head geometry; the silhouette path
- * itself stays untouched), a red bow centered neatly ON the wrapped gift at
- * the dog's paws, and the radiant gold star glowing on top of the tree.
+ * itself stays untouched), the wrapped gift at the dog's paws, and the
+ * radiant gold star glowing on the treetop. No bow.
  */
 function stage24ChristmasEve(): SVGGElement {
   const hat = group([
@@ -1049,17 +1119,11 @@ function stage24ChristmasEve(): SVGGElement {
   hat.classList.add('scene-dog-hat');
   const gift = present(191, 287, 15, 11, XMAS_RED, GOLD_CREAM);
   gift.classList.add('scene-dog-gift');
-  const bow = group([
-    path('M198.5 292.5 L192 288.8 L192 296.2 Z', RED),
-    path('M198.5 292.5 L205 288.8 L205 296.2 Z', RED),
-    circle(198.5, 292.5, 2, GOLD_CREAM),
-  ]);
-  bow.classList.add('scene-dog-bow');
   const star = group([
-    circle(TREE_AXIS_X, 98, 10, XMAS_GOLD, { opacity: 0.22, class: 'scene-tree-star-glow' }),
-    path(starPath(TREE_AXIS_X, 98, 7), XMAS_GOLD, { class: 'scene-tree-star' }),
+    circle(TREE_AXIS_X, 97, 9, XMAS_GOLD, { opacity: 0.22, class: 'scene-tree-star-glow' }),
+    path(starPath(TREE_AXIS_X, 97, 7), XMAS_GOLD, { class: 'scene-tree-star' }),
   ]);
-  return group([hat, gift, bow, star]);
+  return group([hat, gift, star]);
 }
 
 /**
@@ -1221,8 +1285,8 @@ const STAGE_BUILDERS: Array<() => SVGGElement> = [
   stage13FireGlows,
   stage14Mantelpiece,
   stage15Garland,
-  stage16FirstStocking,
-  stage17TwoStockings,
+  stage16Robin,
+  stage17Radio,
   stage18WallShelfWithBook,
   stage19ThistleVignette,
   stage20HeatherBouquet,
@@ -1249,14 +1313,22 @@ export function renderScene(opened: Set<number>, now: Date): HTMLElement {
   svg.append(windowPaneClip(), baseRoom(), baseSkyline(), baseSideTable());
   for (let index = 0; index < SCENE_STAGE_COUNT; index += 1) {
     if (index === 20) {
-      // the fully decorated tree and the gift pile are base art: drawn above
-      // the window/furniture stages but under stages 21-24 (large present,
-      // paper stars, santa treat, christmas-eve moment)
-      svg.append(baseTree(), giftPile(opened));
+      // the traced tree is a calendar item (from Dec 1); the gift pile stays
+      // base art: tree and pile are drawn above the window/furniture stages
+      // but under stages 21-24 (large present, paper stars, santa treat,
+      // christmas-eve moment)
+      if (items.has('tree')) {
+        const tree = baseTree();
+        svg.append(tree);
+        if (revealItems.has('tree')) {
+          applyRevealMoment(tree, 3);
+        }
+      }
+      svg.append(giftPile(opened));
     }
     if (index === SCENE_STAGE_COUNT - 1) {
       // the dog stands on the rug (stage 9), so it is drawn above the
-      // furniture stages but under the stage-24 hat/bow/gift on its geometry
+      // furniture stages but under the stage-24 hat/gift on its geometry
       svg.append(baseDog());
     }
     const stageGroup = STAGE_BUILDERS[index]();
@@ -1269,6 +1341,13 @@ export function renderScene(opened: Set<number>, now: Date): HTMLElement {
     svg.append(wreath);
     if (revealItems.has('wreath')) {
       applyRevealMoment(wreath, 2);
+    }
+  }
+  if (items.has('stockings')) {
+    const stockings = stockingsItem();
+    svg.append(stockings);
+    if (revealItems.has('stockings')) {
+      applyRevealMoment(stockings, 4);
     }
   }
   section.append(svg);

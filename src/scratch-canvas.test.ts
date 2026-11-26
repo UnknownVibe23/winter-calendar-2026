@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { tintForDoor } from './door-palette';
-import { attachScratchOverlay } from './scratch-canvas';
+import { attachScratchOverlay, attachStaticDoorSurface } from './scratch-canvas';
 
 const DOOR_RECT = { left: 0, top: 0, right: 200, bottom: 100, width: 200, height: 100, x: 0, y: 0 };
 
@@ -413,7 +413,9 @@ describe('attachScratchOverlay', () => {
     // the erase pass ran with destination-out on the same canvas that holds cap + frost
     expect(ctx.globalCompositeOperation).toBe('destination-out');
     expect(onActivate).toHaveBeenCalledTimes(1);
-    expect(door.classList.contains('door--frosted')).toBe(false);
+    // the opened door KEEPS its painted surface (repainted full, no fade-out removal)
+    expect(door.classList.contains('door--frosted')).toBe(true);
+    expect(door.querySelector('canvas.door-frost')).not.toBeNull();
   });
 
   it('opens the door when scratching reaches the threshold and swallows the trailing click', async () => {
@@ -437,9 +439,10 @@ describe('attachScratchOverlay', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(onActivate).toHaveBeenCalledTimes(1);
-    expect(door.classList.contains('door--frosted')).toBe(false);
+    expect(door.classList.contains('door--frosted')).toBe(true);
     const canvas = door.querySelector<HTMLCanvasElement>('canvas.door-frost');
-    expect(canvas?.style.opacity).toBe('0');
+    expect(canvas).not.toBeNull();
+    expect(canvas?.style.opacity).not.toBe('0');
     door.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(clickListener).not.toHaveBeenCalled();
   });
@@ -463,7 +466,8 @@ describe('attachScratchOverlay', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(onActivate).toHaveBeenCalledTimes(1);
-    expect(door.classList.contains('door--frosted')).toBe(false);
+    expect(door.classList.contains('door--frosted')).toBe(true);
+    expect(door.querySelector('canvas.door-frost')).not.toBeNull();
   });
 
   it('does not open at 74% scratched (below the 75% threshold) and swallows the click of a scratch gesture', async () => {
@@ -510,7 +514,7 @@ describe('attachScratchOverlay', () => {
     expect(clickListener).toHaveBeenCalledTimes(1);
   });
 
-  it('finish() fades the frost out and removes the frosted class', () => {
+  it('finish() settles the opened surface: the canvas stays and is repainted full (no fade-out removal), idempotent', () => {
     const ctx = fakeContext(frostedAlpha);
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
       ctx as unknown as CanvasRenderingContext2D,
@@ -518,11 +522,97 @@ describe('attachScratchOverlay', () => {
     const door = makeDoor();
     const handle = attachScratchOverlay(door, 5, { onActivate: vi.fn() });
     expect(handle).not.toBeNull();
+    const fillTextCallsBefore = ctx.fillText.mock.calls.length;
     handle?.finish();
-    expect(door.classList.contains('door--frosted')).toBe(false);
+    expect(door.classList.contains('door--frosted')).toBe(true);
     const canvas = door.querySelector<HTMLCanvasElement>('canvas.door-frost');
-    expect(canvas?.style.opacity).toBe('0');
+    expect(canvas).not.toBeNull();
+    expect(canvas?.style.opacity).not.toBe('0');
+    // repainted complete: clear + full surface incl. the number again
+    expect(ctx.clearRect).toHaveBeenCalled();
+    expect(ctx.fillText.mock.calls.length).toBeGreaterThan(fillTextCallsBefore);
+    expect(ctx.fillText).toHaveBeenCalledWith('5', 100, 50);
     handle?.finish();
-    expect(door.classList.contains('door--frosted')).toBe(false);
+    expect(door.querySelectorAll('canvas.door-frost')).toHaveLength(1);
+    expect(door.classList.contains('door--frosted')).toBe(true);
+  });
+
+  it('scales the frost blooms by the waiting-time density (clamped) and paints the number LAST, on top', () => {
+    const ctx = fakeContext(frostedAlpha);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
+    const door = makeDoor();
+    attachScratchOverlay(door, 5, { onActivate: vi.fn(), frostDensity: 2.5 });
+    const bloomStyles = ctx.fillStyles.filter((s) => s.startsWith('rgba(243, 226, 195,'));
+    expect(bloomStyles.length).toBeGreaterThan(0);
+    for (const style of bloomStyles) {
+      const alpha = Number(/rgba\(243, 226, 195, ([\d.]+)\)/.exec(style)?.[1]);
+      expect(alpha).toBeLessThanOrEqual(0.45);
+    }
+    // the day number is painted after every bloom/stars paint call -> readable at the clamp
+    const lastFillOrder = Math.max(...ctx.fill.mock.invocationCallOrder);
+    const numberOrder = ctx.fillText.mock.invocationCallOrder[0];
+    expect(numberOrder).toBeGreaterThan(lastFillOrder);
+    expect(ctx.fillText).toHaveBeenCalledWith('5', 100, 50);
+    expect(ctx.fillStyles[ctx.fillStyles.length - 1]).toBe(tintForDoor(5).number);
+  });
+});
+
+describe('attachStaticDoorSurface (WC-06T6: every door always shows its colored festive surface)', () => {
+  let container: HTMLElement;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.append(container);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    container.remove();
+  });
+
+  function makeDoor(): HTMLButtonElement {
+    const door = document.createElement('button');
+    door.type = 'button';
+    door.dataset.door = '20';
+    vi.spyOn(door, 'getBoundingClientRect').mockReturnValue(DOOR_RECT as DOMRect);
+    container.append(door);
+    return door;
+  }
+
+  it('paints the full festive layer (tint base + blooms + number) on a locked door with NO scratch interaction', () => {
+    const ctx = fakeContext(frostedAlpha);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
+    const door = makeDoor();
+    attachStaticDoorSurface(door, 20, { frostDensity: 1 });
+    const canvas = door.querySelector<HTMLCanvasElement>('canvas.door-frost');
+    expect(canvas).not.toBeNull();
+    expect(canvas?.classList.contains('door-frost--static')).toBe(true);
+    expect(door.classList.contains('door--frosted')).toBe(true);
+    expect(ctx.fillStyles[0]).toBe(tintForDoor(20).frost); // the door's own palette tint base
+    expect(ctx.fillText).toHaveBeenCalledWith('20', 100, 50);
+    // no pointer handlers: scratching does nothing
+    door.dispatchEvent(pointerEvent('pointerdown', 1, 10, 50));
+    door.dispatchEvent(pointerEvent('pointermove', 1, 60, 50));
+    door.dispatchEvent(pointerEvent('pointerup', 1, 60, 50));
+    expect(ctx.globalCompositeOperation).not.toBe('destination-out');
+  });
+
+  it('is idempotent (repaints instead of stacking) and bails on unmeasurable doors', () => {
+    const ctx = fakeContext(frostedAlpha);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
+    const door = makeDoor();
+    attachStaticDoorSurface(door, 20, { frostDensity: 1 });
+    attachStaticDoorSurface(door, 20, { frostDensity: 2.5 });
+    expect(door.querySelectorAll('canvas.door-frost')).toHaveLength(1);
+    const bare = document.createElement('button');
+    container.append(bare);
+    attachStaticDoorSurface(bare, 20);
+    expect(bare.querySelector('canvas.door-frost')).toBeNull();
   });
 });

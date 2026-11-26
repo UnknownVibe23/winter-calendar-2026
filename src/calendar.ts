@@ -1,8 +1,9 @@
-import { attachScratchOverlay, type ScratchHandle } from './scratch-canvas';
+import { attachScratchOverlay, attachStaticDoorSurface, type ScratchHandle } from './scratch-canvas';
 import type { Content, DoorPhoto } from './content';
 import { countdownPhase, countdownText, daysUntilChristmasEve } from './countdown';
-import { snowDepthForDoor, sparkleBurst, syncDoorSnow } from './door-snow';
+import { frostDensityForDoor, snowDepthForDoor, sparkleBurst, syncDoorSnow } from './door-snow';
 import { doorState, todayDoor, type DoorState } from './doors';
+import { tintForDoor } from './door-palette';
 import type { LightboxHandle } from './lightbox';
 import { newlyEarnedStages } from './reveal';
 import { revealSceneGifts, revealSceneStages, renderScene, scrollToPageTop, syncSceneStages } from './scene';
@@ -19,12 +20,13 @@ export interface CalendarOptions {
 }
 
 const SHAKE_CLASS = 'door--shake';
+// door--frosted is NOT a state class anymore: every door keeps its painted
+// festive surface in every state (owned by the surface layer, not here)
 const STATE_CLASSES = [
   'door--locked',
   'door--openable',
   'door--opened',
   'door--today',
-  'door--frosted',
 ];
 
 export function ariaLabelFor(n: number, state: DoorState, isToday: boolean): string {
@@ -47,6 +49,16 @@ export function applyDoorState(door: HTMLElement, n: number, opened: Set<number>
   door.classList.add(`door--${state}`);
   if (isToday) {
     door.classList.add('door--today');
+  }
+  door.style.setProperty('--door-tint', tintForDoor(n).frost);
+  const mark = door.querySelector('.door-opened-mark');
+  if (state === 'opened' && mark === null) {
+    const badge = document.createElement('span');
+    badge.className = 'door-opened-mark';
+    badge.setAttribute('aria-hidden', 'true');
+    door.append(badge);
+  } else if (state !== 'opened' && mark !== null) {
+    mark.remove();
   }
   door.setAttribute('aria-label', ariaLabelFor(n, state, isToday));
 }
@@ -104,6 +116,9 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
     const doorElement = grid.querySelector<HTMLElement>(`button.door[data-door="${doorNumber}"]`);
     if (doorElement !== null) {
       syncDoorSnow(doorElement, doorNumber, options.now, options.opened);
+      if (doorElement.querySelector('canvas.door-frost') === null) {
+        attachStaticDoorSurface(doorElement, doorNumber, { frostDensity: 1 });
+      }
       if (!wasOpened) {
         sparkleBurst(doorElement, doorNumber);
       }
@@ -166,6 +181,7 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
         doorNumber,
         attachScratchOverlay(door, doorNumber, {
           snowDepth: snowDepthForDoor(doorNumber, options.now, options.opened),
+          frostDensity: frostDensityForDoor(doorNumber, options.now, options.opened),
           onActivate: () => {
             if (scratchFired) {
               return;
@@ -175,6 +191,12 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
           },
         }),
       );
+    } else {
+      // every non-scratchable door (locked future / already opened) still shows
+      // its full colored festive surface as a static painted layer
+      attachStaticDoorSurface(door, doorNumber, {
+        frostDensity: frostDensityForDoor(doorNumber, options.now, options.opened),
+      });
     }
   }
 }
