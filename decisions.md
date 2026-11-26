@@ -1150,3 +1150,150 @@
   considered:** headless-browser visual CI (rejected: no new
   dependencies). **Decided-by:** coding-agent. **Status:** Proposed in
   PR #8
+- **Context:** WC-06T5: the Christmas tree becomes base art, fully
+  decorated from the very first visit.
+  **Decision:** the tree left the stage system entirely and is now
+  always-present base art (`g.scene-tree`, drawn above the window/furniture
+  stages but under stages 21-24): straight trunk axis x 34 (all five tier
+  polygons share the apex/base center x 34, asserted), five symmetric
+  conical two-tone green tiers (`#1e4d2b` / `#2e6b3f` alternating), trunk
+  in a small rimmed pot, cream skirt + warm pool; 13 seeded baubles in the
+  tricolor (`#a3262e` / `#d9b64f` / `#2e6b3f` + cream accents) scattered
+  inside the tier silhouettes, plus 3 spiral strand swags (wide at the
+  bottom, narrowing up) with 18 capped tricolor drop bulbs (<= 22). Only
+  the tree-top star waits for stage 24. The old static tree presents were
+  removed (replaced by the gift pile); the two fireplace presents (stage
+  12) stay. The bare pre-Advent room is now walls/floor/chair rail/bare
+  side table/dog + the fully decorated tree minus star. Castle/city-light
+  clearance is asserted for every tree shape (incl. the stage-24 star):
+  the top tier stays left of the protected box (maxX 42 < 44).
+  **Alternatives considered:** keeping the tree in a stage (rejected: card
+  rules it base art). **Decided-by:** planner. **Status:** Proposed in
+  PR #8
+- **Context:** WC-06T5: stage re-assignment with ids 1..24 and order
+  untouched.
+  **Decision:** stage 21 is now one large wrapped present under/beside the
+  tree (`g.scene-large-present`, 21x18, clearly bigger than the pile
+  gifts), stage 22 is 4 folded-paper stars on short threads in the upper
+  window band (y 19..27, never overlapping the pane), stage 23 is a cookie
+  plate + glass of milk on the side table (flat art + warm accent), stage
+  24 is the Christmas-Eve moment: Santa hat on the dog's head (separate
+  element `g.scene-dog-hat` on the silhouette's head geometry; the
+  silhouette path stays byte-identical, contract test unchanged), red bow
+  centered on the gift at the paws, and the radiant gold star
+  (`g.scene-tree-star` + glow) on the tree top. **Alternatives
+  considered:** none. **Decided-by:** planner. **Status:** Proposed in
+  PR #8
+- **Context:** WC-06T5: the framed highlands picture moves into the
+  door-progress system (stage 2).
+  **Decision:** `calendar-items.ts` now contains only the wreath logic
+  (`CALENDAR_ITEM_IDS = ['wreath']`, start = 1st of Advent Nov 29 2026);
+  date-driven items = wreath only, and `revealItemsForDate` plays only on
+  Nov 29. The picture keeps its heather-glen-stag artwork byte-identical
+  but lives inside the stage-2 group (`g.scene-picture` within
+  `g.scene-stage[data-stage="2"]`), so it is earned with the second opened
+  door on any date and participates in the lightbox-close reveal like
+  every other stage. **Alternatives considered:** keeping it a Dec-1
+  calendar item (rejected: card moves it to stage 2). **Decided-by:**
+  planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T5: curtain rod + wall position fix.
+  **Decision:** the rod is shortened to x 5..163 (w 158), centered on the
+  window center x 84 and ending symmetrically 3 units beyond the curtain
+  outer edges on both sides (the long right overhang is gone); curtains
+  now end with a tidy hem rect at y 138..143, cleanly 2 units above the
+  windowsill top (145) instead of disappearing behind it. The wall bulb
+  chain is re-anchored OFF the rod on its own two small gold wall hooks
+  (`circle.scene-chain-hook` at x 170/224), and the chain/garland bbox is
+  asserted clear of the picture content bbox and the window pane rect.
+  **Alternatives considered:** keeping the rod anchors on the rod
+  (rejected: card requires the chain on its own hooks). **Decided-by:**
+  planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T5: three stockings on the mantel.
+  **Decision:** the mantel carries three stockings, labels M / M / N with
+  paw print, per human ruling: stage 16 hangs one stocking labeled M, stage
+  17 hangs two stockings together labeled M and N with a small paw print
+  on the N stocking (three total, exact labels asserted). Letters are SVG
+  `<text class="scene-stocking-label">` styled in the page display font
+  stack (`var(--font-display)`, Mountains of Christmas) in warm cream
+  `#f3e2c3` on the knit; the paw print is a flat cream pad + four toes
+  beside/below the N. Deterministic sizes, equal hang heights, tidy spacing
+  on the mantel, clear of the Saltire and the thistle vase (asserted).
+  **Alternatives considered:** none. **Decided-by:** planner.
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T5: growing gift pile, one small gift per third opened
+  door.
+  **Decision:** new pure `src/gifts.ts`: `giftsForOpenedDoors(n) =
+  min(8, floor(n/3))` (doors 3, 6, ..., 24; unit-tested at all boundaries),
+  plus deterministic per-index specs (`giftSpecForIndex`, seeded shape
+  box/cylinder/sack, tricolor wrap + ribbon) and 8 fixed neat slots on/around
+  the tree skirt. The pile (`g.scene-gift-pile`, base art, not a stage) is
+  synced by `syncSceneStages` and each newly appearing gift plays the
+  reveal moment (`revealSceneGifts` on lightbox close). The card's "sizes
+  2-3 scene units scale" was read as a small-parcel scale: gifts are 6-8
+  scene units (a literal 2-3 units would be sub-pixel at the strip's
+  max-height 320px render), so the pile reads as gifts while the stage-21
+  present (21x18) stays clearly bigger; pile bbox asserted within the
+  skirt/pool footprint and clear of trunk+pot, dog and large present.
+  **Alternatives considered:** literal 2-3-unit gifts (rejected: not
+  visible at phone width). **Decided-by:** coding-agent (size reading),
+  planner (rule). **Status:** Proposed in PR #8
+- **Context:** WC-06T5: reveal moment becomes longer and pulsating.
+  **Decision:** `REVEAL_MOMENT_MS` 2600 -> 4000 with `REVEAL_PULSES = 2`:
+  the CSS `scene-reveal-glow` keyframes now run 4s with two gentle golden
+  pulses (peaks at 18% and 58%) around the existing sparkle-star pattern;
+  all reveal triggers and once-only semantics are unchanged (newly earned
+  stages after lightbox close, calendar items at their start dates, newly
+  appearing pile gifts). Reduced motion: no pulse (animation none) and the
+  moment settles instantly (settle timeout 0). **Alternatives
+  considered:** keeping 2.6s (rejected: card wants ~4s clearly visible).
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T5: Christmas redesign of BOTH bulb chains.
+  **Decision:** the wall chain (stage 15) is now a light-fir garland on its
+  two gold hooks: a sagging two-tone green band (dark `#1d4d2b` base
+  stroke 5 + lighter `#2e6b3f` center line + needle accents) with 7 real
+  bulbs hanging DOWN — each a stem + brass cap `#d9b64f` + halo + tricolor
+  drop body (red/gold/green alternating deterministically, twinkle delays
+  seeded, sway kept, reduced-motion safe). The tree carries 3 spiral
+  strand swags with 18 capped tricolor drop bulbs (<= 22) with halos and
+  the same twinkle. Structure per bulb asserted (>= 3 elements:
+  cap/halo/body), counts, colors and clearance from the picture/pane
+  asserted. **Alternatives considered:** keeping the old wire+circle
+  bulbs (rejected: card requires the fir-garland redesign).
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T5: stage-23 treat needs table space next to the
+  centered wreath.
+  **Decision:** the bare side table was widened to x 252..302 (w 50; legs
+  moved accordingly) so the wreath stays centered (cx 277 = table center,
+  existing centering test still passes) with the cookie plate on the left
+  and the milk glass on the right, each clear of the wreath ring (asserted
+  per shape). **Alternatives considered:** putting the treat on the
+  mantel (rejected: card says side table). **Decided-by:** coding-agent.
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T5: stage-22 paper stars must not cover the
+  castle/city view.
+  **Decision:** the 4 folded-paper stars (5-point polygons, deterministic
+  sizes 2.8-3.8) hang on short threads from the window's top frame band
+  (y 19..27), strictly above the pane rect (pane starts y 27) — the pane
+  non-overlap is asserted per star, and the castle stays clear.
+  **Alternatives considered:** stars in front of the upper glass
+  (rejected: card forbids overlapping the pane). **Decided-by:**
+  coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T5 automated-vs-manual split for the fifth tuning
+  round.
+  **Decision:** automated: 390 unit tests (giftsForOpenedDoors boundaries
+  + seeded specs, wreath-only calendarItemsForDate/revealItemsForDate,
+  4000ms/2-pulse reveal constants + reduced-motion instant settle + CSS
+  keyframe assertions, tree base-art straightness/symmetry/two-tone/
+  bauble/strand structure + castle clearance incl. the stage-24 star,
+  picture-in-stage-2 gating, stage 21/22/23/24 contents, three stockings
+  with exact labels M/M/N + paw + display-font CSS, fir-garland wall
+  chain hooks/band/bulb structure/colors/clearance + stage-15 gating,
+  rod symmetry + curtain hems, gift pile counts/sync/bbox/determinism +
+  revealSceneGifts, plus all prior tests). Manual smoke (`npm run dev`
+  with `?date=` overrides): bare Nov 28 room with the decorated tree,
+  Nov 29 wreath reveal, door 2 picture reveal (~4s pulsating), gift on
+  doors 3/6/.../24 + large present on 21, paper stars on 22, cookies on
+  23, garland on 15, stockings on 16/17, Christmas-Eve moment on 24,
+  A55 360x780 smoothness. **Alternatives considered:** headless-browser
+  visual CI (rejected: no new dependencies). **Decided-by:**
+  coding-agent. **Status:** Proposed in PR #8
