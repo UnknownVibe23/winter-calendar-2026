@@ -12,6 +12,22 @@
   border-radius: 16px;
 }
 
+.living-room.scene-glow-1 .living-room-svg {
+  filter: drop-shadow(0 0 6px rgba(217, 164, 65, 0.3));
+}
+
+.living-room.scene-glow-2 .living-room-svg {
+  filter: drop-shadow(0 0 10px rgba(217, 164, 65, 0.45));
+}
+
+.living-room.scene-glow-3 .living-room-svg {
+  filter: drop-shadow(0 0 14px rgba(217, 164, 65, 0.6));
+}
+
+.living-room.scene-glow-4 .living-room-svg {
+  filter: drop-shadow(0 0 20px rgba(217, 164, 65, 0.78));
+}
+
 .scene-stage {
   opacity: 0;
   transform: scale(0.5);

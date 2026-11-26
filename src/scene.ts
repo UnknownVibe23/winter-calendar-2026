@@ -1,5 +1,8 @@
 import { CREAM, NIGHT_BLUE } from './door-palette';
+import { decemberDayForDate } from './doors';
+import { glowStepForDay } from './glow';
 import { SCENE_STAGE_COUNT, earnedStages } from './scene-stages';
+import { wreathLitCandles } from './wreath';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -472,6 +475,52 @@ function basePicture(): SVGGElement {
 }
 
 /**
+ * Advent wreath (fir ring, berries, four candles) on the floor in front of
+ * the hearth, part of the room inventory from day 1. The candles are lit by
+ * the calendar day via wreathLitCandles: lit ones get a warm flame + glow,
+ * unlit stay dark.
+ */
+function baseWreath(day: number): SVGGElement {
+  const cx = 275;
+  const cy = 287;
+  const ringRadius = 10.5;
+  const children: SVGElement[] = [
+    circle(cx, cy, ringRadius, 'none', { stroke: PINE, 'stroke-width': 4.5 }),
+  ];
+  for (let berry = 0; berry < 8; berry += 1) {
+    const angle = (berry / 8) * Math.PI * 2 + Math.PI / 8;
+    children.push(
+      circle(cx + Math.cos(angle) * ringRadius, cy + Math.sin(angle) * ringRadius, 1.2, RED),
+    );
+  }
+  const lit = wreathLitCandles(day);
+  const candleSpots: Array<readonly [number, number]> = [
+    [cx, cy - 8.5],
+    [cx + 8.5, cy],
+    [cx, cy + 8.5],
+    [cx - 8.5, cy],
+  ];
+  candleSpots.forEach(([px, py], index) => {
+    children.push(rect(px - 1.3, py - 6.5, 2.6, 6.5, CREAM, { rx: 1 }));
+    children.push(rect(px - 0.5, py - 8, 1, 1.8, WICK));
+    if (index < lit) {
+      children.push(circle(px, py - 9.5, 4, GOLD, { opacity: 0.2 }));
+      children.push(
+        path(
+          `M${px} ${py - 16} C${px + 2} ${py - 13.5} ${px + 2} ${py - 11.5} ${px} ${py - 11} C${px - 2} ${py - 11.5} ${px - 2} ${py - 13.5} ${px} ${py - 16} Z`,
+          GOLD,
+          { class: 'scene-flame' },
+        ),
+      );
+    }
+  });
+  const wreath = group(children);
+  wreath.classList.add('scene-wreath');
+  wreath.dataset.lit = String(lit);
+  return wreath;
+}
+
+/**
  * Flat-coated retriever standing by the fireplace, part of the room
  * inventory: always visible from day 1, not tied to any stage. Charcoal
  * flat silhouette with a red collar, a gold tag and a gently wagging tail.
@@ -528,9 +577,11 @@ const STAGE_BUILDERS: Array<() => SVGGElement> = [
   stage24DogPresent,
 ];
 
-export function renderScene(opened: Set<number>): HTMLElement {
+export function renderScene(opened: Set<number>, now: Date): HTMLElement {
   const section = document.createElement('section');
   section.className = 'living-room';
+  const day = decemberDayForDate(now);
+  section.classList.add(`scene-glow-${glowStepForDay(day)}`);
   section.setAttribute('aria-hidden', 'true');
   const svg = svgEl('svg', {
     viewBox: '0 0 360 300',
@@ -543,6 +594,7 @@ export function renderScene(opened: Set<number>): HTMLElement {
     group([rect(0, 0, 360, 232, WALL), rect(0, 232, 360, 68, FLOOR), rect(0, 226, 360, 6, BASEBOARD)]),
     baseSkyline(),
     basePicture(),
+    baseWreath(day),
     baseDog(),
   );
   for (let index = 0; index < SCENE_STAGE_COUNT; index += 1) {

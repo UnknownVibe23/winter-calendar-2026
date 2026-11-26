@@ -77,7 +77,7 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
   const grid = document.createElement('div');
   grid.className = 'calendar-grid';
 
-  const scene = renderScene(options.opened);
+  const scene = renderScene(options.opened, options.now);
 
   const handles = new Map<number, ScratchHandle | null>();
 
