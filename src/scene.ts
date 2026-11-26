@@ -24,6 +24,13 @@ const THISTLE = '#8e6bbf';
 const HEATHER = '#9a6bc9';
 const STONE = '#5a4a42';
 const STONE_DARK = '#6b5a50';
+const FRAME_WOOD = '#4e3a2a';
+const FRAME_INNER = '#3a2c20';
+const PIC_SKY = '#aec6e2';
+const HILL_BACK = '#8ba3b8';
+const HILL_FRONT = '#6d8699';
+const PIC_SNOW = '#eef3f8';
+const BOTHY_ROOF = '#3f342c';
 const FIREBOX = '#14100e';
 const TRUNK = '#6b4a2f';
 const DOG = '#2b2724';
@@ -439,6 +446,32 @@ function stage24DogPresent(): SVGGElement {
 }
 
 /**
+ * Framed snowy-highlands landscape on the wall above the mantelpiece: part
+ * of the room inventory, visible from day 1. Rounded dark frame, flat winter
+ * scene (hills, snow dusting, a tiny bothy, a pine line), no text.
+ */
+function basePicture(): SVGGElement {
+  const picture = group([
+    rect(240, 22, 100, 70, FRAME_WOOD, { rx: 6 }),
+    rect(244, 26, 92, 62, FRAME_INNER, { rx: 3 }),
+    rect(247, 29, 86, 56, PIC_SKY),
+    polygon('247,70 270,52 292,64 312,50 333,66 333,85 247,85', HILL_BACK),
+    polygon('247,78 262,64 280,74 300,62 333,76 333,85 247,85', HILL_FRONT),
+    svgEl('ellipse', { cx: 270, cy: 53.5, rx: 10, ry: 2.8, fill: PIC_SNOW, opacity: 0.95 }),
+    svgEl('ellipse', { cx: 312, cy: 51.5, rx: 9, ry: 2.4, fill: PIC_SNOW, opacity: 0.95 }),
+    svgEl('ellipse', { cx: 262, cy: 65, rx: 7, ry: 2.2, fill: PIC_SNOW, opacity: 0.9 }),
+    rect(300, 70, 9, 6, STONE),
+    polygon('299,70 304.5,65 310,70', BOTHY_ROOF),
+    rect(303, 72, 3, 4, '#2e2620'),
+    polygon('252,80 256,70 260,80', PINE),
+    polygon('259,82 262,74 265,82', PINE),
+    polygon('250,84 253,77 256,84', PINE),
+  ]);
+  picture.classList.add('scene-picture');
+  return picture;
+}
+
+/**
  * Flat-coated retriever standing by the fireplace, part of the room
  * inventory: always visible from day 1, not tied to any stage. Charcoal
  * flat silhouette with a red collar, a gold tag and a gently wagging tail.
@@ -509,6 +542,7 @@ export function renderScene(opened: Set<number>): HTMLElement {
     windowPaneClip(),
     group([rect(0, 0, 360, 232, WALL), rect(0, 232, 360, 68, FLOOR), rect(0, 226, 360, 6, BASEBOARD)]),
     baseSkyline(),
+    basePicture(),
     baseDog(),
   );
   for (let index = 0; index < SCENE_STAGE_COUNT; index += 1) {

@@ -86,6 +86,28 @@ describe('renderScene', () => {
   });
 });
 
+describe('framed highlands picture', () => {
+  it('hangs a framed snowy-highlands picture above the mantel from day 1, outside any stage', () => {
+    const scene = renderScene(new Set());
+    const picture = scene.querySelector<SVGGElement>('g.scene-picture');
+    expect(picture).not.toBeNull();
+    expect(picture?.closest('g.scene-stage')).toBeNull();
+    const frame = picture?.querySelector<SVGRectElement>('rect');
+    expect(frame?.getAttribute('x')).toBe('240');
+    expect(frame?.getAttribute('y')).toBe('22');
+    expect(frame?.getAttribute('width')).toBe('100');
+    expect(frame?.getAttribute('height')).toBe('70');
+    expect(frame?.getAttribute('rx')).toBe('6');
+    const rects = Array.from(picture?.querySelectorAll('rect') ?? []);
+    for (const r of rects) {
+      expect(Number(r.getAttribute('y')) + Number(r.getAttribute('height'))).toBeLessThanOrEqual(102);
+    }
+    expect(picture?.querySelectorAll('text')).toHaveLength(0);
+    expect(picture?.querySelectorAll('polygon').length).toBeGreaterThanOrEqual(5);
+    expect(picture?.querySelectorAll('ellipse').length).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe('skyline behind the window glass', () => {
   it('draws the skyline group before the window frame elements in document order', () => {
     const scene = renderScene(new Set());
