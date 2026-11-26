@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { REVEAL_MOMENT_MS } from './reveal';
+import { REVEAL_MOMENT_MS, REVEAL_PULSES } from './reveal';
+import { giftsForOpenedDoors } from './gifts';
 import {
   CHAIR_RAIL_Y,
   DOG_SILHOUETTE_PATH,
@@ -10,8 +11,10 @@ import {
   ROD_W,
   ROD_X,
   ROD_Y,
+  TREE_AXIS_X,
   applyRevealMoment,
   renderScene,
+  revealSceneGifts,
   revealSceneStages,
   scrollToPageTop,
   syncSceneStages,
@@ -204,7 +207,7 @@ describe('renderScene', () => {
     expect(rugTop).toBeGreaterThanOrEqual(hearthBottom);
   });
 
-  it('adds presents, flickering flames, twinkling lights, steam, spill and shelf inside existing stages', () => {
+  it('adds presents, flickering flames, paper stars, steam, spill and shelf inside existing stages', () => {
     const scene = renderScene(new Set(), DEC_10);
     const stage = (n: number): SVGGElement => {
       const el = scene.querySelector<SVGGElement>(`g.scene-stage[data-stage="${n}"]`);
@@ -213,11 +216,13 @@ describe('renderScene', () => {
       }
       return el;
     };
-    expect(stage(21).querySelectorAll('g.scene-present')).toHaveLength(4);
+    expect(stage(21).classList.contains('scene-present')).toBe(true);
+    expect(stage(21).classList.contains('scene-large-present')).toBe(true);
+    expect(stage(21).querySelectorAll('rect').length).toBeGreaterThanOrEqual(3);
     expect(stage(12).querySelectorAll('g.scene-present')).toHaveLength(2);
     expect(stage(13).querySelectorAll('path.scene-flame').length).toBe(3);
     expect(stage(8).querySelectorAll('path.scene-flame').length).toBe(2);
-    expect(stage(22).querySelectorAll('circle.scene-light').length).toBe(14);
+    expect(stage(22).querySelectorAll('polygon.scene-paper-star').length).toBe(4);
     expect(stage(10).querySelectorAll('path.scene-steam').length).toBe(1);
     expect(stage(13).querySelectorAll('ellipse').length).toBeGreaterThanOrEqual(1);
     expect(stage(8).querySelectorAll('ellipse').length).toBeGreaterThanOrEqual(1);
@@ -226,13 +231,27 @@ describe('renderScene', () => {
 });
 
 describe('bare base room before the 1st of Advent and date-aware calendar items', () => {
-  it('shows only the bare base room on Nov 28: walls/floor, bare side table, chair rail, dog — no wreath, no picture, bulb chain not visible, no glow', () => {
+  it('shows the bare base room WITH the fully decorated tree on Nov 28: walls/floor, bare side table, chair rail, dog, tree (no star), empty gift pile — no wreath, picture stage not earned, bulb chain not visible, no glow', () => {
     const scene = renderScene(new Set(), NOV_28);
-    expect(scene.querySelector('g.scene-picture')).toBeNull();
     expect(scene.querySelector('g.scene-wreath')).toBeNull();
     expect(scene.querySelector('g.scene-dog')).not.toBeNull();
     expect(scene.querySelector('g.scene-side-table')).not.toBeNull();
     expect(scene.querySelector('rect.scene-chair-rail')).not.toBeNull();
+    const tree = scene.querySelector<SVGGElement>('g.scene-tree');
+    expect(tree).not.toBeNull();
+    expect(tree?.closest('g.scene-stage')).toBeNull();
+    expect(tree?.querySelectorAll('polygon.scene-tree-tier')).toHaveLength(5);
+    expect(tree?.querySelectorAll('circle.scene-bauble').length).toBeGreaterThanOrEqual(10);
+    expect(tree?.querySelectorAll('circle.scene-bauble').length).toBeLessThanOrEqual(14);
+    expect(scene.querySelector('.scene-tree-star')?.closest('g.scene-stage--earned')).toBeNull();
+    const pile = scene.querySelector<SVGGElement>('g.scene-gift-pile');
+    expect(pile).not.toBeNull();
+    expect(pile?.closest('g.scene-stage')).toBeNull();
+    expect(pile?.querySelectorAll('g.scene-gift')).toHaveLength(0);
+    const picture = scene.querySelector<SVGGElement>('g.scene-picture');
+    expect(picture).not.toBeNull();
+    expect((picture?.closest('g.scene-stage') as SVGGElement | null)?.dataset.stage).toBe('2');
+    expect(picture?.closest('g.scene-stage--earned')).toBeNull();
     const chain = scene.querySelector<SVGGElement>('g.scene-bulb-chain');
     expect(chain).not.toBeNull();
     expect((chain?.closest('g.scene-stage') as SVGGElement | null)?.dataset.stage).toBe('15');
@@ -241,13 +260,13 @@ describe('bare base room before the 1st of Advent and date-aware calendar items'
     expect(scene.querySelectorAll('g.scene-stage')).toHaveLength(24);
   });
 
-  it('shows the wreath alone from Nov 29 (1st of Advent) with 1 lit candle and its reveal moment; still no picture', () => {
-    for (const date of [NOV_29, NOV_30]) {
+  it('shows the wreath alone from Nov 29 (1st of Advent) with 1 lit candle and its reveal moment; the picture stays stage-gated (not date-driven)', () => {
+    for (const date of [NOV_29, NOV_30, DEC_1, DEC_24]) {
       const scene = renderScene(new Set(), date);
       const wreath = scene.querySelector<SVGGElement>('g.scene-wreath');
       expect(wreath?.dataset.item).toBe('wreath');
-      expect(wreath?.dataset.lit).toBe('1');
-      expect(scene.querySelector('g.scene-picture')).toBeNull();
+      const picture = scene.querySelector<SVGGElement>('g.scene-picture');
+      expect(picture?.closest('g.scene-stage--earned')).toBeNull();
     }
     const scene = renderScene(new Set(), NOV_29);
     expect(scene.querySelector('g.scene-wreath')?.classList.contains('scene-reveal')).toBe(true);
@@ -259,29 +278,29 @@ describe('bare base room before the 1st of Advent and date-aware calendar items'
     ).toBeGreaterThanOrEqual(8);
   });
 
-  it('shows the picture + wreath from Dec 1 on, tied to calendarItemsForDate', () => {
-    for (const date of [DEC_1, DEC_2, DEC_6, DEC_10, DEC_24]) {
-      const scene = renderScene(new Set(), date);
-      expect(scene.querySelector<SVGGElement>('g.scene-picture')?.dataset.item).toBe('picture');
-      expect(scene.querySelector<SVGGElement>('g.scene-wreath')?.dataset.item).toBe('wreath');
-    }
+  it('earns the picture with stage 2 regardless of the date (door-progress, not calendar)', () => {
+    const one = renderScene(new Set([1]), NOV_28);
+    expect(one.querySelector('g.scene-picture')?.closest('g.scene-stage--earned')).toBeNull();
+    const two = renderScene(new Set([1, 2]), NOV_28);
+    const picture = two.querySelector<SVGGElement>('g.scene-picture');
+    expect((picture?.closest('g.scene-stage') as SVGGElement | null)?.dataset.stage).toBe('2');
+    expect(picture?.closest('g.scene-stage--earned')).not.toBeNull();
+    const dec1 = renderScene(new Set([1, 2]), DEC_1);
+    expect(dec1.querySelector<SVGGElement>('g.scene-wreath')?.dataset.item).toBe('wreath');
+    expect(dec1.querySelectorAll('.scene-reveal')).toHaveLength(0);
   });
 
-  it('plays the reveal moment per item on its own start date: wreath Nov 29, picture Dec 1, none from Dec 2 on', () => {
+  it('plays the calendar reveal moment on the wreath start date only: Nov 29, none from Nov 30 / Dec 1 on', () => {
     const nov29 = renderScene(new Set(), NOV_29);
     expect(nov29.querySelector('g.scene-wreath')?.classList.contains('scene-reveal')).toBe(true);
     expect(nov29.querySelectorAll('.scene-reveal')).toHaveLength(1);
 
-    const dec1 = renderScene(new Set(), DEC_1);
-    expect(dec1.querySelector('g.scene-picture')?.classList.contains('scene-reveal')).toBe(true);
-    expect(dec1.querySelector('g.scene-wreath')?.classList.contains('scene-reveal')).toBe(false);
-    expect(dec1.querySelectorAll('.scene-reveal')).toHaveLength(1);
-
-    const dec2 = renderScene(new Set(), DEC_2);
-    expect(dec2.querySelector('g.scene-picture')).not.toBeNull();
-    expect(dec2.querySelector('g.scene-wreath')).not.toBeNull();
-    expect(dec2.querySelectorAll('.scene-reveal')).toHaveLength(0);
-    expect(dec2.querySelectorAll('.scene-reveal-stars')).toHaveLength(0);
+    for (const date of [NOV_30, DEC_1, DEC_2, DEC_24]) {
+      const scene = renderScene(new Set(), date);
+      expect(scene.querySelector('g.scene-wreath')).not.toBeNull();
+      expect(scene.querySelectorAll('.scene-reveal')).toHaveLength(0);
+      expect(scene.querySelectorAll('.scene-reveal-stars')).toHaveLength(0);
+    }
   });
 });
 
@@ -302,7 +321,21 @@ describe('curtain rod and parted curtains (stage-1 window family)', () => {
     expect(finials).toHaveLength(2);
   });
 
-  it('parts warm curtain panels flanking the window without covering the glass or the castle', () => {
+  it('is shortened and symmetric: centered on the window, ending just beyond the curtains on both sides (no long right overhang)', () => {
+    const windowCenter = (20 + 148) / 2;
+    expect(ROD_X + ROD_W / 2).toBeCloseTo(windowCenter, 5);
+    const curtains = [8, 27, 141, 160];
+    expect(ROD_X).toBeLessThanOrEqual(Math.min(...curtains));
+    expect(ROD_X + ROD_W).toBeGreaterThanOrEqual(Math.max(...curtains));
+    const leftOverhang = Math.min(...curtains) - ROD_X;
+    const rightOverhang = ROD_X + ROD_W - Math.max(...curtains);
+    expect(leftOverhang).toBeGreaterThan(0);
+    expect(rightOverhang).toBeGreaterThan(0);
+    expect(Math.abs(leftOverhang - rightOverhang)).toBeLessThanOrEqual(0.5);
+    expect(ROD_X + ROD_W).toBeLessThanOrEqual(170);
+  });
+
+  it('parts warm curtain panels flanking the window without covering the glass or the castle, with clean hems just above the windowsill', () => {
     const scene = renderScene(new Set(), DEC_10);
     const stage1 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="1"]');
     const curtains = Array.from(stage1?.querySelectorAll<SVGGElement>('g.scene-curtain') ?? []);
@@ -325,6 +358,18 @@ describe('curtain rod and parted curtains (stage-1 window family)', () => {
     }
     for (const c of curtains) {
       expect(c.querySelector('rect')?.getAttribute('fill')).toBe('#8f2a38');
+      const hem = c.querySelector('rect.scene-curtain-hem');
+      expect(hem).not.toBeNull();
+      const hemBottom = Number(hem?.getAttribute('y')) + Number(hem?.getAttribute('height'));
+      const box = bboxOf(Array.from(c.querySelectorAll('rect, line')));
+      expect(box.maxY).toBe(hemBottom);
+      expect(box.maxY).toBeLessThanOrEqual(144);
+      expect(box.maxY).toBeGreaterThanOrEqual(140);
+    }
+    const sill = scene.querySelector<SVGRectElement>('g.scene-stage[data-stage="7"] > rect');
+    const sillTop = Number(sill?.getAttribute('y'));
+    for (const b of boxes) {
+      expect(b.maxY).toBeLessThan(sillTop);
     }
     const castle = scene.querySelector<SVGGElement>('g.scene-castle');
     const castleBox = bboxOf(Array.from(castle?.querySelectorAll('rect, polygon') ?? []));
@@ -525,34 +570,61 @@ describe('approved vectorized dog silhouette on the rug', () => {
     expect(dog?.querySelector('.scene-collar')).toBeNull();
   });
 
-  it('stage 24 puts the red bow at the neck and the wrapped gift at the paws, ON the new silhouette', () => {
+  it('stage 24 is the Christmas-Eve moment: Santa hat on the dog head (separate element), red bow centered ON the gift at the paws, and the glowing tree star', () => {
     const scene = renderScene(allOpened(), DEC_10);
     const stage24 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="24"]');
     expect(stage24?.classList.contains('scene-stage--earned')).toBe(true);
+    const hat = stage24?.querySelector<SVGGElement>('g.scene-dog-hat');
     const bow = stage24?.querySelector<SVGGElement>('g.scene-dog-bow');
     const gift = stage24?.querySelector<SVGGElement>('g.scene-dog-gift');
+    const star = stage24?.querySelector<SVGGElement>('path.scene-tree-star');
+    const starGlow = stage24?.querySelector<SVGCircleElement>('circle.scene-tree-star-glow');
+    expect(hat).not.toBeNull();
     expect(bow).not.toBeNull();
     expect(bow?.children).toHaveLength(3);
     expect(gift).not.toBeNull();
+    expect(star).not.toBeNull();
+    expect(starGlow).not.toBeNull();
+    expect(star?.getAttribute('fill')).toBe('#d9b64f');
+    expect(starGlow?.getAttribute('fill')).toBe('#d9b64f');
     const { box } = dogGeometry(scene);
-    const bowBox = bboxOf(Array.from(bow?.querySelectorAll('path, circle') ?? []));
-    expect(bowBox.minX).toBeGreaterThanOrEqual(box.minX);
-    expect(bowBox.maxX).toBeLessThanOrEqual(box.maxX);
-    expect(bowBox.minY).toBeGreaterThanOrEqual(box.minY);
-    expect(bowBox.maxY).toBeLessThanOrEqual(box.maxY);
-    const bowCenterY = (bowBox.minY + bowBox.maxY) / 2;
-    expect(bowCenterY).toBeLessThan((box.minY + box.maxY) / 2);
-    const bowCenterX = (bowBox.minX + bowBox.maxX) / 2;
-    expect(bowCenterX).toBeGreaterThan((box.minX + box.maxX) / 2);
+    // the hat is a SEPARATE element on the head geometry, not inside g.scene-dog
+    expect(hat?.closest('g.scene-dog')).toBeNull();
+    const dog = scene.querySelector<SVGGElement>('g.scene-dog');
+    expect(dog?.querySelector('.scene-dog-hat')).toBeNull();
+    const hatBox = bboxOf(Array.from(hat?.querySelectorAll('rect, path, circle') ?? []));
+    expect(hatBox.maxY).toBeGreaterThanOrEqual(box.minY);
+    expect(hatBox.maxX).toBeLessThanOrEqual(box.maxX);
+    const hatCenterX = (hatBox.minX + hatBox.maxX) / 2;
+    expect(hatCenterX).toBeGreaterThan((box.minX + box.maxX) / 2);
+    expect(hatBox.minY).toBeGreaterThanOrEqual(box.minY - 25);
+    // the gift stays at the paws, the bow sits centered ON it
     const giftBox = bboxOf(Array.from(gift?.querySelectorAll('rect, circle') ?? []));
     expect(giftBox.maxY).toBeGreaterThanOrEqual(box.maxY - 12);
     expect(giftBox.maxY).toBeLessThanOrEqual(RUG.y + RUG.h);
     expect(giftBox.maxX).toBeLessThan(HEARTH_EDGE_X);
     expect(giftBox.minX).toBeGreaterThanOrEqual(box.minX);
-    expect(stage24?.querySelectorAll('path').length).toBe(2);
+    const bowBox = bboxOf(Array.from(bow?.querySelectorAll('path, circle') ?? []));
+    const giftBody = gift?.querySelector<SVGRectElement>('rect');
+    const giftCenterX =
+      Number(giftBody?.getAttribute('x')) + Number(giftBody?.getAttribute('width')) / 2;
+    const giftCenterY =
+      Number(giftBody?.getAttribute('y')) + Number(giftBody?.getAttribute('height')) / 2;
+    expect(Math.abs((bowBox.minX + bowBox.maxX) / 2 - giftCenterX)).toBeLessThanOrEqual(1.5);
+    expect(Math.abs((bowBox.minY + bowBox.maxY) / 2 - giftCenterY)).toBeLessThanOrEqual(1.5);
+    // the tree star sits on top of the tree apex
+    const starBox = bboxOf([star as SVGPathElement]);
+    expect(starBox.minX).toBeLessThanOrEqual(TREE_AXIS_X);
+    expect(starBox.maxX).toBeGreaterThanOrEqual(TREE_AXIS_X);
+    const tree = scene.querySelector<SVGGElement>('g.scene-tree');
+    const tierBoxes = Array.from(tree?.querySelectorAll('polygon.scene-tree-tier') ?? []).map((t) =>
+      bboxOf([t as SVGPolygonElement]),
+    );
+    const topTier = tierBoxes.reduce((a, b) => (a.minY < b.minY ? a : b));
+    expect(starBox.maxY).toBeLessThanOrEqual(topTier.minY + 1);
   });
 
-  it('earns the dog bow+gift only at 24 opened doors, keeping the 24-stage invariants', () => {
+  it('earns the christmas-eve moment (hat+bow+gift+star) only at 24 opened doors, keeping the 24-stage invariants', () => {
     const scene = renderScene(allOpened(), DEC_10);
     const stages = Array.from(scene.querySelectorAll<SVGGElement>('g.scene-stage'));
     expect(stages.map((stage) => stage.dataset.stage)).toEqual(
@@ -652,54 +724,71 @@ describe('advent wreath on the side table (real Advent tradition)', () => {
   });
 });
 
-describe('bulb chain anchored to the curtain rod, gated at stage 15', () => {
-  it('hangs from the rod with visible anchoring: both wire ends on the rod, anchor rings, drooping wire, 7 warm bulbs', () => {
+describe('wall chain redesigned as a fir garland on its own two gold wall hooks, gated at stage 15', () => {
+  it('is anchored OFF the rod on exactly 2 gold wall hooks, with a sagging two-tone green garland band, needle accents and 7 capped tricolor bulbs hanging DOWN', () => {
     const scene = renderScene(new Set(), DEC_10);
     const chain = scene.querySelector<SVGGElement>('g.scene-bulb-chain');
     expect(chain).not.toBeNull();
     expect((chain?.closest('g.scene-stage') as SVGGElement | null)?.dataset.stage).toBe('15');
     expect(chain?.dataset.bulbs).toBe('7');
-    const wire = chain?.querySelector<SVGPathElement>('path.scene-chain-wire');
-    const d = wire?.getAttribute('d') ?? '';
-    expect(d).toContain('Q');
-    expect(wire?.getAttribute('fill')).toBe('none');
-    const pts = pathPoints(d);
-    const start = pts[0];
-    const end = pts[pts.length - 1];
-    for (const p of [start, end]) {
-      expect(p[1]).toBeGreaterThanOrEqual(ROD_Y);
-      expect(p[1]).toBeLessThanOrEqual(ROD_Y + ROD_H);
-      expect(p[0]).toBeGreaterThanOrEqual(ROD_X);
-      expect(p[0]).toBeLessThanOrEqual(ROD_X + ROD_W);
+    const hooks = Array.from(chain?.querySelectorAll<SVGCircleElement>('circle.scene-chain-hook') ?? []);
+    expect(hooks).toHaveLength(2);
+    for (const hook of hooks) {
+      expect(hook.getAttribute('fill')).toBe('#c9a24b');
+      const hx = Number(hook.getAttribute('cx'));
+      const hy = Number(hook.getAttribute('cy'));
+      expect(hy).toBeGreaterThan(ROD_Y + ROD_H);
+      expect(hx).toBeGreaterThan(ROD_X + ROD_W);
+      expect(hx).toBeLessThan(240);
     }
     const anchors = Array.from(chain?.querySelectorAll<SVGCircleElement>('circle.scene-chain-anchor') ?? []);
     expect(anchors).toHaveLength(2);
-    for (const anchor of anchors) {
-      const ax = Number(anchor.getAttribute('cx'));
-      const ay = Number(anchor.getAttribute('cy'));
-      expect(ay).toBeGreaterThanOrEqual(ROD_Y);
-      expect(ay).toBeLessThanOrEqual(ROD_Y + ROD_H);
-      expect(ax).toBeGreaterThanOrEqual(ROD_X);
-      expect(ax).toBeLessThanOrEqual(ROD_X + ROD_W);
-    }
-    const bulbs = Array.from(chain?.querySelectorAll<SVGCircleElement>('circle.scene-bulb') ?? []);
+    const band = chain?.querySelector<SVGPathElement>('path.scene-garland-band');
+    expect(band).not.toBeNull();
+    expect(band?.getAttribute('stroke')).toBe('#1d4d2b');
+    expect(Number(band?.getAttribute('stroke-width'))).toBeGreaterThanOrEqual(4);
+    expect(band?.getAttribute('d')).toContain('Q');
+    const center = chain?.querySelector<SVGPathElement>('path.scene-garland-band-center');
+    expect(center?.getAttribute('stroke')).toBe('#2e6b3f');
+    expect(center?.getAttribute('d')).toBe(band?.getAttribute('d'));
+    expect(chain?.querySelectorAll('line.scene-garland-needle').length).toBeGreaterThanOrEqual(6);
+    const bulbs = Array.from(chain?.querySelectorAll<SVGGElement>('g.scene-chain-bulb') ?? []);
     expect(bulbs).toHaveLength(7);
-    const stringLightR = Number(
-      scene
-        .querySelector<SVGCircleElement>('g.scene-stage[data-stage="22"] circle.scene-light')
-        ?.getAttribute('r'),
-    );
+    const bodyColors: string[] = [];
     for (const bulb of bulbs) {
-      expect(Number(bulb.getAttribute('r'))).toBeGreaterThan(stringLightR);
-      expect(Number(bulb.getAttribute('r'))).toBeGreaterThanOrEqual(3);
-      expect(['#d9a441', '#f3e2c3', '#e07b39']).toContain(bulb.getAttribute('fill'));
-      const cx = Number(bulb.getAttribute('cx'));
-      expect(cx).toBeGreaterThan(160);
-      expect(cx).toBeLessThan(240);
-      expect(bulb.getAttribute('style')).toMatch(/animation-delay:-\d+(\.\d+)?s/);
+      expect(bulb.children.length).toBeGreaterThanOrEqual(3);
+      expect(bulb.querySelector('rect.scene-bulb-cap')?.getAttribute('fill')).toBe('#d9b64f');
+      expect(bulb.querySelector('circle.scene-bulb-halo')).not.toBeNull();
+      const body = bulb.querySelector('path.scene-bulb');
+      expect(body).not.toBeNull();
+      expect(body?.getAttribute('style')).toMatch(/animation-delay:-\d+(\.\d+)?s/);
+      bodyColors.push(body?.getAttribute('fill') ?? '');
+      const cap = bulb.querySelector('rect.scene-bulb-cap');
+      const bodyBox = bboxOf([body as SVGPathElement]);
+      const capBox = bboxOf([cap as SVGRectElement]);
+      expect(bodyBox.minY).toBeGreaterThan(capBox.maxY);
     }
-    expect(new Set(bulbs.map((b) => b.getAttribute('style'))).size).toBe(7);
-    expect(chain?.querySelectorAll('circle:not(.scene-bulb):not(.scene-chain-anchor)')).toHaveLength(7);
+    for (const color of bodyColors) {
+      expect(['#a3262e', '#d9b64f', '#2e6b3f']).toContain(color);
+    }
+    expect(new Set(bodyColors)).toEqual(new Set(['#a3262e', '#d9b64f', '#2e6b3f']));
+    expect(new Set(bulbs.map((b) => b.querySelector('path.scene-bulb')?.getAttribute('style'))).size).toBe(7);
+  });
+
+  it('keeps the garland + bulbs bbox clear of the picture content bbox and the window pane rect, in the upper chair-rail zone', () => {
+    const scene = renderScene(allOpened(), DEC_10);
+    const chain = scene.querySelector<SVGGElement>('g.scene-bulb-chain');
+    const chainBox = bboxOf(
+      Array.from(chain?.querySelectorAll('rect, circle, line, path') ?? []),
+    );
+    const picture = scene.querySelector<SVGGElement>('g.scene-picture');
+    const pictureBox = bboxOf(Array.from(picture?.querySelectorAll('rect, polygon, ellipse, circle') ?? []));
+    expect(overlaps(chainBox, pictureBox)).toBe(false);
+    const paneBox: Box = { minX: PANE.x, minY: PANE.y, maxX: PANE.x + PANE.w, maxY: PANE.y + PANE.h };
+    expect(overlaps(chainBox, paneBox)).toBe(false);
+    expect(chainBox.minX).toBeGreaterThan(PANE.x + PANE.w);
+    expect(chainBox.maxX).toBeLessThan(pictureBox.minX);
+    expect(chainBox.maxY).toBeLessThanOrEqual(CHAIR_RAIL_Y);
   });
 
   it('is NOT visible before 15 opened doors (incl. the bare room at ?date=2026-11-28) and visible from stage 15 on', () => {
@@ -764,12 +853,13 @@ describe('chair rail zoning and fireplace wall strip (grounding)', () => {
   });
 });
 
-describe('framed picture — actual Scottish highlands (heather glen + stags)', () => {
-  it('hangs above the mantel from Dec 1, outside any stage, in the upper chair-rail zone, no text', () => {
+describe('framed picture — actual Scottish highlands (heather glen + stags), earned with stage 2', () => {
+  it('hangs above the mantel inside stage 2 (door-progress), in the upper chair-rail zone, no text', () => {
     const scene = renderScene(new Set(), DEC_10);
     const picture = scene.querySelector<SVGGElement>('g.scene-picture');
     expect(picture).not.toBeNull();
-    expect(picture?.closest('g.scene-stage')).toBeNull();
+    expect((picture?.closest('g.scene-stage') as SVGGElement | null)?.dataset.stage).toBe('2');
+    expect(picture?.dataset.item).toBe('picture');
     const frame = picture?.querySelector<SVGRectElement>('rect');
     expect(frame?.getAttribute('x')).toBe('240');
     expect(frame?.getAttribute('y')).toBe('22');
@@ -803,26 +893,115 @@ describe('framed picture — actual Scottish highlands (heather glen + stags)', 
   });
 });
 
-describe('bigger tree with skirt and presents — castle clearance guaranteed', () => {
-  it('is ~1.6-1.8x the old tree (old geometry: top tier apex y 162, pot bottom y 268 = 106 units) with a skirt, a light pool and 4 presents', () => {
-    const scene = renderScene(new Set(), DEC_10);
-    const tree = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="21"]');
-    const shapes = Array.from(tree?.querySelectorAll('rect, polygon, ellipse, circle') ?? []);
-    const box = bboxOf(shapes);
-    const OLD_TREE_HEIGHT = 106;
-    expect(box.maxY - box.minY).toBeGreaterThanOrEqual(1.6 * OLD_TREE_HEIGHT);
-    expect(box.maxY - box.minY).toBeLessThanOrEqual(1.8 * OLD_TREE_HEIGHT + 1);
+describe('base-art Christmas tree — straight, symmetric, fully decorated from the first visit, castle clearance guaranteed', () => {
+  it('is base art (not a stage) with 5 tiers sharing the trunk axis x, symmetric cones, two-tone green, pot and skirt', () => {
+    const scene = renderScene(new Set(), NOV_28);
+    const tree = scene.querySelector<SVGGElement>('g.scene-tree');
+    expect(tree).not.toBeNull();
+    expect(tree?.closest('g.scene-stage')).toBeNull();
+    const tiers = Array.from(tree?.querySelectorAll<SVGPolygonElement>('polygon.scene-tree-tier') ?? []);
+    expect(tiers).toHaveLength(5);
+    const fills = new Set(tiers.map((t) => t.getAttribute('fill')));
+    expect(fills).toEqual(new Set(['#1e4d2b', '#2e6b3f']));
+    for (const tier of tiers) {
+      const pts = pathPoints(tier.getAttribute('points') ?? '');
+      expect(pts).toHaveLength(3);
+      expect(pts[0][0]).toBe(TREE_AXIS_X);
+      expect((pts[1][0] + pts[2][0]) / 2).toBe(TREE_AXIS_X);
+      expect(Math.abs(pts[1][0] - TREE_AXIS_X)).toBeCloseTo(Math.abs(pts[2][0] - TREE_AXIS_X), 5);
+      expect(pts[1][1]).toBe(pts[2][1]);
+      expect(pts[0][1]).toBeLessThan(pts[1][1]);
+    }
+    const trunk = tree?.querySelector<SVGRectElement>('rect.scene-tree-trunk');
+    expect(trunk).not.toBeNull();
+    expect(Number(trunk?.getAttribute('x')) + Number(trunk?.getAttribute('width')) / 2).toBe(TREE_AXIS_X);
+    const pot = tree?.querySelector<SVGRectElement>('rect.scene-tree-pot');
+    expect(pot).not.toBeNull();
+    expect(Number(pot?.getAttribute('x')) + Number(pot?.getAttribute('width')) / 2).toBe(TREE_AXIS_X);
     expect(tree?.querySelector('ellipse.scene-tree-skirt')).not.toBeNull();
     expect(tree?.querySelector('ellipse.scene-tree-pool')).not.toBeNull();
-    expect(tree?.querySelectorAll('g.scene-present')).toHaveLength(4);
-    const presentWidths = Array.from(tree?.querySelectorAll('g.scene-present > rect') ?? []).map((r) =>
-      Number(r.getAttribute('width')),
-    );
-    expect(Math.max(...presentWidths)).toBeGreaterThanOrEqual(20);
+    const box = bboxOf(Array.from(tree?.querySelectorAll('rect, polygon, ellipse, circle') ?? []));
+    expect(box.maxY - box.minY).toBeGreaterThanOrEqual(180);
+    expect(box.maxY).toBeLessThanOrEqual(300);
   });
 
-  it('guarantees the castle silhouette and city lights stay fully uncovered inside the glass', () => {
-    const scene = renderScene(new Set(), DEC_10);
+  it('is fully decorated from the start: 10-14 tricolor baubles with cream accents, deterministic, inside the tiers', () => {
+    const scene = renderScene(new Set(), NOV_28);
+    const tree = scene.querySelector<SVGGElement>('g.scene-tree');
+    const baubles = Array.from(tree?.querySelectorAll<SVGCircleElement>('circle.scene-bauble') ?? []);
+    expect(baubles.length).toBeGreaterThanOrEqual(10);
+    expect(baubles.length).toBeLessThanOrEqual(14);
+    const allowed = ['#a3262e', '#d9b64f', '#2e6b3f', '#f3e2c3'];
+    for (const bauble of baubles) {
+      expect(allowed).toContain(bauble.getAttribute('fill'));
+      expect(Number(bauble.getAttribute('r'))).toBeGreaterThan(1.5);
+      expect(Number(bauble.getAttribute('r'))).toBeLessThanOrEqual(2.7);
+    }
+    expect(baubles.some((b) => b.getAttribute('fill') === '#f3e2c3')).toBe(true);
+    for (const color of ['#a3262e', '#d9b64f', '#2e6b3f']) {
+      expect(baubles.some((b) => b.getAttribute('fill') === color)).toBe(true);
+    }
+    const again = renderScene(new Set(), NOV_28);
+    const baubles2 = Array.from(
+      again.querySelectorAll<SVGCircleElement>('g.scene-tree circle.scene-bauble') ?? [],
+    );
+    expect(baubles2.map((b) => `${b.getAttribute('cx')},${b.getAttribute('cy')},${b.getAttribute('fill')}`)).toEqual(
+      baubles.map((b) => `${b.getAttribute('cx')},${b.getAttribute('cy')},${b.getAttribute('fill')}`),
+    );
+    const tiers = Array.from(tree?.querySelectorAll<SVGPolygonElement>('polygon.scene-tree-tier') ?? []);
+    for (const bauble of baubles) {
+      const cx = Number(bauble.getAttribute('cx'));
+      const cy = Number(bauble.getAttribute('cy'));
+      const r = Number(bauble.getAttribute('r'));
+      const insideSomeTier = tiers.some((tier) => {
+        const pts = pathPoints(tier.getAttribute('points') ?? '');
+        const apexY = pts[0][1];
+        const baseY = pts[1][1];
+        if (cy < apexY || cy > baseY) {
+          return false;
+        }
+        const hwAt = (Math.abs(pts[2][0] - TREE_AXIS_X) * (cy - apexY)) / (baseY - apexY);
+        return Math.abs(cx - TREE_AXIS_X) <= hwAt - r + 0.01;
+      });
+      expect(insideSomeTier).toBe(true);
+    }
+  });
+
+  it('carries 2-3 spiral strand swags (wide at the bottom, narrowing up) with <=22 capped tricolor drop bulbs, each cap+halo+body', () => {
+    const scene = renderScene(new Set(), NOV_28);
+    const tree = scene.querySelector<SVGGElement>('g.scene-tree');
+    const strands = Array.from(tree?.querySelectorAll<SVGGElement>('g.scene-tree-strand') ?? []);
+    expect(strands.length).toBeGreaterThanOrEqual(2);
+    expect(strands.length).toBeLessThanOrEqual(3);
+    const widths = strands.map((s) => {
+      const wire = s.querySelector<SVGPathElement>('path.scene-strand-wire');
+      const pts = pathPoints(wire?.getAttribute('d') ?? '');
+      return Math.max(...pts.map((p) => p[0])) - Math.min(...pts.map((p) => p[0]));
+    });
+    for (let i = 1; i < widths.length; i += 1) {
+      expect(widths[i]).toBeLessThan(widths[i - 1]);
+    }
+    const bulbs = Array.from(tree?.querySelectorAll<SVGGElement>('g.scene-strand-bulb-group') ?? []);
+    expect(bulbs.length).toBeGreaterThanOrEqual(10);
+    expect(bulbs.length).toBeLessThanOrEqual(22);
+    const bodyColors: string[] = [];
+    for (const bulb of bulbs) {
+      expect(bulb.children.length).toBeGreaterThanOrEqual(3);
+      expect(bulb.querySelector('rect.scene-bulb-cap')?.getAttribute('fill')).toBe('#d9b64f');
+      expect(bulb.querySelector('circle.scene-bulb-halo')).not.toBeNull();
+      const body = bulb.querySelector('path.scene-bulb');
+      expect(body).not.toBeNull();
+      expect(body?.getAttribute('style')).toMatch(/animation-delay:-\d+(\.\d+)?s/);
+      bodyColors.push(body?.getAttribute('fill') ?? '');
+    }
+    for (const color of bodyColors) {
+      expect(['#a3262e', '#d9b64f', '#2e6b3f']).toContain(color);
+    }
+    expect(new Set(bodyColors)).toEqual(new Set(['#a3262e', '#d9b64f', '#2e6b3f']));
+  });
+
+  it('guarantees the castle silhouette and city lights stay fully uncovered: every tree shape (incl. stage-24 star) clears the protected box', () => {
+    const scene = renderScene(allOpened(), DEC_10);
     const protectedShapes = [
       ...Array.from(scene.querySelectorAll('g.scene-castle rect, g.scene-castle polygon')),
       ...Array.from(scene.querySelectorAll('.scene-city-window, .scene-halo')),
@@ -832,8 +1011,8 @@ describe('bigger tree with skirt and presents — castle clearance guaranteed', 
     expect(protectedBox.minY).toBeGreaterThanOrEqual(PANE.y);
     expect(protectedBox.maxX).toBeLessThanOrEqual(PANE.x + PANE.w);
     expect(protectedBox.maxY).toBeLessThanOrEqual(PANE.y + PANE.h);
-    const tree = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="21"]');
-    const treeShapes = Array.from(tree?.querySelectorAll('rect, polygon, ellipse, circle') ?? []);
+    const tree = scene.querySelector<SVGGElement>('g.scene-tree');
+    const treeShapes = Array.from(tree?.querySelectorAll('rect, polygon, ellipse, circle, path, line') ?? []);
     expect(treeShapes.length).toBeGreaterThan(0);
     for (const shape of treeShapes) {
       expect(overlaps(bboxOf([shape]), protectedBox)).toBe(false);
@@ -841,6 +1020,12 @@ describe('bigger tree with skirt and presents — castle clearance guaranteed', 
     const treeBox = bboxOf(treeShapes);
     expect(treeBox.minY).toBeLessThanOrEqual(PANE.y + PANE.h);
     expect(treeBox.maxY).toBeGreaterThanOrEqual(PANE.y + PANE.h);
+    const stage24 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="24"]');
+    const starShapes = Array.from(stage24?.querySelectorAll('.scene-tree-star, .scene-tree-star-glow') ?? []);
+    expect(starShapes.length).toBe(2);
+    for (const shape of starShapes) {
+      expect(overlaps(bboxOf([shape]), protectedBox)).toBe(false);
+    }
   });
 });
 
@@ -959,7 +1144,7 @@ describe('Scottish accents, mug and thistle placement', () => {
 });
 
 describe('warm light pools', () => {
-  it('widens and softens the fireplace fire glow (stage 13) and adds a warm pool under the tree (stage 21)', () => {
+  it('widens and softens the fireplace fire glow (stage 13) and adds a warm pool under the base-art tree', () => {
     const scene = renderScene(new Set(), DEC_10);
     const stage13 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="13"]');
     const glow = stage13?.querySelector<SVGCircleElement>('circle');
@@ -969,10 +1154,10 @@ describe('warm light pools', () => {
     expect(pool).not.toBeNull();
     expect(Number(pool?.getAttribute('rx'))).toBeGreaterThanOrEqual(56);
     expect(Number(pool?.getAttribute('opacity'))).toBeLessThanOrEqual(0.2);
-    const stage21 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="21"]');
-    const treePool = stage21?.querySelector<SVGEllipseElement>('ellipse.scene-tree-pool');
+    const tree = scene.querySelector<SVGGElement>('g.scene-tree');
+    const treePool = tree?.querySelector<SVGEllipseElement>('ellipse.scene-tree-pool');
     expect(treePool).not.toBeNull();
-    expect(Number(treePool?.getAttribute('rx'))).toBeGreaterThanOrEqual(40);
+    expect(Number(treePool?.getAttribute('rx'))).toBeGreaterThanOrEqual(36);
     expect(treePool?.getAttribute('fill')).toBe('#d9a441');
   });
 });
@@ -988,6 +1173,282 @@ describe('golden scene glow', () => {
     expect(glowClass(new Date(2026, 11, 13, 12))).toBe('living-room scene-glow-3');
     expect(glowClass(new Date(2026, 11, 19, 12))).toBe('living-room scene-glow-4');
     expect(glowClass(new Date(2026, 11, 24, 12))).toBe('living-room scene-glow-4');
+  });
+});
+
+describe('growing gift pile under the tree (every third opened door)', () => {
+  const pileOf = (opened: Set<number>): SVGGElement | null =>
+    renderScene(opened, DEC_10).querySelector<SVGGElement>('g.scene-gift-pile');
+
+  it('renders exactly giftsForOpenedDoors(openedCount) gifts: 0 before 3, then 1..8 on doors 3,6,...,24', () => {
+    const openedCounts: Array<[number, number]> = [
+      [0, 0],
+      [2, 0],
+      [3, 1],
+      [5, 1],
+      [6, 2],
+      [9, 3],
+      [12, 4],
+      [15, 5],
+      [18, 6],
+      [21, 7],
+      [24, 8],
+    ];
+    for (const [count, gifts] of openedCounts) {
+      expect(giftsForOpenedDoors(count)).toBe(gifts);
+      const opened = new Set(Array.from({ length: count }, (_, index) => index + 1));
+      const pile = pileOf(opened);
+      expect(pile?.querySelectorAll('g.scene-gift')).toHaveLength(gifts);
+      expect(pile?.closest('g.scene-stage')).toBeNull();
+    }
+  });
+
+  it('syncs the pile on open (appears exactly once on the open reaching a multiple of 3) and on shrink', () => {
+    const scene = renderScene(new Set(), DEC_10);
+    const pile = scene.querySelector<SVGGElement>('g.scene-gift-pile');
+    expect(pile?.querySelectorAll('g.scene-gift')).toHaveLength(0);
+    const opened = new Set([1, 2]);
+    syncSceneStages(scene, opened);
+    expect(pile?.querySelectorAll('g.scene-gift')).toHaveLength(0);
+    opened.add(3);
+    syncSceneStages(scene, opened);
+    expect(pile?.querySelectorAll('g.scene-gift')).toHaveLength(1);
+    expect(pile?.querySelector('g.scene-gift[data-gift="0"]')).not.toBeNull();
+    syncSceneStages(scene, opened);
+    expect(pile?.querySelectorAll('g.scene-gift')).toHaveLength(1);
+    opened.add(4);
+    opened.add(5);
+    opened.add(6);
+    syncSceneStages(scene, opened);
+    expect(pile?.querySelectorAll('g.scene-gift')).toHaveLength(2);
+    syncSceneStages(scene, new Set([1]));
+    expect(pile?.querySelectorAll('g.scene-gift')).toHaveLength(0);
+  });
+
+  it('stacks the pile neatly: bbox stays on the tree skirt/pool footprint, clear of trunk+pot, dog, large present and pane', () => {
+    const scene = renderScene(allOpened(), DEC_10);
+    const pile = scene.querySelector<SVGGElement>('g.scene-gift-pile');
+    const gifts = Array.from(pile?.querySelectorAll<SVGGElement>('g.scene-gift') ?? []);
+    expect(gifts).toHaveLength(8);
+    const pileBox = bboxOf(Array.from(pile?.querySelectorAll('rect, circle, ellipse, path') ?? []));
+    expect(pileBox.minX).toBeGreaterThanOrEqual(0);
+    expect(pileBox.maxX).toBeLessThanOrEqual(72);
+    expect(pileBox.minY).toBeGreaterThanOrEqual(280);
+    expect(pileBox.maxY).toBeLessThanOrEqual(300);
+    const pot = scene.querySelector<SVGRectElement>('g.scene-tree rect.scene-tree-pot');
+    const trunk = scene.querySelector<SVGRectElement>('g.scene-tree rect.scene-tree-trunk');
+    const trunkPotBox = bboxOf([pot as SVGRectElement, trunk as SVGRectElement]);
+    expect(overlaps(pileBox, trunkPotBox)).toBe(false);
+    expect(overlaps(pileBox, dogGeometry(scene).box)).toBe(false);
+    const large = scene.querySelector<SVGGElement>('g.scene-large-present');
+    const largeBox = bboxOf(Array.from(large?.querySelectorAll('rect, circle') ?? []));
+    expect(overlaps(pileBox, largeBox)).toBe(false);
+    const paneBox: Box = { minX: PANE.x, minY: PANE.y, maxX: PANE.x + PANE.w, maxY: PANE.y + PANE.h };
+    expect(overlaps(pileBox, paneBox)).toBe(false);
+    for (const gift of gifts) {
+      const giftBox = bboxOf(Array.from(gift.querySelectorAll('rect, circle, ellipse, path')));
+      expect(overlaps(giftBox, trunkPotBox)).toBe(false);
+      expect(overlaps(giftBox, dogGeometry(scene).box)).toBe(false);
+      expect(overlaps(giftBox, largeBox)).toBe(false);
+    }
+  });
+
+  it('builds each gift deterministically per index: seeded shape + tricolor wrap/ribbon, small size', () => {
+    const scene = renderScene(allOpened(), DEC_10);
+    const pile = scene.querySelector<SVGGElement>('g.scene-gift-pile');
+    const gifts = Array.from(pile?.querySelectorAll<SVGGElement>('g.scene-gift') ?? []);
+    const fills = new Set(
+      Array.from(pile?.querySelectorAll('[fill]') ?? []).map((el) => el.getAttribute('fill')),
+    );
+    for (const color of ['#a3262e', '#d9b64f', '#2e6b3f']) {
+      expect(fills.has(color)).toBe(true);
+    }
+    const again = renderScene(allOpened(), DEC_10);
+    const gifts2 = Array.from(again.querySelectorAll<SVGGElement>('g.scene-gift-pile g.scene-gift') ?? []);
+    expect(
+      gifts2.map((g) => g.outerHTML),
+    ).toEqual(gifts.map((g) => g.outerHTML));
+    for (const gift of gifts) {
+      const box = bboxOf(Array.from(gift.querySelectorAll('rect, circle, ellipse, path')));
+      expect(box.maxX - box.minX).toBeLessThanOrEqual(9);
+      expect(box.maxY - box.minY).toBeLessThanOrEqual(11);
+    }
+  });
+
+  it('plays the reveal moment on a newly appearing gift only (revealSceneGifts), once per gift', () => {
+    vi.useFakeTimers();
+    const scene = renderScene(new Set([1, 2]), DEC_10);
+    syncSceneStages(scene, new Set([1, 2, 3]));
+    revealSceneGifts(scene, new Set([1, 2]), new Set([1, 2, 3]));
+    const gift0 = scene.querySelector<SVGGElement>('g.scene-gift[data-gift="0"]');
+    expect(gift0?.classList.contains('scene-reveal')).toBe(true);
+    expect(gift0?.querySelectorAll('g.scene-reveal-stars path.scene-reveal-star').length).toBeGreaterThanOrEqual(8);
+    revealSceneGifts(scene, new Set([1, 2]), new Set([1, 2, 3]));
+    expect(scene.querySelectorAll('g.scene-gift.scene-reveal')).toHaveLength(1);
+    expect(gift0?.querySelectorAll('g.scene-reveal-stars')).toHaveLength(1);
+    syncSceneStages(scene, new Set([1, 2, 3, 4, 5, 6]));
+    revealSceneGifts(scene, new Set([1, 2, 3]), new Set([1, 2, 3, 4, 5, 6]));
+    expect(gift0?.classList.contains('scene-reveal')).toBe(true);
+    const gift1 = scene.querySelector<SVGGElement>('g.scene-gift[data-gift="1"]');
+    expect(gift1?.classList.contains('scene-reveal')).toBe(true);
+    expect(scene.querySelectorAll('g.scene-gift.scene-reveal')).toHaveLength(2);
+    vi.advanceTimersByTime(REVEAL_MOMENT_MS + 200);
+    expect(scene.querySelectorAll('g.scene-gift.scene-reveal')).toHaveLength(0);
+    expect(scene.querySelectorAll('g.scene-reveal-stars')).toHaveLength(0);
+    vi.useRealTimers();
+  });
+});
+
+describe('three stockings with labels on the mantel (stages 16/17)', () => {
+  it('hangs one stocking labeled M at stage 16 and two more (M, N with paw print) together at stage 17 — three total', () => {
+    const at16 = renderScene(new Set(Array.from({ length: 16 }, (_, i) => i + 1)), DEC_10);
+    const stockings16 = Array.from(at16.querySelectorAll<SVGGElement>('g.scene-stocking')).filter(
+      (s) => s.closest('g.scene-stage--earned') !== null,
+    );
+    expect(stockings16).toHaveLength(1);
+    expect(stockings16[0].dataset.label).toBe('M');
+    expect(stockings16[0].querySelector('g.scene-paw-print')).toBeNull();
+    expect(stockings16[0].dataset.stage).toBe('16');
+    expect(
+      at16.querySelector('g.scene-stage[data-stage="17"]')?.classList.contains('scene-stage--earned'),
+    ).toBe(false);
+
+    const at17 = renderScene(new Set(Array.from({ length: 17 }, (_, i) => i + 1)), DEC_10);
+    const stockings = Array.from(at17.querySelectorAll<SVGGElement>('g.scene-stocking')).filter(
+      (s) => s.closest('g.scene-stage--earned') !== null,
+    );
+    expect(stockings).toHaveLength(3);
+    expect(stockings.map((s) => s.dataset.label)).toEqual(['M', 'M', 'N']);
+    const stage17Stockings = Array.from(
+      at17.querySelectorAll<SVGGElement>('g.scene-stage[data-stage="17"]'),
+    ).flatMap((stage) => Array.from(stage.querySelectorAll<SVGGElement>('g.scene-stocking')));
+    expect(stage17Stockings).toHaveLength(2);
+    const labels = stockings.map(
+      (s) => s.querySelector('text.scene-stocking-label')?.textContent,
+    );
+    expect(labels).toEqual(['M', 'M', 'N']);
+    const pawStockings = stockings.filter((s) => s.querySelector('g.scene-paw-print') !== null);
+    expect(pawStockings).toHaveLength(1);
+    expect(pawStockings[0].dataset.label).toBe('N');
+    const paw = pawStockings[0].querySelector<SVGGElement>('g.scene-paw-print');
+    expect(paw?.querySelectorAll('circle.scene-paw-toe')).toHaveLength(4);
+    expect(paw?.querySelector('ellipse.scene-paw-pad')).not.toBeNull();
+    for (const el of Array.from(paw?.querySelectorAll('[fill]') ?? [])) {
+      expect(el.getAttribute('fill')).toBe('#f3e2c3');
+    }
+  });
+
+  it('hangs the three stockings at deterministic heights with tidy spacing on the mantel, clear of the Saltire and the thistle', () => {
+    const scene = renderScene(allOpened(), DEC_10);
+    const stockings = Array.from(scene.querySelectorAll<SVGGElement>('g.scene-stocking'));
+    expect(stockings).toHaveLength(3);
+    const boxes = stockings.map((s) => bboxOf(Array.from(s.querySelectorAll('rect, circle, ellipse'))));
+    const mantel = scene.querySelector<SVGRectElement>('g.scene-stage[data-stage="14"] > rect');
+    const mantelX = Number(mantel?.getAttribute('x'));
+    const mantelW = Number(mantel?.getAttribute('width'));
+    const mantelTop = Number(mantel?.getAttribute('y'));
+    const tops = new Set<number>();
+    for (const box of boxes) {
+      expect(box.minX).toBeGreaterThanOrEqual(mantelX);
+      expect(box.maxX).toBeLessThanOrEqual(mantelX + mantelW);
+      expect(box.minY).toBeGreaterThanOrEqual(mantelTop);
+      tops.add(box.minY);
+    }
+    expect(tops.size).toBe(1);
+    const sorted = [...boxes].sort((a, b) => a.minX - b.minX);
+    for (let i = 1; i < sorted.length; i += 1) {
+      expect(sorted[i].minX - sorted[i - 1].maxX).toBeGreaterThanOrEqual(4);
+    }
+    const saltireBox = bboxOf(Array.from(scene.querySelectorAll('g.scene-saltire rect, g.scene-saltire path')));
+    const thistleBox = bboxOf(
+      Array.from(scene.querySelectorAll('g.scene-stage[data-stage="19"] rect, g.scene-stage[data-stage="19"] ellipse, g.scene-stage[data-stage="19"] path')),
+    );
+    for (const box of boxes) {
+      expect(overlaps(box, saltireBox)).toBe(false);
+      expect(overlaps(box, thistleBox)).toBe(false);
+    }
+  });
+
+  it('styles the labels in the display font stack with warm cream on the knit (scene.css)', () => {
+    const css = readFileSync(path.join(process.cwd(), 'src', 'styles', 'scene.css'), 'utf8');
+    const rule = /\.scene-stocking-label\s*\{[^}]*\}/.exec(css)?.[0] ?? '';
+    expect(rule).toContain('var(--font-display)');
+    expect(rule).toContain('fill: #f3e2c3');
+  });
+});
+
+describe('stage 21 large present, stage 22 window paper stars, stage 23 cookie plate + milk', () => {
+  it('stage 21 places one large wrapped present under/beside the tree, clearly bigger than every pile gift', () => {
+    const scene = renderScene(new Set(Array.from({ length: 21 }, (_, i) => i + 1)), DEC_10);
+    const stage21 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="21"]');
+    expect(stage21?.classList.contains('scene-large-present')).toBe(true);
+    expect(stage21?.classList.contains('scene-present')).toBe(true);
+    const large = stage21 as SVGGElement | null;
+    expect(large).not.toBeNull();
+    const largeBox = bboxOf(Array.from(large?.querySelectorAll('rect, circle') ?? []));
+    expect(largeBox.maxX - largeBox.minX).toBeGreaterThanOrEqual(18);
+    expect(largeBox.maxY - largeBox.minY).toBeGreaterThanOrEqual(15);
+    const pile = scene.querySelector<SVGGElement>('g.scene-gift-pile');
+    for (const gift of Array.from(pile?.querySelectorAll<SVGGElement>('g.scene-gift') ?? [])) {
+      const giftBox = bboxOf(Array.from(gift.querySelectorAll('rect, circle, ellipse, path')));
+      expect(largeBox.maxX - largeBox.minX).toBeGreaterThan((giftBox.maxX - giftBox.minX) * 2);
+    }
+    expect(overlaps(largeBox, dogGeometry(scene).box)).toBe(false);
+    expect(stage21?.querySelectorAll('polygon.scene-tree-tier')).toHaveLength(0);
+  });
+
+  it('stage 22 hangs 3-5 folded-paper stars on short threads in the upper window zone, never overlapping the pane', () => {
+    const scene = renderScene(new Set(Array.from({ length: 22 }, (_, i) => i + 1)), DEC_10);
+    const stage22 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="22"]');
+    expect(stage22?.classList.contains('scene-paper-stars')).toBe(true);
+    const starsGroup = stage22;
+    const starCount = Number(starsGroup?.dataset.stars);
+    expect(starCount).toBeGreaterThanOrEqual(3);
+    expect(starCount).toBeLessThanOrEqual(5);
+    const stars = Array.from(stage22?.querySelectorAll<SVGPolygonElement>('polygon.scene-paper-star') ?? []);
+    expect(stars).toHaveLength(starCount);
+    const threads = Array.from(stage22?.querySelectorAll('line.scene-star-thread') ?? []);
+    expect(threads).toHaveLength(starCount);
+    const paneBox: Box = { minX: PANE.x, minY: PANE.y, maxX: PANE.x + PANE.w, maxY: PANE.y + PANE.h };
+    const sizes: number[] = [];
+    for (const star of stars) {
+      const box = bboxOf([star]);
+      expect(overlaps(box, paneBox)).toBe(false);
+      expect(box.minY).toBeGreaterThanOrEqual(19);
+      expect(box.maxY).toBeLessThanOrEqual(27);
+      expect(box.minX).toBeGreaterThanOrEqual(20);
+      expect(box.maxX).toBeLessThanOrEqual(148);
+      sizes.push(box.maxX - box.minX);
+    }
+    expect(new Set(sizes).size).toBe(starCount);
+  });
+
+  it('stage 23 puts a cookie plate and a glass of milk on the side table with a warm light accent', () => {
+    const scene = renderScene(new Set(Array.from({ length: 23 }, (_, i) => i + 1)), DEC_10);
+    const stage23 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="23"]');
+    expect(stage23?.classList.contains('scene-santa-treat')).toBe(true);
+    const treat = stage23;
+    expect(treat?.querySelector('ellipse.scene-cookie-plate')).not.toBeNull();
+    expect(treat?.querySelectorAll('circle.scene-cookie').length).toBeGreaterThanOrEqual(2);
+    expect(treat?.querySelector('rect.scene-milk-glass')).not.toBeNull();
+    expect(treat?.querySelector('rect.scene-milk')?.getAttribute('fill')).toBe('#f3e2c3');
+    expect(treat?.querySelector('circle.scene-treat-glow')).not.toBeNull();
+    const table = scene.querySelector<SVGGElement>('g.scene-side-table');
+    const tableTop = table?.querySelector<SVGRectElement>('rect');
+    const tx = Number(tableTop?.getAttribute('x'));
+    const tw = Number(tableTop?.getAttribute('width'));
+    const top = Number(tableTop?.getAttribute('y'));
+    const box = bboxOf(Array.from(treat?.querySelectorAll('rect, circle, ellipse') ?? []));
+    expect(box.minX).toBeGreaterThanOrEqual(tx);
+    expect(box.maxX).toBeLessThanOrEqual(tx + tw);
+    expect(box.maxY).toBeLessThanOrEqual(top + 2);
+    expect(box.minY).toBeGreaterThanOrEqual(top - 14);
+    const wreath = scene.querySelector<SVGGElement>('g.scene-wreath');
+    const ring = wreath?.querySelector<SVGCircleElement>('circle.scene-wreath-ring');
+    const ringBox = bboxOf([ring as SVGCircleElement]);
+    for (const shape of Array.from(treat?.querySelectorAll('rect, circle, ellipse') ?? [])) {
+      expect(overlaps(bboxOf([shape]), ringBox)).toBe(false);
+    }
   });
 });
 
@@ -1021,6 +1482,33 @@ describe('reveal moments on newly earned stages', () => {
     scrollToPageTop();
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy.mock.calls[0][0]).toEqual({ top: 0, behavior: 'smooth' });
+    spy.mockRestore();
+  });
+
+  it('is ~4s with 2 gentle pulsating glow peaks in the CSS keyframes and reduced-motion safe', () => {
+    expect(REVEAL_MOMENT_MS).toBe(4000);
+    expect(REVEAL_PULSES).toBe(2);
+    const css = readFileSync(path.join(process.cwd(), 'src', 'styles', 'scene.css'), 'utf8');
+    expect(css).toMatch(/\.scene-reveal\s*\{[^}]*animation:\s*scene-reveal-glow 4s/);
+    const keyframes = /@keyframes scene-reveal-glow \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(keyframes).toContain('rgba(217, 164, 65, 0.9)');
+    expect(keyframes).toContain('rgba(217, 164, 65, 0.75)');
+    const reduced = /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(reduced).toContain('.scene-reveal');
+    expect(reduced).toContain('.scene-reveal-star');
+  });
+
+  it('settles instantly under reduced motion (no pulse)', () => {
+    vi.useFakeTimers();
+    const spy = vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true } as MediaQueryList);
+    const scene = renderScene(new Set(), DEC_10);
+    const stage = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="1"]');
+    expect(stage).not.toBeNull();
+    applyRevealMoment(stage as SVGGElement, 1);
+    expect(stage?.classList.contains('scene-reveal')).toBe(true);
+    vi.advanceTimersByTime(1);
+    expect(stage?.classList.contains('scene-reveal')).toBe(false);
+    expect(stage?.querySelector('g.scene-reveal-stars')).toBeNull();
     spy.mockRestore();
   });
 });
