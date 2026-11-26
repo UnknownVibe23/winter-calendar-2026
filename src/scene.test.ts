@@ -120,11 +120,14 @@ describe('skyline behind the window glass', () => {
     expect(skyline).not.toBeNull();
     expect(frame).not.toBeNull();
     expect(panes).not.toBeNull();
+    const skylineNode = skyline as unknown as Node;
     expect(
-      frame?.compareDocumentPosition(skyline as Node) & Node.DOCUMENT_POSITION_PRECEDING,
+      (frame as unknown as Node).compareDocumentPosition(skylineNode) &
+        Node.DOCUMENT_POSITION_PRECEDING,
     ).toBeTruthy();
     expect(
-      panes?.compareDocumentPosition(skyline as Node) & Node.DOCUMENT_POSITION_PRECEDING,
+      (panes as unknown as Node).compareDocumentPosition(skylineNode) &
+        Node.DOCUMENT_POSITION_PRECEDING,
     ).toBeTruthy();
     expect(skyline?.classList.contains('scene-stage')).toBe(false);
     expect(scene.querySelectorAll('g.scene-stage')).toHaveLength(24);
