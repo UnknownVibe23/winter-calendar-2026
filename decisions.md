@@ -987,3 +987,166 @@
   **Alternatives considered:** headless-browser visual CI (rejected: no
   new dependencies). **Decided-by:** coding-agent. **Status:** Proposed in
   PR #8
+- **Context:** WC-06T4: the dog is replaced by the approved vectorized
+  silhouette (fixed path, no redrawing).
+  **Decision:** the approved path is embedded VERBATIM as
+  `DOG_SILHOUETTE_PATH` in `src/scene.ts` and placed in a
+  `g.scene-dog-silhouette` group with `transform="translate(222 217)
+  scale(-0.45 0.45)"` — the horizontal mirror (scale x negative) makes the
+  left-facing template face RIGHT toward the fireplace; the 0.45 scale gives
+  78.3 of 300 scene units (26.1% of the strip height), paws at y ~296 on the
+  rug, right edge at x 221.1 clear of the hearth edge (228). Fill solid
+  `#0d0d10`, contour stroke `#34343c` width 1.8 template units (= 0.81
+  scene units). A contract test asserts the DOM path equals the constant
+  normalized whitespace-insensitively, plus the mirror/size/placement
+  geometry. Idle life: a barely noticeable breathing/bob on the dog group
+  (`scene-dog-breathe`, 1.5s, scale 1.00 -> 1.015, origin at the paws,
+  disabled under prefers-reduced-motion) was chosen over a tail sway — the
+  old tail-wag CSS is removed. Stage 24's red bow sits at the neck
+  (scene 185,240, inside the silhouette's upper-right) and the gift at the
+  paws (191,287). **Alternatives considered:** tail sway (rejected: the
+  single-path silhouette has no separable tail element; a group bob is
+  cheaper and covers the whole dog). **Decided-by:** planner (path, mirror,
+  size) / coding-agent (bob choice, bow/gift placement). **Status:**
+  Proposed in PR #8
+- **Context:** WC-06T4: real advent tradition — wreath on a side table from
+  the 1st of Advent, candles on the real Advent Sundays.
+  **Decision:** `src/wreath.ts` now exposes `ADVENT_SUNDAYS` (the four real
+  Advent Sundays 2026 as Date constants: Nov 29, Dec 6, Dec 13, Dec 20) and
+  `adventCandlesLitForDate(now)` (0 before Nov 29; +1 per Advent Sunday);
+  the dev `?date=` override flows through `resolveNow` (tested). The side
+  table is now BASE ART (`g.scene-side-table`) — moved out of stage 10 and
+  repositioned to x 264..290 on the floor right of the rug, in front of the
+  hearth (the bigger dog occupies the rug, and a base-art table at the old
+  x 158..184 would be covered by the dog and collide with the wreath). The
+  wreath (`g.scene-wreath`) stands CENTERED on that table (ring bottom on
+  the table top, cx = table center), is a calendar item from Nov 29
+  (`calendarItemsForDate`: none before Nov 29, wreath Nov 29-30, wreath +
+  picture from Dec 1), keeps flame/halo/ring-glow per lit candle plus a warm
+  spill ellipse on the table, and plays its reveal moment on Nov 29 only.
+  The mantel is relieved (stockings + Saltire only; the old wall-hung
+  wreath art is gone). **Alternatives considered:** keeping the table next
+  to the armchair (rejected: the dog would cover it / crowd it).
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T4: per-item reveal-once semantics with date-aware
+  calendar items.
+  **Decision:** `calendar-items.ts` is date-aware
+  (`calendarItemsForDate(now)` with `FIRST_ADVENT` Nov 29 2026 and
+  `DECEMBER_FIRST` Dec 1 2026 constants; 2026 is the app's fixed year, so
+  hardcoding is exact); `reveal.ts` replaces the day-based
+  `revealItemsForDay` with `revealItemsForDate(now)`, which returns exactly
+  the items whose own start day is today (wreath on Nov 29, picture on
+  Dec 1, none otherwise) — no storage, once-only by date. All tests
+  rewritten at equal strength (Nov 28/29/30, Dec 1/2/6/13/20/24, other
+  years deterministic). **Alternatives considered:** keeping a December-day
+  mapping (rejected: Nov 29 is before Dec 1, so the day number 0 could not
+  express it). **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T4: bulb chain anchored to the curtain rod, gated at
+  stage 15.
+  **Decision:** the drooping 7-bulb chain moved from base art INTO stage 15
+  (garland family) as `g.scene-bulb-chain` inside the stage-15 group, so it
+  is not visible below 15 opened doors (incl. the bare room at
+  `?date=2026-11-28`). It now hangs from the new curtain rod: both wire
+  endpoints lie ON the rod (y 16 within the rod 13..16.5, x 166..228 within
+  the rod span 8..234) with visible gold anchor rings, drooping
+  (quadratic, control y 100) down the upper dead wall zone right of the
+  window; the stage-18 shelf moved down to the lower dead zone
+  (bracket y 84, board y 126) to make room. Twinkle/sway CSS unchanged.
+  **Alternatives considered:** keeping the chain at its old low position
+  with wires up to the rod (rejected: the wires would cross the shelf).
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T4: curtains + curtain rod as stage-1 window art.
+  **Decision:** stage 1 now also draws `g.scene-curtain-rod` (rect x 8..234,
+  y 13..16.5, finials at both ends — above the frame top y 19, wider than
+  the frame) and two parted `g.scene-curtain` panels (x 8..27 and
+  x 141..160, hanging from the rod y 16 down to y 152, warm red `#8f2a38`
+  with darker folds/pocket/hem). The panels stop at the pane edges
+  (left maxX 27 <= pane x 28, right minX 141 >= pane right 140), so they
+  never cover the glass or the castle silhouette — asserted by test.
+  **Alternatives considered:** a valance over the glass (rejected: would
+  cover the castle view). **Decided-by:** planner. **Status:** Proposed in
+  PR #8
+- **Context:** WC-06T4: grounding — chair rail + fireplace wall strip.
+  **Decision:** a chair-rail line (`rect.scene-chair-rail`, y 159, full wall
+  width 360, plus a thin shadow line) is always-present base art zoning the
+  wall; the framed picture, bulb chain and shelf are asserted to sit fully
+  in the upper zone (maxY <= 159). The fireplace's stage-12 art adds
+  `rect.scene-fireplace-strip`, a subtle stroke-only outline around the
+  firebox opening, grounding the mantel. **Alternatives considered:** a
+  rail higher/lower (rejected: y 159 sits just below the windowsill and
+  above the armchair, crossing nothing else). **Decided-by:** coding-agent.
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T4: the framed picture becomes actual Scottish
+  highlands.
+  **Decision:** the picture content was redrawn (same frame/position, still a
+  Dec-1 calendar item in the upper chair-rail zone): misty sky, two rolling
+  heather hills (green-brown `#7a6a52` / `#5f6b45`) with purple/pink heather
+  patches (`#9a6bc9`, `#b98bb8`), a misty glen band, and two small stag
+  silhouettes (`g.scene-stag`, dark `#2e2620` with antlers); no snow, no
+  alpine peaks, no text. **Alternatives considered:** keeping the snowy
+  highlands (rejected: card explicitly wants heather glen + stags).
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T4: scale corrections (tree, Saltire, Highland cow) and
+  tree/castle clearance.
+  **Decision:** the tree grew to ~1.7x its old height (old 106 units:
+  apex y 162..pot y 268; new 180: spike apex y 120..present bottom y 300)
+  with a tree skirt (`ellipse.scene-tree-skirt`), a warm light pool
+  (`ellipse.scene-tree-pool`) and 4 larger presents. Geometry is chosen so
+  the clearance test can guarantee the castle + city lights stay uncovered:
+  the top spike (bbox x 28..40) stays left of the protected region
+  (minX 44) and the lowest tier reaching y<=137 starts at y 138; the tree
+  overlaps only the lower window edge slightly (allowed by the card). The
+  Saltire flag grew to 14x10 (pole on the mantel top, cream diagonals
+  width 2); the Highland cow figurine grew to ~1.5x (24 units tall) on the
+  moved shelf board. **Alternatives considered:** a taller tree centered
+  over the castle (rejected: would cover the castle pane region).
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T4: mug and thistle get anchored spots after the wreath
+  leaves the wall/mantel concept.
+  **Decision:** the steaming mug moved from the side table to the
+  WINDOWSILL (stage 10, x 92..104 standing on the sill top y 145, between
+  the candle x 66..76 and the heather vase x 118..134 — the sill is not too
+  crowded). The thistle vignette (stage 19) got a fixed spot on the LEFT end
+  of the mantelpiece (vase on the mantel top y 102, x 229..239), clear of
+  the framed picture (x >= 240), both stockings and the Saltire — asserted
+  per shape. **Alternatives considered:** thistle on the crowded sill
+  (rejected: four items on one sill), thistle mid-mantel under the picture
+  (rejected: its head overlapped the picture's lower edge).
+  **Decided-by:** coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T4: warmer, wider light pools.
+  **Decision:** stage 13's fire glow grew (halo r 34 -> 46 @ 0.2, floor pool
+  48x13 -> 64x16 @ 0.14, `ellipse.scene-fire-pool`) and stage 21 gained a
+  warm pool under the tree (`ellipse.scene-tree-pool`, rx 46 @ 0.15). No new
+  animation loops. **Alternatives considered:** none.
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T4: lightbox-close effect simplifies to a smooth scroll
+  to the page top.
+  **Decision:** `scrollSceneIntoView` was replaced by `scrollToPageTop()`
+  (`window.scrollTo({ top: 0, behavior: 'smooth' })`, auto under
+  prefers-reduced-motion). It runs on EVERY lightbox close in
+  `afterLightboxClose` (every door open ends with a lightbox close, so door
+  opens are covered); the sparkle-and-glow reveal moment on newly earned
+  stages is unchanged and still only plays when the open actually earned
+  new stages. **Alternatives considered:** scrolling only when new stages
+  were earned (rejected: the card says the page scrolls after a lightbox
+  closes / door opens, unconditionally of the reveal). **Decided-by:**
+  planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T4 automated-vs-manual split for the fourth tuning
+  round.
+  **Decision:** automated: 369 unit tests (adventCandlesLitForDate incl.
+  ?date= override, calendarItemsForDate/revealItemsForDate by date, dog
+  path contract + mirror/size/placement geometry + black-fill contract +
+  stage-24 bow/gift on the silhouette + breathing CSS reduced-motion
+  guard, wreath on side table with Advent-Sunday candle counts + spills,
+  bulb chain rod-anchor + stage-15 gating, rod/curtains vs pane/castle,
+  chair rail + zones + fireplace strip, heather-glen-stag picture, tree
+  scale + castle/city-light clearance geometry, bigger Saltire/coo, mug on
+  sill, thistle on mantel, warm pools, scrollToPageTop + lightbox-close e2e
+  scroll target, plus all prior tests). Manual smoke (`npm run dev` with
+  `?date=` overrides, plus a rasterized-SVG inspection of the strip):
+  bare Nov 28 room, Nov 29 wreath reveal, Dec 1 picture reveal, candle
+  counts, dog look/facing/bob, chain sway/twinkle, curtain/rod look, tree
+  vs window look at every zoom, A55 360x780 smoothness. **Alternatives
+  considered:** headless-browser visual CI (rejected: no new
+  dependencies). **Decided-by:** coding-agent. **Status:** Proposed in
+  PR #8
