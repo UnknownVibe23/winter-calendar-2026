@@ -1297,3 +1297,163 @@
   A55 360x780 smoothness. **Alternatives considered:** headless-browser
   visual CI (rejected: no new dependencies). **Decided-by:**
   coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T6: the approved traced reference vectors (tree.svg,
+  coo.svg, session uploads, kept UNTRACKED under `reference/`) must be
+  adapted into scene assets. The WC-06T6 addendum licenses structural
+  repair of trace artifacts and leaves script-vs-authored to the coder.
+  **Decision:** a deterministic, dependency-free script
+  `scripts/adapt-references.mjs` does the whole adaptation and its output
+  is committed as `src/assets/tree-adapted.ts` (22.8 KB raw / 7.6 KB gzip)
+  and `src/assets/coo-adapted.ts` (30.4 KB raw / 5.5 KB gzip) — both within
+  the ~40 KB raw / ~15 KB gzip budget. The script: parses the reference
+  paths, classifies regions by fill, drops the traced bauble paths (tree),
+  the reference star spike and the presents clutter (half-plane clip
+  y in [66, 402] for the tree), and noise/duplicate subpaths (area and
+  rounded-bbox rules), smooths ragged contours (Chaikin x2, RDP thinning;
+  RDP-only for the coo so its evenodd outline pairing survives), then
+  applies a per-asset affine remap to scene coordinates and the palette
+  remap, and emits the path constants. Rerunning on the same references
+  reproduces the outputs byte-identically. `reference/` is gitignored in
+  the same commit as the adapted assets; only the adapted result lands in
+  the repo. Chosen over authored cleanup so the adaptation is reproducible
+  and reviewable. **Alternatives considered:** hand-authored cleanup
+  (rejected: not reproducible, harder to review against the approved
+  structure). **Decided-by:** coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T6: night-palette remap of the traced tree (the
+  reference greens never ship).
+  **Decision:** `TREE_PALETTE_REMAP` = `#16bd3a -> #1d4d2b` (deep pine
+  base), `#15bc39 -> #2e6b3f` (scene mid green), `#3df869 -> #35785a`
+  (cooler mid accent, chosen to harmonize with the scene greens),
+  `#000c00 -> #0a1610` (near-scene night shade), `#fad92a -> #d9b64f`
+  (scene gold), `#803f29 -> #6b4a2f` (scene trunk brown); bauble fills
+  `#a42133` / `#e22c3b` / `#bd932f` dropped (the seeded 13-bauble system
+  replaces them). Tree remap transform: non-uniform, trunk axis ref x 172
+  -> scene x 34 (`TREE_AXIS_X`), sx 0.18, sy 153/305 with ref y 66 -> 105
+  and ref y 371 -> 258, chosen so the remapped foliage keeps the current
+  envelope (x ~3.5..63.6) and every remapped point at pane heights
+  (y <= 137) stays left of the protected castle/city box (max x ~42.8).
+  **Alternatives considered:** uniform scale (rejected: the reference
+  aspect does not fit the envelope). **Decided-by:** coding-agent.
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T6: coo palette vs the wall strip.
+  **Decision:** identity remap — the traced caramel `#cda77a/#c9a781/#c4a07c`,
+  cream `#e6d4c0/#e6d4be`, horn/hoof greys `#4d4d4d/#484848` and black
+  `#030000` are kept as-is per the card ("palette already fits"); the horn
+  tips alone are ~1.6:1 vs the wall but overlap the cream fringe, and the
+  360 CSS px checkpoint render shows them readable. Coo placement: ref
+  x 2..375 -> scene x 202..236, ref y 2..370 -> scene y 100..126 (on the
+  shelf board, right of the book, same zone as the old coo, h 26 >= 20).
+  **Alternatives considered:** remapping the horn greys to scene cream
+  `#e8dcc8` (rejected: card keeps dark horns; contrast adequate in
+  context). **Decided-by:** coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T6: two items move from door-progress to calendar
+  dates; the tree joins them.
+  **Decision:** `calendar-items.ts` now lists `['wreath', 'tree',
+  'stockings']` with starts wreath = 1st of Advent (Nov 29 2026), tree =
+  Dec 1, stockings = Dec 16; `calendarItemsForDate` is the generic
+  start-date filter and `revealItemsForDate` already plays each item's
+  once-only 4000 ms / 2-pulse reveal on its own start day (wreath Nov 29,
+  tree Dec 1 with seed 3, stockings Dec 16 with seed 4). Pre-Dec-1 the
+  bare room has no tree at all (pot/skirt/pool belong to the tree group);
+  from Dec 1 the traced tree is permanent room art minus the stage-24
+  star. The fireplace and mantel stay stage-12/14 door-progress items
+  (the card's bare-room list mentions them; read as the room's furniture
+  being unchanged — only the tree moved). **Alternatives considered:**
+  moving fireplace/mantel to base art (rejected: not requested, stage ids
+  stay untouched). **Decided-by:** planner (dates), coding-agent
+  (wiring). **Status:** Proposed in PR #8
+- **Context:** WC-06T6: decoration system on the new spruce silhouette.
+  **Decision:** the existing system is kept with unchanged counts and
+  tricolor values, only repositioned: exactly 13 seeded tricolor baubles
+  (cream every 5th) spread over 5 bands of the foliage, each kept inside
+  the silhouette via the generated `TREE_PROFILE` half-width at its height
+  (`treeHalfWidthAt`), plus 3 spiral strand swags at 14/46/78 units above
+  the foliage bottom with 7/6/5 = 18 capped bulbs (<= 22). The stage-24
+  star sits at (34, 97) on the new treetop (`TREE_FOLIAGE_TOP_Y` = 105).
+  Castle/city clearance is now asserted per actual shape POINT (stronger
+  than the old bbox test), with the slight lower-pane overlap allowed as
+  today. **Alternatives considered:** keeping the old trapezoid tiers
+  (rejected: the tier builder is retired). **Decided-by:** coding-agent.
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T6: honest door surfaces in every state.
+  **Decision:** every door always carries its full colored festive painted
+  surface (`canvas.door-frost` + `door--frosted` + per-door `--door-tint`
+  fallback): scratchable doors via the unchanged scratch overlay (which on
+  open now repaints the canvas complete instead of fading it out), locked
+  and opened doors via the new static `attachStaticDoorSurface` (no pointer
+  handlers, so scratch mechanics are untouched). The photo thumbnail is no
+  longer swapped onto the tile (the lightbox still shows it). Glow state
+  machine by state class: locked = colored, not dimmed, NO glow; openable =
+  colored + soft warm glow (shared box-shadow + pulsing inset `::after`,
+  2.8 s); opened = the SAME glow persists (no dimmed look) plus a small
+  gold check badge (`.door-opened-mark`); reduced motion: pulse off, glow
+  static. Snow caps still grow by absolute date as today (SVG overlay on
+  locked doors, painted into the scratch canvas on openable ones). New
+  pure `frostDensityForDoor` in `door-snow.ts`: base 1, +0.15 per day since
+  the door's unlock date, clamp 2.5 (opened resets to base); it scales the
+  frost-bloom alpha (clamped <= 0.45) on unopened doors' surfaces, and the
+  day number is painted LAST at full opacity with >= 4.5:1 contrast vs the
+  tint (asserted for all 24 doors). **Alternatives considered:** keeping
+  the dimmed-after-open look (rejected by card). **Decided-by:** planner
+  (states), coding-agent (implementation). **Status:** Proposed in PR #8
+- **Context:** WC-06T6: gift pile must not read as light bulbs.
+  **Decision:** `GIFT_SHAPES = ['box', 'sack']` (cylinder removed and its
+  drawing branch deleted), specs reseeded with `GIFT_SEED = 20261226` so
+  all 8 slots deterministically mix boxes and sacks; the 8 pile slots,
+  `giftsForOpenedDoors` (min(8, floor(n/3))) and the bbox/neatness
+  contracts are unchanged. Accepted edge case: with a dev `?date=`
+  override piling gifts before Dec 1, gifts may sit on the empty tree
+  spot — the pile is deliberately not coupled to the tree item; normal
+  flow (tree Dec 1, gifts from door 3) is unaffected. **Alternatives
+  considered:** coupling the pile to the tree date (rejected by card).
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T6: stage 16/17 are freed by the stockings move.
+  **Decision:** stage 16 = a small flat robin on the left end of the
+  windowsill (round body, red-orange breast + face patch, brown-grey
+  back/head, tiny beak, tail, legs on the sill top y 145, soft warm halo;
+  deterministic placement clear of the candle, mug and heather;
+  2.4 s breathing idle, animation off under reduced motion). Stage 17 =
+  a small retro radio on the floor next to the armchair (the dog-free
+  floor pocket left of the chair, x 74..90, feet y 274): warm wood body,
+  cream panel, 3-line speaker grid, dial + needle, 2 feet, thin antenna;
+  gentle bob (translateY -1..1, 3 s) and 3 music notes floating up and
+  fading (CSS keyframes, delays 0/-2/-4 s; hidden under reduced motion).
+  No audio, no new objects beyond these two. Stockings move to the Dec-16
+  calendar item: all three (M / M / N with paw print, art and neutral
+  documentation unchanged) hang on the mantel in the same spots and draw
+  order and play the reveal on Dec 16; the 24 stage ids and their order
+  are untouched. **Alternatives considered:** radio on the rug right of
+  the dog (rejected: dog pixels cover it). **Decided-by:** planner
+  (contents), coding-agent (placement). **Status:** Proposed in PR #8
+- **Context:** WC-06T6: stage 24 loses the dog's bow.
+  **Decision:** the red bow group is removed from the Christmas-Eve moment;
+  Santa hat on the head, wrapped gift at the paws and the glowing tree
+  star remain. The DOG SILHOUETTE PATH stays byte-identical (contract
+  test unchanged). **Alternatives considered:** none. **Decided-by:**
+  planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T6 automated-vs-manual split and the addendum's
+  360 px render checkpoint.
+  **Decision:** automated: 415 unit tests (calendar items/reveals for
+  wreath/tree/stockings incl. boundaries and pre-start absence, bare-room
+  Nov 28 without tree, tree presence/reveal Dec 1, stockings Dec 16,
+  traced-tree structure + palette remap constants + per-point castle
+  clearance + 13 baubles inside the profile + 3 strands/18 bulbs + asset
+  size budget, stage 16 robin structure/clearance/gating/CSS, stage 17
+  radio structure/placement/notes/gating/reduced-motion CSS, stage 18
+  traced coo regions/zone/clearance, stage 24 hat+gift+star and NO bow,
+  door glow state machine e2e (canvas in every state, tint var, badge,
+  snow overlay per state, CSS glow rules + reduced-motion static),
+  frostDensityForDoor clamp + number readability (contrast >= 4.5, paint
+  order), no-cylinder gift specs, scratch-opened surface repaint, static
+  surface, plus all prior tests). Manual smoke (`npm run dev` with
+  `?date=`): Nov 28 bare room; Nov 29 wreath + candle 1; Dec 1 tree
+  reveal; Dec 16 stockings reveal; door 3 first pile gift; frostier old
+  unopened door vs fresh one; opened doors keep glow; doors 15/16/17/18/
+  24 contents. The checkpoint screenshots were rendered headlessly by
+  rasterizing the real `renderScene` SVG output with sharp (already a
+  devDependency) at exactly 360 CSS px width: tree and coo in-scene
+  (plus full-scene Nov 28 / Dec 1 / Dec 16 / Dec 24 shots) — the tree
+  reads as a night-graded wavy spruce with gold garland, the coo reads as
+  a Highland cow on the shelf. **Alternatives considered:** headless
+  browser CI (rejected: no new dependencies). **Decided-by:**
+  coding-agent. **Status:** Proposed in PR #8
