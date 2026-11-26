@@ -5,10 +5,12 @@ export const DOOR_SNOW_SEED = 20261206;
 export const SNOW_DUST_DEPTH = 0.18;
 export const SNOW_GROWTH_PER_DAY = 0.08;
 export const SNOW_DEPTH_MAX = 0.65;
+export const SNOW_RAMP_PER_DAY = 0.02;
 export const ICICLE_MIN_DEPTH = 0.3;
 export const FROST_DENSITY_BASE = 1;
 export const FROST_DENSITY_PER_DAY = 0.15;
 export const FROST_DENSITY_MAX = 2.5;
+export const FROST_RAMP_PER_DAY = 0.08;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -16,6 +18,10 @@ const CREAM = '#f3e2c3';
 
 function startOfLocalDayUtcMs(now: Date): number {
   return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function firstOfDecemberUtcMs(): number {
+  return Date.UTC(CALENDAR_YEAR, CALENDAR_MONTH, 1);
 }
 
 /**
@@ -29,26 +35,58 @@ export function daysSinceUnlock(doorNumber: number, now: Date): number {
 }
 
 /**
+ * Whole local days elapsed since Dec 1 of the calendar year, 0 before it.
+ */
+export function daysSinceDec1(now: Date): number {
+  return Math.max(0, Math.round((startOfLocalDayUtcMs(now) - firstOfDecemberUtcMs()) / DAY_MS));
+}
+
+/**
+ * Calendar-date snow ramp as a fraction of the door height: 0 before Dec 1,
+ * a light dusting (SNOW_DUST_DEPTH) on Dec 1, then growing by
+ * SNOW_RAMP_PER_DAY per calendar day. Independent of any door's own unlock
+ * date, so every unopened door — including still-locked future ones —
+ * accumulates snow as December advances. Deterministic.
+ */
+export function snowRampForDate(now: Date): number {
+  if (startOfLocalDayUtcMs(now) < firstOfDecemberUtcMs()) {
+    return 0;
+  }
+  return SNOW_DUST_DEPTH + daysSinceDec1(now) * SNOW_RAMP_PER_DAY;
+}
+
+/**
+ * Calendar-date frost ramp: FROST_DENSITY_BASE before Dec 1, then growing by
+ * FROST_RAMP_PER_DAY per calendar day since Dec 1 — the same date ramp for
+ * every door, independent of its own unlock date.
+ */
+export function frostRampForDate(now: Date): number {
+  if (startOfLocalDayUtcMs(now) < firstOfDecemberUtcMs()) {
+    return FROST_DENSITY_BASE;
+  }
+  return FROST_DENSITY_BASE + daysSinceDec1(now) * FROST_RAMP_PER_DAY;
+}
+
+/**
  * Snow depth on an unopened door as a fraction of the door height: 0 for
- * opened doors (they stay clear), otherwise a small base dusting from Dec 1
- * plus growth with the days elapsed since the door's unlock date, clamped to
- * SNOW_DEPTH_MAX. Deterministic.
+ * opened doors (they stay clear), otherwise the calendar-date ramp from
+ * Dec 1 PLUS the door's own waiting-days growth since its unlock date
+ * (a neglected door is snowier than a fresh one on the same date), clamped
+ * to SNOW_DEPTH_MAX. Deterministic.
  */
 export function snowDepthForDoor(doorNumber: number, now: Date, opened: Set<number>): number {
   if (opened.has(doorNumber)) {
     return 0;
   }
-  const firstOfDecember = Date.UTC(CALENDAR_YEAR, CALENDAR_MONTH, 1);
-  const base = startOfLocalDayUtcMs(now) >= firstOfDecember ? SNOW_DUST_DEPTH : 0;
-  const depth = base + daysSinceUnlock(doorNumber, now) * SNOW_GROWTH_PER_DAY;
+  const depth = snowRampForDate(now) + daysSinceUnlock(doorNumber, now) * SNOW_GROWTH_PER_DAY;
   return Math.min(SNOW_DEPTH_MAX, Math.max(0, depth));
 }
 
 /**
- * Frost density factor on the scratch surface of an UNOPENED door: the base
- * 1 while the door is still locked/future, then growing with the days elapsed
- * since the door's unlock date (neglected windows frost over more the longer
- * they wait), clamped to FROST_DENSITY_MAX. Opened doors reset to the base.
+ * Frost density factor on the scratch surface of an UNOPENED door: the
+ * calendar-date ramp from Dec 1 PLUS the door's own waiting-days growth
+ * since its unlock date (neglected windows frost over more the longer they
+ * wait), clamped to FROST_DENSITY_MAX. Opened doors reset to the base.
  * Deterministic; the day number stays readable because it is painted last at
  * full opacity on the tint base (contrast >= 4.5 per door palette).
  */
@@ -56,7 +94,7 @@ export function frostDensityForDoor(doorNumber: number, now: Date, opened: Set<n
   if (opened.has(doorNumber)) {
     return FROST_DENSITY_BASE;
   }
-  const density = FROST_DENSITY_BASE + daysSinceUnlock(doorNumber, now) * FROST_DENSITY_PER_DAY;
+  const density = frostRampForDate(now) + daysSinceUnlock(doorNumber, now) * FROST_DENSITY_PER_DAY;
   return Math.min(FROST_DENSITY_MAX, Math.max(FROST_DENSITY_BASE, density));
 }
 
