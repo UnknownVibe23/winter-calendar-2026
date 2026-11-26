@@ -86,6 +86,46 @@ describe('renderScene', () => {
   });
 });
 
+describe('dog and stage 24', () => {
+  it('shows the dog by the fireplace from day 1 as room inventory, not as a stage', () => {
+    const scene = renderScene(new Set());
+    const dog = scene.querySelector<SVGGElement>('g.scene-dog');
+    expect(dog).not.toBeNull();
+    expect(dog?.closest('g.scene-stage')).toBeNull();
+    expect(dog?.querySelector('path.scene-tail')).not.toBeNull();
+    expect(dog?.querySelector('circle.scene-tag')).not.toBeNull();
+    expect(dog?.querySelectorAll('rect').length).toBeGreaterThanOrEqual(5);
+    expect(dog?.querySelectorAll('ellipse').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('replaces the old windowsill cat with stage 24: red bow on the dog plus a wrapped gift at its paws', () => {
+    const scene = renderScene(new Set());
+    const stage24 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="24"]');
+    expect(stage24).not.toBeNull();
+    expect(stage24?.classList.contains('scene-stage--earned')).toBe(false);
+    const bow = stage24?.querySelector<SVGGElement>('g.scene-dog-bow');
+    expect(bow).not.toBeNull();
+    expect(bow?.children).toHaveLength(3);
+    const gift = stage24?.querySelector<SVGGElement>('g.scene-dog-gift');
+    expect(gift).not.toBeNull();
+    expect(gift?.children.length).toBeGreaterThanOrEqual(5);
+    expect(stage24?.querySelectorAll('path').length).toBe(2);
+  });
+
+  it('earns the dog present only at 24 opened doors, keeping the 24-stage invariants', () => {
+    const allOpened = new Set(Array.from({ length: 24 }, (_, index) => index + 1));
+    const scene = renderScene(allOpened);
+    const stage24 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="24"]');
+    expect(stage24?.classList.contains('scene-stage--earned')).toBe(true);
+    expect(stage24?.querySelector('g.scene-dog-bow')).not.toBeNull();
+    expect(stage24?.querySelector('g.scene-dog-gift')).not.toBeNull();
+    const stages = Array.from(scene.querySelectorAll<SVGGElement>('g.scene-stage'));
+    expect(stages.map((stage) => stage.dataset.stage)).toEqual(
+      Array.from({ length: 24 }, (_, index) => String(index + 1)),
+    );
+  });
+});
+
 describe('syncSceneStages', () => {
   it('reveals exactly the next stage when one more door is opened', () => {
     const opened = new Set<number>();

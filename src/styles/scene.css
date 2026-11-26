@@ -34,8 +34,43 @@
 
   .scene-flame,
   .scene-light,
-  .scene-steam {
+  .scene-steam,
+  .scene-tail,
+  .scene-tag {
     animation: none;
+  }
+}
+
+.scene-tail {
+  transform-box: fill-box;
+  transform-origin: 0% 100%;
+  animation: scene-tail-wag 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes scene-tail-wag {
+  from {
+    transform: rotate(-9deg);
+  }
+  to {
+    transform: rotate(11deg);
+  }
+}
+
+.scene-tag {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: scene-tag-glint 2.4s ease-in-out infinite;
+}
+
+@keyframes scene-tag-glint {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
   }
 }
 

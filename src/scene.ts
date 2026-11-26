@@ -23,7 +23,7 @@ const STONE = '#5a4a42';
 const STONE_DARK = '#6b5a50';
 const FIREBOX = '#14100e';
 const TRUNK = '#6b4a2f';
-const CAT = '#3a3f4a';
+const DOG = '#2b2724';
 const WICK = '#3a2f23';
 const SEAT = '#8f2a38';
 const POT = '#4a2f24';
@@ -394,20 +394,46 @@ function stage23TreetopStar(): SVGGElement {
   return group([path(starPath(40, 156, 7), GOLD)]);
 }
 
-function stage24CatOnWindowsill(): SVGGElement {
-  return group([
+function stage24DogPresent(): SVGGElement {
+  const bow = group([
+    path('M306 280 L299.5 276.5 L299.5 283.5 Z', RED),
+    path('M306 280 L312.5 276.5 L312.5 283.5 Z', RED),
+    circle(306, 280, 2, GOLD_CREAM),
+  ]);
+  bow.classList.add('scene-dog-bow');
+  const gift = present(288, 289, 15, 11, RED, GOLD_CREAM);
+  gift.classList.add('scene-dog-gift');
+  return group([bow, gift]);
+}
+
+/**
+ * Flat-coated retriever standing by the fireplace, part of the room
+ * inventory: always visible from day 1, not tied to any stage. Charcoal
+ * flat silhouette with a red collar, a gold tag and a gently wagging tail.
+ */
+function baseDog(): SVGGElement {
+  const dog = group([
+    svgEl('ellipse', { cx: 323, cy: 285, rx: 19, ry: 10, fill: DOG }),
+    circle(303, 275, 6.5, DOG),
+    svgEl('ellipse', { cx: 297.5, cy: 277, rx: 4, ry: 2.8, fill: DOG }),
+    path('M300 271 C298 267 301 264.5 304 266 C307 268 305.5 272 303 273 Z', DOG),
+    rect(310, 292, 4.5, 8, DOG, { rx: 2 }),
+    rect(318, 293, 4.5, 7, DOG, { rx: 2 }),
+    rect(330, 293, 4.5, 7, DOG, { rx: 2 }),
+    rect(337, 292, 4.5, 8, DOG, { rx: 2 }),
     svgEl('path', {
-      d: 'M57 134 C64 131 63 124 56 124',
-      stroke: CAT,
-      'stroke-width': 3.5,
+      d: 'M341 281 C346 277 349 271 348 265',
+      stroke: DOG,
+      'stroke-width': 4.5,
       fill: 'none',
       'stroke-linecap': 'round',
+      class: 'scene-tail',
     }),
-    svgEl('ellipse', { cx: 46, cy: 133, rx: 13, ry: 7.5, fill: CAT }),
-    circle(33, 129, 5.5, CAT),
-    path('M29 126 L31 120 L34 125 Z', CAT),
-    path('M35 125 L38 120 L40 126 Z', CAT),
+    rect(303, 279.5, 6.5, 3, RED, { rx: 1 }),
+    circle(306, 284, 1.8, GOLD, { class: 'scene-tag' }),
   ]);
+  dog.classList.add('scene-dog');
+  return dog;
 }
 
 const STAGE_BUILDERS: Array<() => SVGGElement> = [
@@ -434,7 +460,7 @@ const STAGE_BUILDERS: Array<() => SVGGElement> = [
   stage21ChristmasTree,
   stage22StringLights,
   stage23TreetopStar,
-  stage24CatOnWindowsill,
+  stage24DogPresent,
 ];
 
 export function renderScene(opened: Set<number>): HTMLElement {
@@ -449,6 +475,7 @@ export function renderScene(opened: Set<number>): HTMLElement {
   });
   svg.append(
     group([rect(0, 0, 360, 232, WALL), rect(0, 232, 360, 68, FLOOR), rect(0, 226, 360, 6, BASEBOARD)]),
+    baseDog(),
   );
   for (let index = 0; index < SCENE_STAGE_COUNT; index += 1) {
     const stageGroup = STAGE_BUILDERS[index]();
