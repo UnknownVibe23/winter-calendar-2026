@@ -1482,3 +1482,41 @@
   renders it static with no pulsing symbols; clearance to side table,
   window, tree spot and gift pile asserted. **Alternatives considered:**
   none. **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T6 follow-up ruling #4: tree art rework (v2 template).
+  **Decision:** per human ruling, the Dec-1 tree is rebuilt from the
+  approved v2 flat-vector template (`reference/tree-v2.svg`, untracked):
+  five scalloped tiers alternating dark `#1d4d2b` / mid `#2e6b3f` with the
+  cool accent `#35785a` top tier, a dark shadow rim (`#0a1610` @ 0.45) under
+  each of the four lower tiers, the gold S-curve garland (`#d9b64f` stroke),
+  trunk in a terracotta pot; the gold star stays the stage-24-only topper.
+  The template's 13 placeholder baubles are dropped; the existing
+  13-bauble + 3-strand system (same counts, tricolor, caps) is repositioned
+  onto the v2 silhouette via the regenerated TREE_PROFILE (sampled from the
+  tier outlines). Same envelope (trunk axis x 34, foliage y 105-261.4, pot
+  to y 280.8, bbox x 4.4-63.6) and castle clearances; coordinate remap
+  only. **Alternatives considered:** none. **Decided-by:** planner.
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T6 follow-up ruling #4: coo art rework (v2 template).
+  **Decision:** per human ruling, the stage-18 Highland cow is rebuilt from
+  the approved v2 flat-vector template (`reference/coo-v2.svg`, untracked):
+  chunky rounded caramel body, cream scalloped fringe with the eyes peeking
+  through, dark horns, cream muzzle + nostrils, tartan scarf; NO legs, NO
+  tail. Palette already scene-graded (identity remap); same shelf placement
+  and size envelope (bbox x 202-236, y 100.7-126); coordinate remap only.
+  **Alternatives considered:** none. **Decided-by:** planner.
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T6 follow-up ruling #4: adaptation method for the v2
+  templates.
+  **Decision:** deterministic script, per human ruling the v2 templates
+  are hand-built with few points, so `scripts/adapt-references.mjs` was
+  rewritten to a coordinate-remap-only pipeline (no smoothing/thinning;
+  placeholder baubles/star dropped by rule; rotated ellipses sampled to
+  polygons; strokes scaled; silhouette profile sampled from tier outlines).
+  The adapted assets land as element lists (`TREE_ELEMENTS`,
+  `COO_ELEMENTS`; 6.5 KB / 5.1 KB raw, far under the 40 KB / 15 KB gzip
+  budget). Checkpoint: both assets rendered into the scene at exactly 360
+  CSS px via sharp (devDependency) with pixel-level palette sampling
+  (`/workspace/.vibe/render/shot-tree-v2-360.png`,
+  `shot-coo-v2-360.png`, `shot-dec24-v2-360.png`). **Alternatives
+  considered:** none. **Decided-by:** coding-agent. **Status:** Proposed in
+  PR #8

@@ -1,12 +1,14 @@
-#!/usr/bin/env node
-// Deterministic adaptation of the human-approved traced reference vectors
+// Deterministic adaptation of the human-approved v2 flat-vector templates
 // into scene-space assets. Reads the UNTRACKED reference files
-// (reference/tree.svg, reference/coo.svg) and writes:
+// (reference/tree-v2.svg, reference/coo-v2.svg) and writes:
 //   src/assets/tree-adapted.ts
 //   src/assets/coo-adapted.ts
-// Pure string/geometry processing, no dependencies, no randomness:
-// rerunning on the same references reproduces the outputs byte-identically.
-// The remap tables below are the single source of truth (also logged in
+// The v2 templates are hand-built with few points, so this is a COORDINATE
+// REMAP ONLY — no smoothing, no thinning, no repair pipeline. The template
+// placeholder baubles / star (tree) are dropped by rule. Pure string and
+// geometry processing, no dependencies, no randomness: rerunning on the
+// same references reproduces the outputs byte-identically.
+// The remap constants below are the single source of truth (also logged in
 // decisions.md).
 //
 // Usage: node scripts/adapt-references.mjs
@@ -18,45 +20,124 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // ---------------------------------------------------------------------------
-// path parsing / geometry
+// SVG element + path parsing
 // ---------------------------------------------------------------------------
 
-function parsePaths(svgText) {
-  const paths = [];
-  const re = /<path\b[^>]*>/g;
+function parseElements(svgText) {
+  const els = [];
+  const re = /<(path|rect|ellipse|circle|line)\b[^>]*>/g;
   let m;
   while ((m = re.exec(svgText)) !== null) {
-    const tag = m[0];
-    paths.push({
-      d: / d="([^"]*)"/.exec(tag)[1],
-      fill: / fill="([^"]*)"/.exec(tag)[1],
-      rule: ( / fill-rule="([^"]*)"/.exec(tag) ?? [null, 'nonzero'])[1],
-    });
+    const attrs = {};
+    const attrRe = /([\w-]+)="([^"]*)"/g;
+    let a;
+    while ((a = attrRe.exec(m[0])) !== null) attrs[a[1]] = a[2];
+    els.push({ tag: m[1], attrs });
   }
-  return paths;
+  return els;
 }
 
-function parseD(d) {
-  const subs = [];
-  let cur = null;
-  const re = /([MLZ])\s*((?:-?\d+\.?\d*\s*,?\s*-?\d+\.?\d*\s*)*)/g;
-  let m;
-  while ((m = re.exec(d)) !== null) {
-    const cmd = m[1];
-    if (cmd === 'M') {
-      if (cur && cur.length > 2) subs.push(cur);
-      cur = [];
+// Absolute M/L/Q/C/Z only (the v2 templates use nothing else).
+function parseSegments(d) {
+  const toks = d.match(/[A-Za-z]|-?\.?\d+(?:\.\d+)?/g) ?? [];
+  const need = { M: 2, L: 2, Q: 4, C: 6, Z: 0 };
+  const segs = [];
+  let cmd = null;
+  let buf = [];
+  const flush = () => {
+    if (!cmd) return;
+    const n = need[cmd];
+    if (n === 0) {
+      segs.push([cmd]);
+    } else {
+      for (let i = 0; i + n <= buf.length; i += n) {
+        segs.push([cmd, ...buf.slice(i, i + n).map(Number)]);
+      }
     }
-    if (cmd === 'Z') {
-      if (cur && cur.length > 2) subs.push(cur);
-      cur = null;
-      continue;
+    buf = [];
+  };
+  for (const t of toks) {
+    if (/^[A-Za-z]$/.test(t)) {
+      flush();
+      cmd = t;
+    } else {
+      buf.push(Number(t));
     }
-    const nums = m[2].trim().length ? m[2].trim().split(/[\s,]+/).map(Number) : [];
-    for (let i = 0; i + 1 < nums.length; i += 2) cur.push([nums[i], nums[i + 1]]);
   }
-  if (cur && cur.length > 2) subs.push(cur);
-  return subs;
+  flush();
+  return segs;
+}
+
+function fmt(n) {
+  const r = Math.round(n * 10) / 10;
+  return Object.is(r, -0) ? '0' : String(r);
+}
+
+function remapSegments(segs, tf) {
+  return segs.map(([c, ...nums]) => {
+    const out = [];
+    for (let i = 0; i + 1 < nums.length; i += 2) {
+      const [x, y] = tf(nums[i], nums[i + 1]);
+      out.push(x, y);
+    }
+    return [c, ...out];
+  });
+}
+
+function toD(segs) {
+  return segs.map(([c, ...nums]) => `${c} ${nums.map(fmt).join(' ')}`).join(' ');
+}
+
+// Sample a path into a polygon (curves flattened) in the path's own coords.
+function samplePolygon(segs, perCurve = 16) {
+  const pts = [];
+  let cur = null;
+  for (const [c, ...nums] of segs) {
+    if (c === 'M' || c === 'L') {
+      cur = [nums[0], nums[1]];
+      pts.push(cur);
+    } else if (c === 'Q') {
+      const [x0, y0] = cur;
+      const [cx, cy, x1, y1] = nums;
+      for (let i = 1; i <= perCurve; i += 1) {
+        const t = i / perCurve;
+        const u = 1 - t;
+        pts.push([u * u * x0 + 2 * u * t * cx + t * t * x1, u * u * y0 + 2 * u * t * cy + t * t * y1]);
+      }
+      cur = [x1, y1];
+    } else if (c === 'C') {
+      const [x0, y0] = cur;
+      const [c1x, c1y, c2x, c2y, x1, y1] = nums;
+      for (let i = 1; i <= perCurve; i += 1) {
+        const t = i / perCurve;
+        const u = 1 - t;
+        pts.push([
+          u * u * u * x0 + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * x1,
+          u * u * u * y0 + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * y1,
+        ]);
+      }
+      cur = [x1, y1];
+    }
+  }
+  return pts;
+}
+
+// Rotated ellipse (from transform="rotate(a cx cy)") sampled to a polygon.
+function rotatedEllipsePolygon(attrs) {
+  const cx = Number(attrs.cx);
+  const cy = Number(attrs.cy);
+  const rx = Number(attrs.rx);
+  const ry = Number(attrs.ry);
+  const rot = /rotate\(\s*(-?[\d.]+)/.exec(attrs.transform ?? '')?.[1];
+  const phi = rot ? (Number(rot) * Math.PI) / 180 : 0;
+  const pts = [];
+  for (let i = 0; i < 48; i += 1) {
+    const t = (i / 48) * 2 * Math.PI;
+    const ex = rx * Math.cos(t);
+    const ey = ry * Math.sin(t);
+    pts.push([cx + ex * Math.cos(phi) - ey * Math.sin(phi), cy + ex * Math.sin(phi) + ey * Math.cos(phi)]);
+  }
+  return pts;
 }
 
 function bboxOf(pts) {
@@ -73,255 +154,179 @@ function bboxOf(pts) {
   return { minX, minY, maxX, maxY };
 }
 
-function areaOf(pts) {
-  let s = 0;
-  for (let i = 0; i < pts.length; i += 1) {
-    const [x1, y1] = pts[i];
-    const [x2, y2] = pts[(i + 1) % pts.length];
-    s += x1 * y2 - x2 * y1;
-  }
-  return Math.abs(s / 2);
-}
-
-function dedupByBBox(subs) {
-  const seen = new Set();
-  const out = [];
-  for (const sub of subs) {
-    const b = bboxOf(sub);
-    const key = [b.minX, b.minY, b.maxX, b.maxY].map((v) => Math.round(v / 4)).join(',');
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(sub);
-  }
-  return out;
-}
-
-// Sutherland-Hodgman clip of a closed ring against y in [minY, maxY].
-function clipY(pts, minY, maxY) {
-  let poly = pts;
-  for (const [bound, keepAbove] of [
-    [minY, true],
-    [maxY, false],
-  ]) {
-    const res = [];
+function halfWidthAtY(polys, y, axisX) {
+  let hw = 0;
+  for (const poly of polys) {
     for (let i = 0; i < poly.length; i += 1) {
       const [x1, y1] = poly[i];
       const [x2, y2] = poly[(i + 1) % poly.length];
-      const in1 = keepAbove ? y1 >= bound : y1 <= bound;
-      const in2 = keepAbove ? y2 >= bound : y2 <= bound;
-      if (in1) res.push([x1, y1]);
-      if (in1 !== in2) {
-        const t = (bound - y1) / (y2 - y1);
-        res.push([x1 + t * (x2 - x1), bound]);
+      if (y1 <= y !== y2 <= y) {
+        const t = (y - y1) / (y2 - y1);
+        const x = x1 + t * (x2 - x1);
+        hw = Math.max(hw, Math.abs(x - axisX));
       }
     }
-    poly = res;
   }
-  return poly;
+  return hw;
 }
 
-function chaikin(pts, iterations) {
-  let ring = pts;
-  for (let k = 0; k < iterations; k += 1) {
-    const out = [];
-    for (let i = 0; i < ring.length; i += 1) {
-      const [x1, y1] = ring[i];
-      const [x2, y2] = ring[(i + 1) % ring.length];
-      out.push([x1 * 0.75 + x2 * 0.25, y1 * 0.75 + y2 * 0.25]);
-      out.push([x1 * 0.25 + x2 * 0.75, y1 * 0.25 + y2 * 0.75]);
-    }
-    ring = out;
+function pathPointsOf(d) {
+  const pts = [];
+  for (const [, ...nums] of parseSegments(d)) {
+    for (let i = 0; i + 1 < nums.length; i += 2) pts.push([nums[i], nums[i + 1]]);
   }
-  return ring;
-}
-
-function rdp(pts, eps) {
-  if (pts.length < 4) return pts;
-  const ring = [...pts, pts[0]];
-  const keep = new Array(ring.length).fill(false);
-  keep[0] = true;
-  keep[ring.length - 1] = true;
-  const stack = [[0, ring.length - 1]];
-  while (stack.length) {
-    const [a, b] = stack.pop();
-    const [ax, ay] = ring[a];
-    const [bx, by] = ring[b];
-    const dx = bx - ax;
-    const dy = by - ay;
-    const len2 = dx * dx + dy * dy;
-    let maxDist = -1;
-    let idx = -1;
-    for (let i = a + 1; i < b; i += 1) {
-      const [px, py] = ring[i];
-      let dist;
-      if (len2 === 0) {
-        dist = Math.hypot(px - ax, py - ay);
-      } else {
-        const t = ((px - ax) * dx + (py - ay) * dy) / len2;
-        const cx = ax + t * dx;
-        const cy = ay + t * dy;
-        dist = Math.hypot(px - cx, py - cy);
-      }
-      if (dist > maxDist) {
-        maxDist = dist;
-        idx = i;
-      }
-    }
-    if (maxDist > eps && idx > 0) {
-      keep[idx] = true;
-      stack.push([a, idx], [idx, b]);
-    }
-  }
-  const out = [];
-  for (let i = 0; i < ring.length - 1; i += 1) {
-    if (keep[i]) out.push(ring[i]);
-  }
-  return out;
-}
-
-function fmt(n) {
-  const r = Math.round(n * 10) / 10;
-  return Object.is(r, -0) ? '0' : String(r);
-}
-
-function toD(pts) {
-  return `M ${pts.map((p) => `${fmt(p[0])},${fmt(p[1])}`).join(' L ')} Z`;
+  return pts;
 }
 
 // ---------------------------------------------------------------------------
-// tree configuration
+// remap transforms
 // ---------------------------------------------------------------------------
 
+// Tree v2: trunk axis ref x 170 -> scene x 34; ref y 58 (top tier apex) ->
+// scene y 105; ref y 420 (bottom tier base) -> scene y 258. Pot bottom
+// ref y 474 -> scene y ~280.7 (same envelope as before).
 const TREE = {
-  file: 'reference/tree.svg',
+  file: 'reference/tree-v2.svg',
   out: 'src/assets/tree-adapted.ts',
-  // palette remap: reference greens/gold/trunk -> scene night palette
-  palette: {
-    '#16bd3a': '#1d4d2b', // main tiers -> deep pine base
-    '#15bc39': '#2e6b3f', // mid foliage -> scene mid green
-    '#3df869': '#35785a', // light accents -> cooler mid accent
-    '#000c00': '#0a1610', // dark shading -> near-scene night shade
-    '#fad92a': '#d9b64f', // gold garland -> scene gold
-    '#803f29': '#6b4a2f', // trunk -> scene trunk brown
-  },
-  droppedPaths: ['#a42133', '#e22c3b', '#bd932f'], // traced baubles: dropped
-  clipY: [66, 402], // cuts the reference star spike (y<66) and the presents zone (y>402)
-  transform: {
-    sx: 0.18,
-    axisRefX: 172, // reference trunk axis -> scene x 34
-    axisSceneX: 34,
-    sy: 153 / 305, // ref y 66 -> 105, ref y 371 -> 258
-    refTopY: 66,
-    sceneTopY: 105,
-  },
-  regions: {
-    '#16bd3a': { cls: 'scene-tree-tiers', minArea: 600, chaikin: 2, rdp: 1.5, layer: 2 },
-    '#15bc39': { cls: 'scene-tree-mid', minArea: 500, chaikin: 2, rdp: 1.5, layer: 3 },
-    '#3df869': { cls: 'scene-tree-accent', minArea: 100, chaikin: 2, rdp: 1.5, layer: 4 },
-    '#000c00': { cls: 'scene-tree-shade', minArea: 500, chaikin: 2, rdp: 1.5, layer: 1 },
-    '#fad92a': { cls: 'scene-tree-garland', minArea: 900, chaikin: 0, rdp: 1.5, minSubY: 66, maxSubY: 402, layer: 5 },
-    '#803f29': { cls: 'scene-tree-trunk', minArea: 200, chaikin: 2, rdp: 2, layer: 0 },
-  },
-  foliageFills: ['#16bd3a', '#15bc39', '#3df869'],
+  sx: 0.183,
+  sy: 153 / 362,
+  axisRefX: 170,
+  axisSceneX: 34,
+  refTopY: 58,
+  sceneTopY: 105,
 };
+TREE.tf = (x, y) => [TREE.axisSceneX + (x - TREE.axisRefX) * TREE.sx, TREE.sceneTopY + (y - TREE.refTopY) * TREE.sy];
+TREE.strokeScale = Math.sqrt(TREE.sx * TREE.sy);
 
+// Coo v2: content x 57..321 -> scene x 202..236 (shelf board), content
+// y 90.5..354 -> scene y 100..126 (shelf top) — same envelope as before.
 const COO = {
-  file: 'reference/coo.svg',
+  file: 'reference/coo-v2.svg',
   out: 'src/assets/coo-adapted.ts',
-  palette: null, // identity: caramel/cream/dark already fits the wall strip
-  transform: {
-    sx: 34 / 373, // ref x 2..375 -> scene x 202..236 (on the shelf board)
-    refMinX: 2,
-    sceneMinX: 202,
-    sy: 26 / 368, // ref y 2..370 -> scene y 100..126 (on the shelf board top)
-    refMaxY: 370,
-    sceneMaxY: 126,
-  },
-  minNoiseArea: 20, // pure dot noise only; evenodd pairing is preserved
-  rdp: 3.5,
-  classes: {
-    '#cda77a': 'scene-coo-body',
-    '#c9a781': 'scene-coo-body',
-    '#c4a07c': 'scene-coo-body',
-    '#e6d4c0': 'scene-coo-fringe',
-    '#e6d4be': 'scene-coo-fringe',
-    '#4d4d4d': 'scene-coo-horn',
-    '#484848': 'scene-coo-horn',
-    '#030000': 'scene-coo-detail',
-  },
+  sx: 34 / 264,
+  sy: 26 / 263.5,
+  refMinX: 57,
+  sceneMinX: 202,
+  refTopY: 90.5,
+  sceneTopY: 100,
 };
+COO.tf = (x, y) => [COO.sceneMinX + (x - COO.refMinX) * COO.sx, COO.sceneTopY + (y - COO.refTopY) * COO.sy];
+COO.strokeScale = Math.sqrt(COO.sx * COO.sy);
 
-// ---------------------------------------------------------------------------
-// adaptation
-// ---------------------------------------------------------------------------
-
-function makeTransform(cfg) {
-  const t = cfg.transform;
-  if (t.sx !== undefined && t.axisRefX !== undefined) {
-    const tx = t.axisSceneX - t.axisRefX * t.sx;
-    const ty = t.sceneTopY - t.refTopY * t.sy;
-    return (x, y) => [x * t.sx + tx, y * t.sy + ty];
-  }
-  const tx = t.sceneMinX - t.refMinX * t.sx;
-  const ty = t.sceneMaxY - t.refMaxY * t.sy;
-  return (x, y) => [x * t.sx + tx, y * t.sy + ty];
+function scaledStroke(sw, scale) {
+  return Math.max(0.5, Math.round(sw * scale * 10) / 10);
 }
+
+// ---------------------------------------------------------------------------
+// tree v2
+// ---------------------------------------------------------------------------
+
+const TREE_PATH_CLASS = {
+  '#5d3a24': 'scene-tree-pot',
+  '#1d4d2b': 'scene-tree-tiers',
+  '#2e6b3f': 'scene-tree-mid',
+  '#35785a': 'scene-tree-accent',
+  '#0a1610': 'scene-tree-shade',
+};
+const TREE_RECT_CLASS = {
+  '#6b4226': 'scene-tree-pot-rim',
+  '#7a4a2e': 'scene-tree-trunk',
+};
+const TREE_FOLIAGE_FILLS = new Set(['#1d4d2b', '#2e6b3f', '#35785a']);
 
 function adaptTree() {
   const svg = fs.readFileSync(path.join(ROOT, TREE.file), 'utf8');
-  const paths = parsePaths(svg);
-  const tf = makeTransform(TREE);
-  const outPaths = [];
-  const foliagePts = [];
-  for (const p of paths) {
-    if (TREE.droppedPaths.includes(p.fill)) continue;
-    const region = TREE.regions[p.fill];
-    if (!region) continue;
-    let subs = dedupByBBox(parseD(p.d));
-    subs = subs.filter((sub) => areaOf(sub) >= region.minArea);
-    if (region.minSubY !== undefined) subs = subs.filter((sub) => bboxOf(sub).minY >= region.minSubY);
-    if (region.maxSubY !== undefined) subs = subs.filter((sub) => bboxOf(sub).minY <= region.maxSubY);
-    const kept = [];
-    for (const sub of subs) {
-      let ring = clipY(sub, TREE.clipY[0], TREE.clipY[1]);
-      if (ring.length < 4 || areaOf(ring) < region.minArea * 0.5) continue;
-      if (region.chaikin > 0) ring = chaikin(ring, region.chaikin);
-      ring = rdp(ring, region.rdp);
-      if (ring.length < 4) continue;
-      const mapped = ring.map(([x, y]) => tf(x, y));
-      kept.push(mapped);
-      if (TREE.foliageFills.includes(p.fill)) foliagePts.push(...mapped);
+  const els = parseElements(svg);
+  const out = [];
+  const tierPolys = []; // ref-coords polygons of the 5 foliage tiers
+  const palette = {};
+  let topRefY = Infinity;
+  let bottomRefY = -Infinity;
+  for (const el of els) {
+    const a = el.attrs;
+    if (el.tag === 'circle') continue; // placeholder baubles + highlights + star glow: dropped
+    if (el.tag === 'path') {
+      if (a.fill === 'none' && a.stroke) {
+        // gold S-curve garland (stroked)
+        out.push({
+          tag: 'path',
+          cls: 'scene-tree-garland',
+          d: toD(remapSegments(parseSegments(a.d), TREE.tf)),
+          fill: 'none',
+          stroke: a.stroke,
+          'stroke-width': scaledStroke(Number(a['stroke-width']), TREE.strokeScale),
+          'stroke-linecap': a['stroke-linecap'],
+          'stroke-linejoin': a['stroke-linejoin'],
+          'stroke-opacity': a['stroke-opacity'],
+        });
+        palette[a.stroke] = a.stroke;
+        continue;
+      }
+      const cls = TREE_PATH_CLASS[a.fill];
+      if (!cls) continue; // gold star path: stage-24 only, dropped from base art
+      const segs = parseSegments(a.d);
+      if (TREE_FOLIAGE_FILLS.has(a.fill)) {
+        const poly = samplePolygon(segs);
+        tierPolys.push(poly);
+        const bb = bboxOf(poly);
+        topRefY = Math.min(topRefY, bb.minY);
+        bottomRefY = Math.max(bottomRefY, bb.maxY);
+      }
+      const el2 = { tag: 'path', cls, d: toD(remapSegments(segs, TREE.tf)), fill: a.fill };
+      if (a['fill-opacity']) el2['fill-opacity'] = a['fill-opacity'];
+      out.push(el2);
+      palette[a.fill] = a.fill;
+      continue;
     }
-    if (kept.length === 0) continue;
-    const d = kept.map(toD).join(' ');
-    outPaths.push({ d, fill: TREE.palette[p.fill], cls: region.cls, layer: region.layer });
+    if (el.tag === 'rect') {
+      const cls = TREE_RECT_CLASS[a.fill];
+      if (!cls) continue;
+      const [x, y] = TREE.tf(Number(a.x), Number(a.y));
+      const el2 = {
+        tag: 'rect',
+        cls,
+        x: fmt(x),
+        y: fmt(y),
+        width: fmt(Number(a.width) * TREE.sx),
+        height: fmt(Number(a.height) * TREE.sy),
+        fill: a.fill,
+      };
+      if (a.rx) el2.rx = fmt(Number(a.rx) * TREE.sx);
+      out.push(el2);
+      palette[a.fill] = a.fill;
+    }
   }
-  outPaths.sort((a, b) => a.layer - b.layer);
-  // silhouette width profile around the trunk axis (scene coords)
-  const topY = Math.min(...foliagePts.map((p) => p[1]));
-  const bottomY = Math.max(...foliagePts.map((p) => p[1]));
+  // silhouette half-width profile around the trunk axis, sampled from the
+  // tier outlines (ref coords), then remapped to scene coords
   const profile = [];
-  for (let y = Math.ceil(topY); y <= bottomY; y += 4) {
-    let hw = 0;
-    for (const [x, py] of foliagePts) {
-      if (Math.abs(py - y) <= 2.5) hw = Math.max(hw, Math.abs(x - TREE.transform.axisSceneX));
-    }
-    if (hw === 0 && profile.length > 0) hw = profile[profile.length - 1][1];
-    profile.push([Math.round(y * 10) / 10, Math.round(hw * 10) / 10]);
+  for (let ry = Math.ceil(topRefY); ry <= bottomRefY; ry += 2) {
+    const hw = halfWidthAtY(tierPolys, ry, TREE.axisRefX);
+    const [, sceneY] = TREE.tf(0, ry);
+    profile.push([Math.round(sceneY * 10) / 10, Math.round(hw * TREE.sx * 10) / 10]);
   }
-  const allPts = outPaths.flatMap((p) => parseD(p.d).flat());
-  const bb = bboxOf(allPts);
+  // bbox over all kept elements (scene coords)
+  const pts = [];
+  for (const el of out) {
+    if (el.tag === 'path') {
+      pts.push(...pathPointsOf(String(el.d)));
+    } else if (el.tag === 'rect') {
+      pts.push([Number(el.x), Number(el.y)], [Number(el.x) + Number(el.width), Number(el.y) + Number(el.height)]);
+    }
+  }
+  const bb = bboxOf(pts);
   const bbox = {
     minX: Math.round(bb.minX * 10) / 10,
     minY: Math.round(bb.minY * 10) / 10,
     maxX: Math.round(bb.maxX * 10) / 10,
     maxY: Math.round(bb.maxY * 10) / 10,
   };
-  const header = `// Generated by scripts/adapt-references.mjs from reference/tree.svg (untracked approved trace). Do not edit by hand.
-export const TREE_PALETTE_REMAP: Record<string, string> = ${JSON.stringify(TREE.palette, null, 2)};
-export const TREE_DROPPED_BAUBLE_FILLS: readonly string[] = ${JSON.stringify(TREE.droppedPaths)};
-export interface AdaptedPath { d: string; fill: string; cls: string }
-export const TREE_PATHS: readonly AdaptedPath[] = ${JSON.stringify(outPaths.map(({ d, fill, cls }) => ({ d, fill, cls })), null, 1)};
+  const [, topY] = TREE.tf(0, topRefY);
+  const [, bottomY] = TREE.tf(0, bottomRefY);
+  const header = `// Generated by scripts/adapt-references.mjs from reference/tree-v2.svg (untracked approved v2 template; coordinate remap only). Do not edit by hand.
+export const TREE_PALETTE_REMAP: Record<string, string> = ${JSON.stringify(palette, null, 2)};
+export const TREE_DROPPED: readonly string[] = ${JSON.stringify(['placeholder baubles + highlights (all circles)', 'gold star + glow (stage-24 only)'])};
+export interface AdaptedEl { tag: string; cls: string; [attr: string]: string | number }
+export const TREE_ELEMENTS: readonly AdaptedEl[] = ${JSON.stringify(out, null, 1)};
 export const TREE_FOLIAGE_TOP_Y = ${fmt(topY)};
 export const TREE_FOLIAGE_BOTTOM_Y = ${fmt(bottomY)};
 export const TREE_PROFILE: readonly (readonly [number, number])[] = ${JSON.stringify(profile)};
@@ -329,48 +334,151 @@ export const TREE_BBOX = ${JSON.stringify(bbox)};
 `;
   fs.mkdirSync(path.dirname(path.join(ROOT, TREE.out)), { recursive: true });
   fs.writeFileSync(path.join(ROOT, TREE.out), header);
-  return { bytes: Buffer.byteLength(header), paths: outPaths.length, points: allPts.length, bbox };
+  return { bytes: Buffer.byteLength(header), elements: out.length, profile: profile.length, bbox };
 }
+
+// ---------------------------------------------------------------------------
+// coo v2
+// ---------------------------------------------------------------------------
+
+const COO_CLASS = {
+  '#0a1610': 'scene-coo-shadow',
+  '#cda77a': 'scene-coo-body',
+  '#a3262e': 'scene-coo-scarf',
+  '#dcc3ab': 'scene-coo-muzzle',
+  '#5d3a24': 'scene-coo-detail',
+  '#c4a07c': 'scene-coo-ear',
+  '#e6d4c0': 'scene-coo-fringe',
+  '#030000': 'scene-coo-detail',
+};
+const COO_STROKE_CLASS = {
+  '#4d4d4d': 'scene-coo-horn',
+  '#d9b64f': 'scene-coo-scarf',
+  '#2e6b3f': 'scene-coo-scarf',
+};
 
 function adaptCoo() {
   const svg = fs.readFileSync(path.join(ROOT, COO.file), 'utf8');
-  const paths = parsePaths(svg);
-  const tf = makeTransform(COO);
-  const outPaths = [];
-  for (const p of paths) {
-    const cls = COO.classes[p.fill];
-    if (!cls) continue;
-    const subs = parseD(p.d).filter((sub) => areaOf(sub) >= COO.minNoiseArea);
-    const kept = [];
-    for (const sub of subs) {
-      const ring = rdp(sub, COO.rdp);
-      if (ring.length < 4) continue;
-      kept.push(ring.map(([x, y]) => tf(x, y)));
+  const els = parseElements(svg);
+  const out = [];
+  const palette = {};
+  for (const el of els) {
+    const a = el.attrs;
+    if (el.tag === 'path' && a.fill === 'none' && a.stroke) {
+      const cls = COO_STROKE_CLASS[a.stroke];
+      if (!cls) continue;
+      out.push({
+        tag: 'path',
+        cls,
+        d: toD(remapSegments(parseSegments(a.d), COO.tf)),
+        fill: 'none',
+        stroke: a.stroke,
+        'stroke-width': scaledStroke(Number(a['stroke-width']), COO.strokeScale),
+        'stroke-linecap': a['stroke-linecap'],
+      });
+      palette[a.stroke] = a.stroke;
+      continue;
     }
-    if (kept.length === 0) continue;
-    outPaths.push({ d: kept.map(toD).join(' '), fill: p.fill, cls, rule: p.rule });
+    if (el.tag === 'line') {
+      const lcls = COO_STROKE_CLASS[a.stroke];
+      if (!lcls) continue;
+      const [x1, y1] = COO.tf(Number(a.x1), Number(a.y1));
+      const [x2, y2] = COO.tf(Number(a.x2), Number(a.y2));
+      out.push({
+        tag: 'line',
+        cls: lcls,
+        x1: fmt(x1),
+        y1: fmt(y1),
+        x2: fmt(x2),
+        y2: fmt(y2),
+        stroke: a.stroke,
+        'stroke-width': scaledStroke(Number(a['stroke-width']), COO.strokeScale),
+        'stroke-opacity': a['stroke-opacity'],
+      });
+      palette[a.stroke] = a.stroke;
+      continue;
+    }
+    const cls = COO_CLASS[a.fill];
+    if (!cls) continue;
+    palette[a.fill] = a.fill;
+    if (el.tag === 'path') {
+      out.push({ tag: 'path', cls, d: toD(remapSegments(parseSegments(a.d), COO.tf)), fill: a.fill });
+    } else if (el.tag === 'rect') {
+      const [x, y] = COO.tf(Number(a.x), Number(a.y));
+      const el2 = {
+        tag: 'rect',
+        cls,
+        x: fmt(x),
+        y: fmt(y),
+        width: fmt(Number(a.width) * COO.sx),
+        height: fmt(Number(a.height) * COO.sy),
+        fill: a.fill,
+      };
+      if (a.rx) el2.rx = fmt(Number(a.rx) * COO.sx);
+      out.push(el2);
+    } else if (el.tag === 'ellipse') {
+      if (a.transform) {
+        // rotated ear: sample to a polygon path in ref coords, then remap
+        const poly = rotatedEllipsePolygon(a).map(([x, y]) => COO.tf(x, y));
+        out.push({ tag: 'path', cls, d: `M ${poly.map((p) => `${fmt(p[0])} ${fmt(p[1])}`).join(' L ')} Z`, fill: a.fill });
+      } else {
+        const [cx, cy] = COO.tf(Number(a.cx), Number(a.cy));
+        const el2 = {
+          tag: 'ellipse',
+          cls,
+          cx: fmt(cx),
+          cy: fmt(cy),
+          rx: fmt(Number(a.rx) * COO.sx),
+          ry: fmt(Number(a.ry) * COO.sy),
+          fill: a.fill,
+        };
+        if (a['fill-opacity']) el2['fill-opacity'] = a['fill-opacity'];
+        out.push(el2);
+      }
+    } else if (el.tag === 'circle') {
+      // circle under non-uniform scale -> ellipse
+      const [cx, cy] = COO.tf(Number(a.cx), Number(a.cy));
+      out.push({
+        tag: 'ellipse',
+        cls,
+        cx: fmt(cx),
+        cy: fmt(cy),
+        rx: fmt(Number(a.r) * COO.sx),
+        ry: fmt(Number(a.r) * COO.sy),
+        fill: a.fill,
+      });
+    }
   }
-  const allPts = outPaths.flatMap((p) => parseD(p.d).flat());
-  const bb = bboxOf(allPts);
+  const pts = [];
+  for (const el of out) {
+    if (el.tag === 'path') {
+      pts.push(...pathPointsOf(String(el.d)));
+    } else if (el.tag === 'rect') {
+      pts.push([Number(el.x), Number(el.y)], [Number(el.x) + Number(el.width), Number(el.y) + Number(el.height)]);
+    } else if (el.tag === 'ellipse') {
+      pts.push([Number(el.cx) - Number(el.rx), Number(el.cy) - Number(el.ry)], [Number(el.cx) + Number(el.rx), Number(el.cy) + Number(el.ry)]);
+    } else if (el.tag === 'line') {
+      pts.push([Number(el.x1), Number(el.y1)], [Number(el.x2), Number(el.y2)]);
+    }
+  }
+  const bb = bboxOf(pts);
   const bbox = {
     minX: Math.round(bb.minX * 10) / 10,
     minY: Math.round(bb.minY * 10) / 10,
     maxX: Math.round(bb.maxX * 10) / 10,
     maxY: Math.round(bb.maxY * 10) / 10,
   };
-  const palette = {};
-  for (const p of paths) palette[p.fill] = p.fill;
-  const header = `// Generated by scripts/adapt-references.mjs from reference/coo.svg (untracked approved trace). Do not edit by hand.
+  const header = `// Generated by scripts/adapt-references.mjs from reference/coo-v2.svg (untracked approved v2 template; coordinate remap only). Do not edit by hand.
 export const COO_PALETTE_REMAP: Record<string, string> = ${JSON.stringify(palette, null, 2)};
-export interface AdaptedCooPath { d: string; fill: string; cls: string; rule: string }
-export const COO_PATHS: readonly AdaptedCooPath[] = ${JSON.stringify(outPaths, null, 1)};
+export interface AdaptedEl { tag: string; cls: string; [attr: string]: string | number }
+export const COO_ELEMENTS: readonly AdaptedEl[] = ${JSON.stringify(out, null, 1)};
 export const COO_BBOX = ${JSON.stringify(bbox)};
 `;
   fs.writeFileSync(path.join(ROOT, COO.out), header);
-  return { bytes: Buffer.byteLength(header), paths: outPaths.length, points: allPts.length, bbox };
+  return { bytes: Buffer.byteLength(header), elements: out.length, bbox };
 }
 
 const tree = adaptTree();
 const coo = adaptCoo();
-console.log(`tree-adapted.ts: ${tree.bytes} bytes, ${tree.paths} paths, ${tree.points} points, bbox ${JSON.stringify(tree.bbox)}`);
-console.log(`coo-adapted.ts:  ${coo.bytes} bytes, ${coo.paths} paths, ${coo.points} points, bbox ${JSON.stringify(coo.bbox)}`);
+console.log(`tree-adapted.ts: ${tree.bytes} bytes, ${tree.elements} elements, profile ${tree.profile} pts, bbox ${JSON.stringify(tree.bbox)}`);
+console.log(`coo-adapted.ts:  ${coo.bytes} bytes, ${coo.elements} elements, bbox ${JSON.stringify(coo.bbox)}`);

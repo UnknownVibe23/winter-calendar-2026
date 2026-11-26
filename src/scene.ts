@@ -1,6 +1,6 @@
 import { CREAM, NIGHT_BLUE } from './door-palette';
-import { COO_PATHS } from './assets/coo-adapted';
-import { TREE_FOLIAGE_BOTTOM_Y, TREE_FOLIAGE_TOP_Y, TREE_PATHS, TREE_PROFILE } from './assets/tree-adapted';
+import { COO_ELEMENTS } from './assets/coo-adapted';
+import { TREE_ELEMENTS, TREE_FOLIAGE_BOTTOM_Y, TREE_FOLIAGE_TOP_Y, TREE_PROFILE } from './assets/tree-adapted';
 import { calendarItemsForDate, stockingsVisibleForDate } from './calendar-items';
 import { decemberDayForDate } from './doors';
 import { GIFT_SLOTS, giftSpecForIndex, giftsForOpenedDoors } from './gifts';
@@ -60,7 +60,6 @@ const XMAS_GOLD = '#d9b64f';
 const XMAS_GREEN = '#2e6b3f';
 const BRASS = '#d9b64f';
 const GARLAND_DARK = '#1d4d2b';
-const POT_RIM = '#3a241b';
 const COOKIE = '#a06a3a';
 const XMAS_TRICOLOR: readonly string[] = [XMAS_RED, XMAS_GOLD, XMAS_GREEN];
 
@@ -148,6 +147,14 @@ function circle(cx: number, cy: number, r: number, fill: string, attrs: Attrs = 
 
 function path(d: string, fill: string, attrs: Attrs = {}): SVGPathElement {
   return svgEl('path', { d, fill, ...attrs });
+}
+
+/** One remapped element from an adapted reference asset (see scripts/adapt-references.mjs). */
+function adaptedSvgEl(el: { tag: string; cls: string; [attr: string]: string | number }): SVGElement {
+  const { tag, cls, ...attrs } = el;
+  const node = svgEl(tag as 'path', attrs);
+  if (cls) node.classList.add(cls);
+  return node;
 }
 
 function polygon(points: string, fill: string): SVGPolygonElement {
@@ -795,15 +802,14 @@ function stage17Radio(): SVGGElement {
 }
 
 /**
- * Highland-cow figurine from the approved traced reference (adapted by
- * scripts/adapt-references.mjs into scene coordinates): caramel body,
- * cream fringe, dark horns/hooves, black face details, standing on the
- * shelf board right of the book.
+ * Highland-cow figurine from the approved v2 flat-vector template (adapted
+ * by scripts/adapt-references.mjs, coordinate remap only): chunky caramel
+ * body, cream scalloped fringe with eyes peeking through, dark horns, cream
+ * muzzle + nostrils, tartan scarf; no legs, no tail. Standing on the shelf
+ * board right of the book.
  */
 function highlandCoo(): SVGGElement {
-  const coo = group(
-    COO_PATHS.map((p) => path(p.d, p.fill, { class: p.cls, 'fill-rule': p.rule })),
-  );
+  const coo = group(COO_ELEMENTS.map(adaptedSvgEl));
   coo.classList.add('scene-coo');
   return coo;
 }
@@ -874,11 +880,14 @@ function treeBaubles(): SVGElement[] {
   let index = 0;
   const top = TREE_FOLIAGE_TOP_Y;
   const bottom = TREE_FOLIAGE_BOTTOM_Y;
-  const span = bottom - top - 10;
+  // bands start below the pointy treetop so every bauble fits the silhouette
+  const bandTop = top + 18;
+  const bandBottom = bottom - 5;
+  const span = bandBottom - bandTop;
   for (let band = 0; band < TREE_BAUBLES_PER_BAND.length; band += 1) {
     const count = TREE_BAUBLES_PER_BAND[band];
-    const y0 = top + 5 + (span * band) / TREE_BAUBLES_PER_BAND.length;
-    const y1 = top + 5 + (span * (band + 1)) / TREE_BAUBLES_PER_BAND.length;
+    const y0 = bandTop + (span * band) / TREE_BAUBLES_PER_BAND.length;
+    const y1 = bandTop + (span * (band + 1)) / TREE_BAUBLES_PER_BAND.length;
     for (let k = 0; k < count; k += 1) {
       const r = 1.7 + rand() * 0.9;
       const y = y0 + rand() * Math.max(y1 - y0, 1);
@@ -930,12 +939,15 @@ function treeStrand(spec: { y: number; hw: number; bulbs: number }, strandIndex:
 }
 
 /**
- * The Christmas tree from the approved traced reference (adapted by
- * scripts/adapt-references.mjs, night-graded palette): the wavy organic
- * spruce silhouette with its dark shading underlay, the gold zigzag garland
- * band and the trunk carry over; the traced baubles are dropped in favour of
- * the existing 13 seeded tricolor baubles + 3 spiral strands. Calendar item
- * from Dec 1 (only the stage-24 star waits). Trunk axis x = TREE_AXIS_X.
+ * The Christmas tree from the approved v2 flat-vector template (adapted by
+ * scripts/adapt-references.mjs, coordinate remap only, palette already
+ * night-graded): five scalloped tiers with dark/mid alternation and the
+ * cool accent top tier, dark shadow rim under each tier, the gold S-curve
+ * garland, trunk in a terracotta pot. The template's placeholder baubles and
+ * star are dropped in favour of the existing 13 seeded tricolor baubles +
+ * 3 spiral strands (repositioned via the regenerated silhouette profile);
+ * the gold star stays the stage-24-only topper. Calendar item from Dec 1.
+ * Trunk axis x = TREE_AXIS_X.
  */
 function baseTree(): SVGGElement {
   const children: SVGElement[] = [
@@ -949,13 +961,9 @@ function baseTree(): SVGGElement {
       class: 'scene-tree-pool',
     }),
     svgEl('ellipse', { cx: TREE_AXIS_X, cy: 288, rx: 30, ry: 8, fill: CRATER, class: 'scene-tree-skirt' }),
-    rect(TREE_AXIS_X - 2.5, 256, 5, 14, TRUNK, { class: 'scene-tree-trunk' }),
+    ...TREE_ELEMENTS.map(adaptedSvgEl),
+    ...treeBaubles(),
   ];
-  for (const adapted of TREE_PATHS) {
-    children.push(path(adapted.d, adapted.fill, { class: adapted.cls }));
-  }
-  children.push(rect(TREE_AXIS_X - 10, 266, 20, 4, POT_RIM), rect(TREE_AXIS_X - 9, 268, 18, 12, POT, { class: 'scene-tree-pot' }));
-  children.push(...treeBaubles());
   let bulbOffset = 0;
   TREE_STRAND_OFFSETS.forEach((offset, index) => {
     const y = TREE_FOLIAGE_BOTTOM_Y - offset;

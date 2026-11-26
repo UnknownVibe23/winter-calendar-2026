@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { TREE_FOLIAGE_BOTTOM_Y, TREE_FOLIAGE_TOP_Y, TREE_PALETTE_REMAP, TREE_PATHS } from './assets/tree-adapted';
-import { COO_PATHS } from './assets/coo-adapted';
+import { TREE_ELEMENTS, TREE_FOLIAGE_BOTTOM_Y, TREE_FOLIAGE_TOP_Y, TREE_PALETTE_REMAP } from './assets/tree-adapted';
+import { COO_ELEMENTS, COO_PALETTE_REMAP } from './assets/coo-adapted';
 import { REVEAL_MOMENT_MS, REVEAL_PULSES } from './reveal';
 import { giftsForOpenedDoors } from './gifts';
 import {
@@ -962,8 +962,8 @@ describe('framed picture — actual Scottish highlands (heather glen + stags), e
   });
 });
 
-describe('traced spruce tree — calendar item from Dec 1, night-graded, castle clearance guaranteed', () => {
-  it('is absent before Dec 1 and present from Dec 1 on as room art (not a stage), with the traced structure, pot and skirt', () => {
+describe('v2 scalloped spruce tree — calendar item from Dec 1, night-graded, castle clearance guaranteed', () => {
+  it('is absent before Dec 1 and present from Dec 1 on as room art (not a stage), with the v2 structure, pot and skirt', () => {
     for (const date of [NOV_28, NOV_29, NOV_30]) {
       expect(renderScene(new Set(), date).querySelector('g.scene-tree')).toBeNull();
     }
@@ -971,40 +971,59 @@ describe('traced spruce tree — calendar item from Dec 1, night-graded, castle 
     const tree = scene.querySelector<SVGGElement>('g.scene-tree');
     expect(tree).not.toBeNull();
     expect(tree?.closest('g.scene-stage')).toBeNull();
-    // the traced structure carries over: shade underlay, tiers, mid, accent, garland, trunk
-    expect(tree?.querySelectorAll('path.scene-tree-shade').length).toBeGreaterThanOrEqual(1);
-    expect(tree?.querySelectorAll('path.scene-tree-tiers').length).toBeGreaterThanOrEqual(1);
-    expect(tree?.querySelectorAll('path.scene-tree-mid').length).toBeGreaterThanOrEqual(1);
-    expect(tree?.querySelectorAll('path.scene-tree-accent').length).toBeGreaterThanOrEqual(1);
-    expect(tree?.querySelectorAll('path.scene-tree-garland').length).toBeGreaterThanOrEqual(1);
-    expect(tree?.querySelectorAll('path.scene-tree-trunk').length).toBeGreaterThanOrEqual(1);
-    // the traced baubles are dropped (the seeded 13-bauble system replaces them)
-    expect(tree?.querySelectorAll('path.scene-tree-bauble')).toHaveLength(0);
-    // night-graded palette only: every traced tree path fill is a remapped scene color
-    const allowedFills = new Set(Object.values(TREE_PALETTE_REMAP));
-    const tracedPaths = Array.from(
+    // v2 structure: 5 scalloped tiers (2 dark + 2 mid + 1 cool accent top),
+    // a dark shadow rim under each of the 4 lower tiers, gold S-curve garland,
+    // trunk + terracotta pot (body path + rim rect)
+    expect(tree?.querySelectorAll('path.scene-tree-tiers')).toHaveLength(2);
+    expect(tree?.querySelectorAll('path.scene-tree-mid')).toHaveLength(2);
+    expect(tree?.querySelectorAll('path.scene-tree-accent')).toHaveLength(1);
+    expect(tree?.querySelectorAll('path.scene-tree-shade')).toHaveLength(4);
+    expect(tree?.querySelectorAll('path.scene-tree-garland')).toHaveLength(1);
+    expect(tree?.querySelectorAll('path.scene-tree-pot')).toHaveLength(1);
+    expect(tree?.querySelectorAll('rect.scene-tree-pot-rim')).toHaveLength(1);
+    expect(tree?.querySelectorAll('rect.scene-tree-trunk')).toHaveLength(1);
+    // every tier is scalloped (multiple Q curves along its bottom edge)
+    for (const cls of ['scene-tree-tiers', 'scene-tree-mid', 'scene-tree-accent']) {
+      for (const p of Array.from(tree?.querySelectorAll<SVGPathElement>(`path.${cls}`) ?? [])) {
+        expect((p.getAttribute('d')?.match(/Q/g) ?? []).length).toBeGreaterThanOrEqual(6);
+      }
+    }
+    // tier fills alternate dark/mid with the cool accent on top; shadow rims are the night shade
+    expect(tree?.querySelector('path.scene-tree-accent')?.getAttribute('fill')).toBe('#35785a');
+    expect(tree?.querySelector('path.scene-tree-tiers')?.getAttribute('fill')).toBe('#1d4d2b');
+    expect(tree?.querySelector('path.scene-tree-mid')?.getAttribute('fill')).toBe('#2e6b3f');
+    for (const p of Array.from(tree?.querySelectorAll<SVGPathElement>('path.scene-tree-shade') ?? [])) {
+      expect(p.getAttribute('fill')).toBe('#0a1610');
+      expect(p.getAttribute('fill-opacity')).toBe('0.45');
+    }
+    expect(tree?.querySelector('path.scene-tree-garland')?.getAttribute('stroke')).toBe('#d9b64f');
+    expect(tree?.querySelector('path.scene-tree-garland')?.getAttribute('fill')).toBe('none');
+    // the template placeholder baubles/star are dropped (the seeded 13-bauble system replaces them)
+    expect(TREE_ELEMENTS.some((el) => el.tag === 'circle')).toBe(false);
+    expect(tree?.querySelector('.scene-tree-star')).toBeNull();
+    // night-graded palette only: every adapted element fill/stroke is a palette color
+    const allowed = new Set([...Object.values(TREE_PALETTE_REMAP)]);
+    const adaptedEls = Array.from(
       tree?.querySelectorAll(
-        'path.scene-tree-shade, path.scene-tree-tiers, path.scene-tree-mid, path.scene-tree-accent, path.scene-tree-garland, path.scene-tree-trunk',
+        '.scene-tree-tiers, .scene-tree-mid, .scene-tree-accent, .scene-tree-shade, .scene-tree-garland, .scene-tree-pot, .scene-tree-pot-rim, .scene-tree-trunk',
       ) ?? [],
     );
-    expect(tracedPaths.length).toBe(TREE_PATHS.length);
-    for (const p of tracedPaths) {
-      expect(allowedFills.has(p.getAttribute('fill') ?? '')).toBe(true);
+    expect(adaptedEls.length).toBe(TREE_ELEMENTS.length);
+    for (const el of adaptedEls) {
+      const paint = el.getAttribute('fill') === 'none' ? el.getAttribute('stroke') : el.getAttribute('fill');
+      expect(allowed.has(paint ?? '')).toBe(true);
     }
     const trunk = tree?.querySelector<SVGRectElement>('rect.scene-tree-trunk');
     expect(trunk).not.toBeNull();
-    expect(Number(trunk?.getAttribute('x')) + Number(trunk?.getAttribute('width')) / 2).toBe(TREE_AXIS_X);
-    const trunkPath = tree?.querySelector<SVGPathElement>('path.scene-tree-trunk');
-    const trunkBox = bboxOf([trunkPath as SVGPathElement]);
-    expect((trunkBox.minX + trunkBox.maxX) / 2).toBeCloseTo(TREE_AXIS_X, 1);
-    const pot = tree?.querySelector<SVGRectElement>('rect.scene-tree-pot');
-    expect(pot).not.toBeNull();
-    expect(Number(pot?.getAttribute('x')) + Number(pot?.getAttribute('width')) / 2).toBe(TREE_AXIS_X);
+    expect(Number(trunk?.getAttribute('x')) + Number(trunk?.getAttribute('width')) / 2).toBeCloseTo(TREE_AXIS_X, 1);
+    const potBox = bboxOf(Array.from(tree?.querySelectorAll('.scene-tree-pot, .scene-tree-pot-rim') ?? []));
+    expect((potBox.minX + potBox.maxX) / 2).toBeCloseTo(TREE_AXIS_X, 1);
+    expect(potBox.maxY).toBeGreaterThan(TREE_FOLIAGE_BOTTOM_Y);
     expect(tree?.querySelector('ellipse.scene-tree-skirt')).not.toBeNull();
     expect(tree?.querySelector('ellipse.scene-tree-pool')).not.toBeNull();
     const box = bboxOf([
-      ...Array.from(tree?.querySelectorAll('rect, polygon, ellipse, circle') ?? []),
-      ...tracedPaths,
+      ...Array.from(tree?.querySelectorAll('ellipse, circle') ?? []),
+      ...adaptedEls,
     ]);
     expect(box.maxY - box.minY).toBeGreaterThanOrEqual(180);
     expect(box.maxY).toBeLessThanOrEqual(300);
@@ -1183,23 +1202,51 @@ describe('Scottish accents, mug and thistle placement', () => {
     );
   });
 
-  it('places the traced Highland-cow figurine on the shelf board (stage 18), next to the book, in the same placement zone', () => {
+  it('places the v2 Highland-cow figurine on the shelf board (stage 18), next to the book, in the same placement zone', () => {
     const scene = renderScene(new Set(), DEC_10);
     const stage18 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="18"]');
     const coo = stage18?.querySelector<SVGGElement>('g.scene-coo');
     expect(coo).not.toBeNull();
-    // structure survives: caramel body, cream fringe, dark horns/hooves, black face details
-    expect(coo?.querySelectorAll('path.scene-coo-body').length).toBeGreaterThanOrEqual(1);
-    expect(coo?.querySelectorAll('path.scene-coo-fringe').length).toBeGreaterThanOrEqual(1);
-    expect(coo?.querySelectorAll('path.scene-coo-horn').length).toBeGreaterThanOrEqual(1);
-    expect(coo?.querySelectorAll('path.scene-coo-detail').length).toBeGreaterThanOrEqual(1);
-    const cooFills = new Set(COO_PATHS.map((p) => p.fill));
-    for (const p of Array.from(coo?.querySelectorAll('path') ?? [])) {
-      expect(cooFills.has(p.getAttribute('fill') ?? '')).toBe(true);
+    // v2 structure: caramel body, cream scalloped fringe with eyes peeking
+    // through, dark horns, cream muzzle + nostrils, tartan scarf, ears — and
+    // NO legs, NO tail (per human ruling)
+    expect(coo?.querySelectorAll('.scene-coo-body')).toHaveLength(1);
+    expect(coo?.querySelectorAll('path.scene-coo-fringe')).toHaveLength(1);
+    expect(coo?.querySelectorAll('path.scene-coo-horn')).toHaveLength(2);
+    expect(coo?.querySelectorAll('.scene-coo-muzzle')).toHaveLength(1);
+    expect(coo?.querySelectorAll('.scene-coo-scarf').length).toBeGreaterThanOrEqual(3);
+    expect(coo?.querySelectorAll('.scene-coo-ear')).toHaveLength(2);
+    expect(coo?.querySelectorAll('.scene-coo-detail').length).toBeGreaterThanOrEqual(3); // 2 eyes + 2 nostrils
+    const cooClasses = new Set(
+      Array.from(coo?.querySelectorAll('[class]') ?? []).flatMap((el) => Array.from(el.classList)),
+    );
+    for (const cls of cooClasses) {
+      expect(cls.startsWith('scene-coo-')).toBe(true);
+      expect(cls).not.toMatch(/\b(leg|tail)\b/);
+    }
+    expect(coo?.querySelectorAll('.scene-coo-shadow')).toHaveLength(1);
+    // fringe is scalloped (Q curves along its lower edge)
+    const fringe = coo?.querySelector<SVGPathElement>('path.scene-coo-fringe');
+    expect((fringe?.getAttribute('d')?.match(/Q/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    // eyes peek through the fringe: the two small round dark details sit below the fringe top
+    const fringeBox = bboxOf([fringe as SVGPathElement]);
+    const eyes = Array.from(coo?.querySelectorAll<SVGEllipseElement>('.scene-coo-detail') ?? []).filter(
+      (el) => Number(el.getAttribute('rx')) <= 1.2 && Number(el.getAttribute('ry')) < 0.8,
+    );
+    expect(eyes).toHaveLength(2);
+    for (const eye of eyes) {
+      expect(Number(eye.getAttribute('cy'))).toBeGreaterThan(fringeBox.minY);
+    }
+    const cooPaint = new Set([
+      ...Object.values(COO_PALETTE_REMAP),
+    ]);
+    for (const el of Array.from(coo?.querySelectorAll('[fill], [stroke]') ?? [])) {
+      const paint = el.getAttribute('fill') === 'none' ? el.getAttribute('stroke') : el.getAttribute('fill');
+      if (paint && paint !== 'none') expect(cooPaint.has(paint)).toBe(true);
     }
     const board = stage18?.querySelector<SVGRectElement>('rect[x="156"][y="126"]');
     expect(board).not.toBeNull();
-    const box = bboxOf(Array.from(coo?.querySelectorAll('rect, ellipse, circle, path') ?? []));
+    const box = bboxOf(Array.from(coo?.querySelectorAll('rect, ellipse, circle, path, line') ?? []));
     expect(box.maxY - box.minY).toBeGreaterThanOrEqual(20);
     expect(box.maxY).toBeLessThanOrEqual(126);
     expect(box.minX).toBeGreaterThanOrEqual(200);
@@ -1372,9 +1419,10 @@ describe('growing gift pile under the tree (every third opened door)', () => {
     expect(pileBox.maxX).toBeLessThanOrEqual(72);
     expect(pileBox.minY).toBeGreaterThanOrEqual(280);
     expect(pileBox.maxY).toBeLessThanOrEqual(300);
-    const pot = scene.querySelector<SVGRectElement>('g.scene-tree rect.scene-tree-pot');
+    const pot = scene.querySelector<SVGElement>('g.scene-tree .scene-tree-pot');
+    const potRim = scene.querySelector<SVGElement>('g.scene-tree .scene-tree-pot-rim');
     const trunk = scene.querySelector<SVGRectElement>('g.scene-tree rect.scene-tree-trunk');
-    const trunkPotBox = bboxOf([pot as SVGRectElement, trunk as SVGRectElement]);
+    const trunkPotBox = bboxOf([pot as SVGElement, potRim as SVGElement, trunk as SVGRectElement]);
     expect(overlaps(pileBox, trunkPotBox)).toBe(false);
     expect(overlaps(pileBox, dogGeometry(scene).box)).toBe(false);
     const large = scene.querySelector<SVGGElement>('g.scene-large-present');
@@ -1681,18 +1729,21 @@ describe('stage 17 retro radio on the floor RIGHT of the side table, larger, pul
   });
 });
 
-describe('adapted reference assets (WC-06T6)', () => {
-  it('tree palette remap constants are the night grading; no reference hex ships in the scene', () => {
+describe('adapted v2 reference assets (WC-06T6 ruling #4)', () => {
+  it('tree v2 palette is already night-graded (identity remap); no rejected-trace hex ships in the scene', () => {
     expect(TREE_PALETTE_REMAP).toEqual({
-      '#16bd3a': '#1d4d2b',
-      '#15bc39': '#2e6b3f',
-      '#3df869': '#35785a',
-      '#000c00': '#0a1610',
-      '#fad92a': '#d9b64f',
-      '#803f29': '#6b4a2f',
+      '#5d3a24': '#5d3a24',
+      '#6b4226': '#6b4226',
+      '#7a4a2e': '#7a4a2e',
+      '#1d4d2b': '#1d4d2b',
+      '#2e6b3f': '#2e6b3f',
+      '#35785a': '#35785a',
+      '#0a1610': '#0a1610',
+      '#d9b64f': '#d9b64f',
     });
-    for (const p of TREE_PATHS) {
-      expect(Object.values(TREE_PALETTE_REMAP)).toContain(p.fill);
+    for (const el of TREE_ELEMENTS) {
+      const paint = el.tag === 'path' && el.fill === 'none' ? el.stroke : el.fill;
+      expect(Object.values(TREE_PALETTE_REMAP)).toContain(paint);
     }
     const scene = renderScene(allOpened(), DEC_24);
     const svgText = scene.querySelector('svg')?.outerHTML ?? '';
@@ -1711,10 +1762,26 @@ describe('adapted reference assets (WC-06T6)', () => {
     }
   });
 
-  it('coo asset keeps the traced caramel/cream/dark regions (identity remap, 8 paths)', () => {
-    expect(COO_PATHS).toHaveLength(8);
-    const classes = new Set(COO_PATHS.map((p) => p.cls));
-    expect(classes).toEqual(new Set(['scene-coo-body', 'scene-coo-fringe', 'scene-coo-horn', 'scene-coo-detail']));
+  it('coo v2 asset keeps the caramel/cream/dark/scarf regions (identity remap, element list, no legs/tail)', () => {
+    expect(COO_ELEMENTS.length).toBe(19);
+    const classes = new Set(COO_ELEMENTS.map((el) => el.cls));
+    expect(classes).toEqual(
+      new Set([
+        'scene-coo-shadow',
+        'scene-coo-body',
+        'scene-coo-scarf',
+        'scene-coo-muzzle',
+        'scene-coo-detail',
+        'scene-coo-ear',
+        'scene-coo-fringe',
+        'scene-coo-horn',
+      ]),
+    );
+    for (const el of COO_ELEMENTS) {
+      expect(el.cls).not.toMatch(/\b(leg|tail)\b/);
+      const paint = el.tag === 'path' && el.fill === 'none' ? el.stroke : el.fill;
+      if (paint) expect(Object.values(COO_PALETTE_REMAP)).toContain(paint);
+    }
   });
 
   it('stays within the bundle budget: <= 40 KB raw and <= 15 KB gzip per adapted asset', () => {
