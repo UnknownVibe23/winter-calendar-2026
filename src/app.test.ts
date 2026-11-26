@@ -133,6 +133,83 @@ describe('renderApp', () => {
       (stage) => stage.dataset.stage,
     );
     expect(earned).toEqual(['1']);
+    expect(door?.querySelector('svg.door-snow')).toBeNull();
+    const lockedDoor = container.querySelector<HTMLElement>('button.door[data-door="24"]');
+    expect(lockedDoor?.classList.contains('door--locked')).toBe(true);
+    expect(lockedDoor?.querySelector('svg.door-snow')).not.toBeNull();
+  });
+
+  it('plays the sparkle-and-glow reveal on the newly earned stage after the lightbox closes', () => {
+    renderApp(container, content, DEC_5);
+    const door = container.querySelector<HTMLButtonElement>('button.door[data-door="3"]');
+    door?.click();
+    expect(container.querySelector('.lightbox-overlay')).not.toBeNull();
+    const stage1 = container.querySelector<SVGGElement>('g.scene-stage[data-stage="1"]');
+    expect(stage1?.classList.contains('scene-stage--earned')).toBe(true);
+    expect(stage1?.classList.contains('scene-reveal')).toBe(false);
+    container.querySelector<HTMLButtonElement>('.lightbox-close')?.click();
+    expect(container.querySelector('.lightbox-overlay')).toBeNull();
+    expect(stage1?.classList.contains('scene-reveal')).toBe(true);
+    expect(
+      stage1?.querySelectorAll('g.scene-reveal-stars path.scene-reveal-star').length,
+    ).toBeGreaterThanOrEqual(8);
+    const stage2 = container.querySelector<SVGGElement>('g.scene-stage[data-stage="2"]');
+    expect(stage2?.classList.contains('scene-reveal')).toBe(false);
+  });
+
+  it('does not replay the stage reveal when an already opened door is reopened', () => {
+    localStorage.setItem('wc.opened', '[3]');
+    renderApp(container, content, DEC_5);
+    const door = container.querySelector<HTMLButtonElement>('button.door[data-door="3"]');
+    door?.click();
+    container.querySelector<HTMLButtonElement>('.lightbox-close')?.click();
+    expect(container.querySelectorAll('.scene-reveal')).toHaveLength(0);
+  });
+
+  it('renders the restore button at the bottom and Cancel changes nothing', () => {
+    renderApp(container, content, new Date(2026, 11, 6, 12, 0, 0));
+    const button = container.querySelector<HTMLButtonElement>('button.options-restore');
+    expect(button).not.toBeNull();
+    expect(button?.textContent).toBe('Restore opened doors');
+    expect(container.lastElementChild?.classList.contains('calendar-options')).toBe(true);
+    button?.click();
+    const overlay = container.querySelector('.restore-overlay');
+    expect(overlay).not.toBeNull();
+    expect(overlay?.getAttribute('role')).toBe('dialog');
+    expect(container.querySelector('.restore-text')?.textContent).toBe(
+      'Restore opened doors — Use this if you cleared your browser data. It opens all doors up to today, without opening effects. This cannot be undone.',
+    );
+    container.querySelector<HTMLButtonElement>('.restore-cancel')?.click();
+    expect(container.querySelector('.restore-overlay')).toBeNull();
+    expect(localStorage.getItem('wc.opened')).toBeNull();
+    expect(container.querySelector('button.door[data-door="1"]')?.classList.contains('door--opened')).toBe(false);
+  });
+
+  it('OK, restore opens exactly the up-to-today doors silently and re-renders (Dec 6: doors 1-6)', () => {
+    renderApp(container, content, new Date(2026, 11, 6, 12, 0, 0));
+    container.querySelector<HTMLButtonElement>('button.options-restore')?.click();
+    container.querySelector<HTMLButtonElement>('.restore-confirm')?.click();
+    expect(container.querySelector('.restore-overlay')).toBeNull();
+    expect(localStorage.getItem('wc.opened')).toBe('[1,2,3,4,5,6]');
+    for (let n = 1; n <= 6; n += 1) {
+      const door = container.querySelector<HTMLButtonElement>(`button.door[data-door="${n}"]`);
+      expect(door?.classList.contains('door--opened')).toBe(true);
+    }
+    for (const n of [7, 12, 24]) {
+      const door = container.querySelector<HTMLButtonElement>(`button.door[data-door="${n}"]`);
+      expect(door?.classList.contains('door--opened')).toBe(false);
+      expect(door?.classList.contains('door--locked')).toBe(true);
+    }
+    const earned = Array.from(container.querySelectorAll<SVGGElement>('g.scene-stage--earned')).map(
+      (stage) => stage.dataset.stage,
+    );
+    expect(earned).toEqual(['1', '2', '3', '4', '5', '6']);
+    expect(container.querySelectorAll('.scene-reveal')).toHaveLength(0);
+    expect(container.querySelectorAll('.scene-reveal-stars')).toHaveLength(0);
+    const door5 = container.querySelector<HTMLButtonElement>('button.door[data-door="5"]');
+    expect(door5?.querySelector<HTMLImageElement>('img.door-thumb')?.src).toBe(
+      'data:image/jpeg;base64,VUhVTUI=',
+    );
   });
 
   afterEach(() => {

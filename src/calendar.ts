@@ -1,9 +1,11 @@
 import { attachScratchOverlay, type ScratchHandle } from './scratch-canvas';
 import type { Content, DoorPhoto } from './content';
 import { countdownPhase, countdownText, daysUntilChristmasEve } from './countdown';
-import { sparkleBurst, syncDoorSnow } from './door-snow';
+import { snowDepthForDoor, sparkleBurst, syncDoorSnow } from './door-snow';
 import { doorState, todayDoor, type DoorState } from './doors';
-import { renderScene, syncSceneStages } from './scene';
+import type { LightboxHandle } from './lightbox';
+import { newlyEarnedStages } from './reveal';
+import { revealSceneStages, renderScene, scrollSceneIntoView, syncSceneStages } from './scene';
 
 export const DOOR_ORDER: readonly number[] = [
   8, 13, 16, 4, 18, 3, 21, 19, 23, 20, 1, 10, 5, 24, 7, 9, 12, 15, 14, 17, 2, 11, 22, 6,
@@ -13,7 +15,7 @@ export interface CalendarOptions {
   opened: Set<number>;
   now: Date;
   doors: Content['doors'];
-  onDoorActivate: (doorNumber: number) => void;
+  onDoorActivate: (doorNumber: number) => void | LightboxHandle;
 }
 
 const SHAKE_CLASS = 'door--shake';
@@ -80,11 +82,24 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
   const scene = renderScene(options.opened, options.now);
 
   const handles = new Map<number, ScratchHandle | null>();
+  let revealBefore: Set<number> | null = null;
+
+  function afterLightboxClose(): void {
+    const before = revealBefore ?? new Set<number>();
+    revealBefore = null;
+    const fresh = newlyEarnedStages(before, options.opened);
+    if (fresh.length === 0) {
+      return;
+    }
+    scrollSceneIntoView(scene);
+    revealSceneStages(scene, fresh);
+  }
 
   function activate(doorNumber: number): void {
     handles.get(doorNumber)?.finish();
     const wasOpened = options.opened.has(doorNumber);
-    options.onDoorActivate(doorNumber);
+    revealBefore = new Set(options.opened);
+    const handle = options.onDoorActivate(doorNumber);
     syncSceneStages(scene, options.opened);
     const doorElement = grid.querySelector<HTMLElement>(`button.door[data-door="${doorNumber}"]`);
     if (doorElement !== null) {
@@ -92,6 +107,9 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
       if (!wasOpened) {
         sparkleBurst(doorElement, doorNumber);
       }
+    }
+    if (handle && typeof handle.onClose === 'function') {
+      handle.onClose(afterLightboxClose);
     }
   }
 
@@ -147,6 +165,7 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
       handles.set(
         doorNumber,
         attachScratchOverlay(door, doorNumber, {
+          snowDepth: snowDepthForDoor(doorNumber, options.now, options.opened),
           onActivate: () => {
             if (scratchFired) {
               return;
