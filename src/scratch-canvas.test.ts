@@ -197,6 +197,78 @@ describe('attachScratchOverlay', () => {
     }
   });
 
+  it('repaints on a later loadingdone event so a fallback-painted number never sticks', async () => {
+    const listeners: Array<() => void> = [];
+    const doc = document as unknown as { fonts?: unknown };
+    const previous = doc.fonts;
+    doc.fonts = {
+      load: vi.fn(() => Promise.reject(new Error('font failed'))),
+      ready: Promise.resolve(),
+      addEventListener: (_type: string, listener: () => void) => {
+        listeners.push(listener);
+      },
+    };
+    try {
+      const ctx = fakeContext(frostedAlpha);
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+        ctx as unknown as CanvasRenderingContext2D,
+      );
+      const door = makeDoor();
+      attachScratchOverlay(door, 5, { onActivate: vi.fn() });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(ctx.fillText).toHaveBeenCalledTimes(1);
+      expect(listeners.length).toBeGreaterThan(0);
+      for (const listener of listeners) {
+        listener();
+      }
+      expect(ctx.fillText).toHaveBeenCalledTimes(2);
+      expect(ctx.fillText).toHaveBeenLastCalledWith('5', 100, 50);
+    } finally {
+      if (previous === undefined) {
+        delete doc.fonts;
+      } else {
+        doc.fonts = previous;
+      }
+    }
+  });
+
+  it('never repaints over user scratching when a loadingdone event arrives late', async () => {
+    const listeners: Array<() => void> = [];
+    const doc = document as unknown as { fonts?: unknown };
+    const previous = doc.fonts;
+    doc.fonts = {
+      load: vi.fn(() => Promise.resolve([])),
+      ready: Promise.resolve(),
+      addEventListener: (_type: string, listener: () => void) => {
+        listeners.push(listener);
+      },
+    };
+    try {
+      const ctx = fakeContext(frostedAlpha);
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+        ctx as unknown as CanvasRenderingContext2D,
+      );
+      const door = makeDoor();
+      attachScratchOverlay(door, 5, { onActivate: vi.fn() });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(ctx.fillText).toHaveBeenCalledTimes(1);
+      door.dispatchEvent(pointerEvent('pointerdown', 1, 10, 50));
+      door.dispatchEvent(pointerEvent('pointermove', 1, 40, 50));
+      door.dispatchEvent(pointerEvent('pointerup', 1, 40, 50));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      for (const listener of listeners) {
+        listener();
+      }
+      expect(ctx.fillText).toHaveBeenCalledTimes(1);
+    } finally {
+      if (previous === undefined) {
+        delete doc.fonts;
+      } else {
+        doc.fonts = previous;
+      }
+    }
+  });
+
   it('paints the frost base in the per-door tint and the number in the contrast-safe color', () => {
     const ctx = fakeContext(frostedAlpha);
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(

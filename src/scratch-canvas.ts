@@ -61,12 +61,20 @@ function paintFrost(ctx: CanvasRenderingContext2D, width: number, height: number
   ctx.fillText(String(doorNumber), width / 2, height / 2);
 }
 
-type FontsLike = { load?: (font: string) => Promise<unknown>; ready?: Promise<unknown> };
+type FontsLike = {
+  load?: (font: string) => Promise<unknown>;
+  ready?: Promise<unknown>;
+  addEventListener?: (type: string, listener: () => void) => void;
+};
 
 function whenDisplayFontReady(paint: () => void, fontSpec: string): void {
   const fonts = (document as Document & { fonts?: FontsLike }).fonts;
-  if (fonts && typeof fonts.load === 'function' && fonts.ready instanceof Promise) {
-    void Promise.all([fonts.load(fontSpec).catch(() => undefined), fonts.ready]).then(paint, paint);
+  if (fonts && typeof fonts.load === 'function') {
+    const ready = fonts.ready instanceof Promise ? fonts.ready : Promise.resolve();
+    void Promise.all([fonts.load(fontSpec).catch(() => undefined), ready]).then(paint, paint);
+    if (typeof fonts.addEventListener === 'function') {
+      fonts.addEventListener('loadingdone', paint);
+    }
     return;
   }
   paint();
@@ -95,8 +103,13 @@ export function attachScratchOverlay(
   canvas.height = Math.max(1, Math.round(height * dpr));
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   let painted = false;
+  let erased = false;
+  let opened = false;
   const fontSize = Math.round(Math.min(width, height) * 0.42);
   whenDisplayFontReady(() => {
+    if (erased || opened) {
+      return;
+    }
     paintFrost(ctx, width, height, doorNumber);
     painted = true;
   }, `700 ${fontSize}px "Mountains of Christmas"`);
@@ -115,7 +128,6 @@ export function attachScratchOverlay(
   let samples: PointerSample[] = [];
   let tracker: PathTracker = createPathTracker(0, 0);
   let scratching = false;
-  let opened = false;
   let finished = false;
   let suppressClick = false;
   let pending: Array<[number, number, number, number]> = [];
@@ -146,6 +158,9 @@ export function attachScratchOverlay(
       ctx.fill();
     }
     ctx.restore();
+    if (painted) {
+      erased = true;
+    }
   }
 
   function flushErases(checkProgressNow: boolean): void {
