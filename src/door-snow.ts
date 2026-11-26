@@ -2,9 +2,9 @@ import { CALENDAR_MONTH, CALENDAR_YEAR, doorUnlockDate } from './doors';
 import { createPrng } from './snow';
 
 export const DOOR_SNOW_SEED = 20261206;
-export const SNOW_DUST_DEPTH = 0.15;
-export const SNOW_GROWTH_PER_DAY = 0.05;
-export const SNOW_DEPTH_MAX = 0.55;
+export const SNOW_DUST_DEPTH = 0.18;
+export const SNOW_GROWTH_PER_DAY = 0.08;
+export const SNOW_DEPTH_MAX = 0.65;
 export const ICICLE_MIN_DEPTH = 0.3;
 
 const DAY_MS = 24 * 60 * 60 * 1000;

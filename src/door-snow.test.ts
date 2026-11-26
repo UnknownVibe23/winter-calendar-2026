@@ -36,6 +36,26 @@ describe('daysSinceUnlock', () => {
   });
 });
 
+describe('snow depth constants (WC-06T2 faster accumulation)', () => {
+  it('uses the tuned base dusting, growth and cap (icicle threshold unchanged)', () => {
+    expect(SNOW_DUST_DEPTH).toBe(0.18);
+    expect(SNOW_GROWTH_PER_DAY).toBe(0.08);
+    expect(SNOW_DEPTH_MAX).toBe(0.65);
+    expect(ICICLE_MIN_DEPTH).toBe(0.3);
+  });
+
+  it('grows visibly faster day by day: Dec 3 clearly thinner than Dec 10, thicker still at Dec 20', () => {
+    const dec3 = snowDepthForDoor(5, new Date(2026, 11, 3, 12, 0, 0), new Set());
+    const dec10 = snowDepthForDoor(5, DEC_10, new Set());
+    const dec20 = snowDepthForDoor(5, new Date(2026, 11, 20, 12, 0, 0), new Set());
+    expect(dec3).toBeCloseTo(0.18, 10);
+    expect(dec10).toBeCloseTo(0.58, 10);
+    expect(dec20).toBe(SNOW_DEPTH_MAX);
+    expect(dec3).toBeLessThan(dec10);
+    expect(dec10).toBeLessThan(dec20);
+  });
+});
+
 describe('snowDepthForDoor', () => {
   it('is 0 for opened doors at any date (they stay clear and warm)', () => {
     expect(snowDepthForDoor(1, DEC_24, new Set([1]))).toBe(0);
@@ -60,8 +80,8 @@ describe('snowDepthForDoor', () => {
       SNOW_DUST_DEPTH + 5 * SNOW_GROWTH_PER_DAY,
       10,
     );
-    expect(snowDepthForDoor(5, new Date(2026, 11, 12, 12, 0, 0), new Set())).toBeCloseTo(
-      SNOW_DUST_DEPTH + 7 * SNOW_GROWTH_PER_DAY,
+    expect(snowDepthForDoor(5, new Date(2026, 11, 9, 12, 0, 0), new Set())).toBeCloseTo(
+      SNOW_DUST_DEPTH + 4 * SNOW_GROWTH_PER_DAY,
       10,
     );
     expect(snowDepthForDoor(5, DEC_15, new Set())).toBe(SNOW_DEPTH_MAX);
@@ -82,8 +102,8 @@ describe('snowDepthForDoor', () => {
   });
 
   it('is deterministic and door-specific', () => {
-    expect(snowDepthForDoor(7, DEC_15, new Set())).toBe(snowDepthForDoor(7, DEC_15, new Set()));
-    expect(snowDepthForDoor(7, DEC_15, new Set())).not.toBe(snowDepthForDoor(8, DEC_15, new Set()));
+    expect(snowDepthForDoor(7, DEC_10, new Set())).toBe(snowDepthForDoor(7, DEC_10, new Set()));
+    expect(snowDepthForDoor(7, DEC_10, new Set())).not.toBe(snowDepthForDoor(8, DEC_10, new Set()));
   });
 });
 
