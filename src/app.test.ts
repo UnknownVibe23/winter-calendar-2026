@@ -56,19 +56,35 @@ describe('renderApp', () => {
     expect(doors.map((door) => door.textContent?.trim())).toEqual(DOOR_ORDER.map(String));
   });
 
-  it('shows the thumbnail of an opened photo door and no thumbnail for text-only doors', () => {
+  it('shows the thumbnail of an opened photo door (frame class + glow class) and no thumbnail for text-only doors', () => {
     localStorage.setItem('wc.opened', '[5]');
     renderApp(container, content, DEC_5);
     const opened = container.querySelector<HTMLButtonElement>('button.door[data-door="5"]');
     expect(opened?.classList.contains('door--opened')).toBe(true);
     expect(opened?.classList.contains('door--has-photo')).toBe(true);
+    expect(opened?.classList.contains('door--photo-frame')).toBe(true);
+    expect(opened?.classList.contains('door--frosted')).toBe(false);
     const thumb = opened?.querySelector<HTMLImageElement>('img.door-thumb');
     expect(thumb?.src).toBe('data:image/jpeg;base64,VUhVTUI=');
     expect(thumb?.alt).toBe('');
     const textOnly = container.querySelector<HTMLButtonElement>('button.door[data-door="3"]');
     expect(textOnly?.classList.contains('door--has-photo')).toBe(false);
+    expect(textOnly?.classList.contains('door--photo-frame')).toBe(false);
     expect(textOnly?.querySelector('img.door-thumb')).toBeNull();
     expect(textOnly?.querySelector('.door-number')?.textContent).toBe('3');
+  });
+
+  it('opened TEXT-only door keeps the dimmed-number look: no frame class, no surface class, number rendered', () => {
+    localStorage.setItem('wc.opened', '[3]');
+    renderApp(container, content, DEC_5);
+    const opened = container.querySelector<HTMLButtonElement>('button.door[data-door="3"]');
+    expect(opened?.classList.contains('door--opened')).toBe(true);
+    expect(opened?.classList.contains('door--has-photo')).toBe(false);
+    expect(opened?.classList.contains('door--photo-frame')).toBe(false);
+    expect(opened?.classList.contains('door--frosted')).toBe(false);
+    expect(opened?.querySelector('canvas.door-frost')).toBeNull();
+    expect(opened?.querySelector('.door-number')?.textContent).toBe('3');
+    expect(opened?.querySelector('.door-opened-mark')).not.toBeNull();
   });
 
   it('scratch-to-open end to end: frost canvas, scratch to 75%+ opens door and lightbox (stubbed canvas)', async () => {
@@ -123,9 +139,10 @@ describe('renderApp', () => {
 
     expect(localStorage.getItem('wc.opened')).toBe('[5]');
     expect(door?.classList.contains('door--opened')).toBe(true);
-    // the opened door keeps its colored painted surface (repainted full) + the opened badge
-    expect(door?.classList.contains('door--frosted')).toBe(true);
-    expect(door?.querySelector('canvas.door-frost')).not.toBeNull();
+    expect(door?.classList.contains('door--frosted')).toBe(false);
+    // opened PHOTO door: thumbnail + tint frame class + persistent glow class + opened badge
+    expect(door?.classList.contains('door--photo-frame')).toBe(true);
+    expect(door?.querySelector('img.door-thumb')).not.toBeNull();
     expect(door?.querySelector('.door-opened-mark')).not.toBeNull();
     expect(door?.style.getPropertyValue('--door-tint')).not.toBe('');
     expect(container.querySelector('.lightbox-overlay')).not.toBeNull();

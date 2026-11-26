@@ -1,4 +1,5 @@
 import { CALENDAR_MONTH, CALENDAR_YEAR } from './doors';
+import { openedDoorCount } from './scene-stages';
 
 export const CALENDAR_ITEM_IDS = ['wreath', 'tree', 'stockings'] as const;
 
@@ -28,4 +29,16 @@ export const CALENDAR_ITEM_STARTS: Record<CalendarItemId, Date> = {
  */
 export function calendarItemsForDate(now: Date): CalendarItemId[] {
   return CALENDAR_ITEM_IDS.filter((id) => now.getTime() >= CALENDAR_ITEM_STARTS[id].getTime());
+}
+
+/** The stockings hang on the mantelpiece, so they also need stage 14 earned. */
+export const STOCKINGS_MIN_STAGE = 14;
+
+/**
+ * The stockings item is visible only when BOTH hold: the date is on/after
+ * Dec 16 2026 AND the mantelpiece stage (14) is earned (>= 14 doors opened).
+ * Deterministic and pure.
+ */
+export function stockingsVisibleForDate(now: Date, opened: Set<number>): boolean {
+  return calendarItemsForDate(now).includes('stockings') && openedDoorCount(opened) >= STOCKINGS_MIN_STAGE;
 }

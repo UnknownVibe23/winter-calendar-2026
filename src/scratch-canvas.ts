@@ -14,6 +14,7 @@ import {
   type PointerSample,
 } from './scratch';
 
+const FADE_MS = 250;
 const MAX_DPR = 2;
 const PROGRESS_CHECK_INTERVAL_MOVES = 4;
 const DISPLAY_FONT = '"Mountains of Christmas", Georgia, serif';
@@ -259,22 +260,12 @@ export function attachScratchOverlay(
     });
   }
 
-  /**
-   * An opened door KEEPS its full colored festive surface: the scratch canvas
-   * is repainted complete (no snow cap, base frost density) and stays on the
-   * tile together with the glow state class — the tile is never swapped out.
-   */
-  function settleOpenedSurface(): void {
-    ctx.clearRect(0, 0, width, height);
-    paintFrost(ctx, width, height, doorNumber, 0, 1);
-    painted = true;
-    erased = false;
-    whenDisplayFontReady(() => {
-      if (opened) {
-        ctx.clearRect(0, 0, width, height);
-        paintFrost(ctx, width, height, doorNumber, 0, 1);
-      }
-    }, `700 ${fontSize}px \"Mountains of Christmas\"`);
+  function fadeOutAndRemove(): void {
+    canvas.style.transition = `opacity ${FADE_MS}ms ease`;
+    canvas.style.opacity = '0';
+    window.setTimeout(() => {
+      canvas.remove();
+    }, FADE_MS + 60);
   }
 
   function openNow(): void {
@@ -283,7 +274,8 @@ export function attachScratchOverlay(
     }
     opened = true;
     suppressClick = true;
-    settleOpenedSurface();
+    door.classList.remove('door--frosted');
+    fadeOutAndRemove();
     options.onActivate();
   }
 
@@ -293,8 +285,9 @@ export function attachScratchOverlay(
     }
     finished = true;
     opened = true;
+    door.classList.remove('door--frosted');
+    fadeOutAndRemove();
     teardown();
-    settleOpenedSurface();
   }
 
   function onPointerDown(event: PointerEvent): void {

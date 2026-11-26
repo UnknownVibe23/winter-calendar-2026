@@ -20,13 +20,14 @@ export interface CalendarOptions {
 }
 
 const SHAKE_CLASS = 'door--shake';
-// door--frosted is NOT a state class anymore: every door keeps its painted
-// festive surface in every state (owned by the surface layer, not here)
+// door--frosted (painted surface) belongs to the locked/scratchable surface
+// layer only; opened doors show the framed photo thumb or the number look
 const STATE_CLASSES = [
   'door--locked',
   'door--openable',
   'door--opened',
   'door--today',
+  'door--photo-frame',
 ];
 
 export function ariaLabelFor(n: number, state: DoorState, isToday: boolean): string {
@@ -51,6 +52,9 @@ export function applyDoorState(door: HTMLElement, n: number, opened: Set<number>
     door.classList.add('door--today');
   }
   door.style.setProperty('--door-tint', tintForDoor(n).frost);
+  if (state === 'opened' && door.classList.contains('door--has-photo')) {
+    door.classList.add('door--photo-frame');
+  }
   const mark = door.querySelector('.door-opened-mark');
   if (state === 'opened' && mark === null) {
     const badge = document.createElement('span');
@@ -112,13 +116,10 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
     const wasOpened = options.opened.has(doorNumber);
     revealBefore = new Set(options.opened);
     const handle = options.onDoorActivate(doorNumber);
-    syncSceneStages(scene, options.opened);
+    syncSceneStages(scene, options.opened, options.now);
     const doorElement = grid.querySelector<HTMLElement>(`button.door[data-door="${doorNumber}"]`);
     if (doorElement !== null) {
       syncDoorSnow(doorElement, doorNumber, options.now, options.opened);
-      if (doorElement.querySelector('canvas.door-frost') === null) {
-        attachStaticDoorSurface(doorElement, doorNumber, { frostDensity: 1 });
-      }
       if (!wasOpened) {
         sparkleBurst(doorElement, doorNumber);
       }
@@ -191,9 +192,9 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
           },
         }),
       );
-    } else {
-      // every non-scratchable door (locked future / already opened) still shows
-      // its full colored festive surface as a static painted layer
+    } else if (doorState(doorNumber, options.opened, options.now) === 'locked') {
+      // locked future doors still show their full colored festive surface as
+      // a static painted layer (opened doors show the framed thumb / number)
       attachStaticDoorSurface(door, doorNumber, {
         frostDensity: frostDensityForDoor(doorNumber, options.now, options.opened),
       });

@@ -316,7 +316,7 @@ describe('bare base room before the 1st of Advent and date-aware calendar items'
     expect(dec1.querySelector('g.scene-wreath')?.classList.contains('scene-reveal')).toBe(false);
     expect(dec1.querySelectorAll('.scene-reveal')).toHaveLength(1);
 
-    const dec16 = renderScene(new Set(), DEC_16);
+    const dec16 = renderScene(new Set(Array.from({ length: 14 }, (_, i) => i + 1)), DEC_16);
     expect(dec16.querySelector('g.scene-stockings')?.classList.contains('scene-reveal')).toBe(true);
     expect(dec16.querySelector('g.scene-tree')?.classList.contains('scene-reveal')).toBe(false);
     expect(dec16.querySelectorAll('.scene-reveal')).toHaveLength(1);
@@ -332,7 +332,7 @@ describe('bare base room before the 1st of Advent and date-aware calendar items'
     }
   });
 
-  it('shows the tree as permanent room art from Dec 1 (not a stage) and the stockings as one calendar item from Dec 16 (not a stage)', () => {
+  it('shows the tree as permanent room art from Dec 1 (not a stage); the stockings need date >= Dec 16 AND stage 14 earned (per human ruling)', () => {
     for (const date of [DEC_1, DEC_2, DEC_15]) {
       const scene = renderScene(new Set(), date);
       const tree = scene.querySelector<SVGGElement>('g.scene-tree');
@@ -340,8 +340,9 @@ describe('bare base room before the 1st of Advent and date-aware calendar items'
       expect(tree?.closest('g.scene-stage')).toBeNull();
       expect(scene.querySelector('g.scene-stockings')).toBeNull();
     }
+    const opened14 = new Set(Array.from({ length: 14 }, (_, i) => i + 1));
     for (const date of [DEC_16, DEC_24]) {
-      const scene = renderScene(new Set(), date);
+      const scene = renderScene(opened14, date);
       const stockings = scene.querySelector<SVGGElement>('g.scene-stockings');
       expect(stockings).not.toBeNull();
       expect(stockings?.dataset.item).toBe('stockings');
@@ -349,6 +350,38 @@ describe('bare base room before the 1st of Advent and date-aware calendar items'
       expect(stockings?.querySelectorAll('g.scene-stocking')).toHaveLength(3);
       expect(scene.querySelector('g.scene-tree')).not.toBeNull();
     }
+    // date ok but stage 14 not earned -> no stockings (they hang on the mantel)
+    for (const count of [0, 13]) {
+      const scene = renderScene(new Set(Array.from({ length: count }, (_, i) => i + 1)), DEC_16);
+      expect(scene.querySelector('g.scene-stockings')).toBeNull();
+      expect(scene.querySelectorAll('g.scene-stocking')).toHaveLength(0);
+    }
+    // stage 14 earned but date before Dec 16 -> none either
+    const scene = renderScene(allOpened(), DEC_15);
+    expect(scene.querySelector('g.scene-stockings')).toBeNull();
+  });
+
+  it('syncSceneStages adds the stockings with a once-only reveal when the door-14 earn makes them first appear (date >= Dec 16), and removes them on shrink', () => {
+    vi.useFakeTimers();
+    const opened13 = new Set(Array.from({ length: 13 }, (_, i) => i + 1));
+    const scene = renderScene(opened13, DEC_20);
+    expect(scene.querySelector('g.scene-stockings')).toBeNull();
+    const opened14 = new Set([...opened13, 14]);
+    syncSceneStages(scene, opened14, DEC_20);
+    const stockings = scene.querySelector<SVGGElement>('g.scene-stockings');
+    expect(stockings).not.toBeNull();
+    expect(stockings?.classList.contains('scene-reveal')).toBe(true);
+    expect(scene.querySelectorAll('.scene-reveal')).toHaveLength(1);
+    // re-sync does not stack reveals
+    syncSceneStages(scene, opened14, DEC_20);
+    expect(scene.querySelectorAll('g.scene-stockings')).toHaveLength(1);
+    expect(scene.querySelectorAll('g.scene-reveal-stars')).toHaveLength(1);
+    vi.advanceTimersByTime(REVEAL_MOMENT_MS + 200);
+    expect(scene.querySelector('g.scene-stockings')?.classList.contains('scene-reveal')).toBe(false);
+    // shrink below 14 -> removed again
+    syncSceneStages(scene, opened13, DEC_20);
+    expect(scene.querySelector('g.scene-stockings')).toBeNull();
+    vi.useRealTimers();
   });
 });
 
@@ -1198,7 +1231,7 @@ describe('Scottish accents, mug and thistle placement', () => {
   });
 
   it('gives the thistle vase a fixed spot on the mantelpiece (stage 19), clear of the picture, stockings and Saltire', () => {
-    const scene = renderScene(new Set(), DEC_24);
+    const scene = renderScene(allOpened(), DEC_24);
     const stage19 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="19"]');
     const vase = stage19?.querySelector<SVGRectElement>('rect.scene-thistle-vase');
     expect(vase).not.toBeNull();
@@ -1409,14 +1442,19 @@ describe('growing gift pile under the tree (every third opened door)', () => {
   });
 });
 
-describe('three stockings with labels on the mantel — one calendar item from Dec 16 (stages 16/17 freed)', () => {
-  it('hangs all three stockings together (labels M / M / N with paw print) as a calendar item from Dec 16, not in any stage, absent before', () => {
+describe('three stockings with labels on the mantel — calendar item Dec 16 gated on stage 14 (stages 16/17 freed)', () => {
+  it('hangs all three stockings together (labels M / M / N with paw print) at date >= Dec 16 with >= 14 doors opened, not in any stage, absent otherwise', () => {
     for (const date of [NOV_28, NOV_29, DEC_1, DEC_15]) {
-      const scene = renderScene(new Set(), date);
+      const scene = renderScene(allOpened(), date);
       expect(scene.querySelector('g.scene-stockings')).toBeNull();
       expect(scene.querySelectorAll('g.scene-stocking')).toHaveLength(0);
     }
-    const at16 = renderScene(new Set(), DEC_16);
+    for (const count of [0, 13]) {
+      const scene = renderScene(new Set(Array.from({ length: count }, (_, i) => i + 1)), DEC_16);
+      expect(scene.querySelector('g.scene-stockings')).toBeNull();
+      expect(scene.querySelectorAll('g.scene-stocking')).toHaveLength(0);
+    }
+    const at16 = renderScene(new Set(Array.from({ length: 14 }, (_, i) => i + 1)), DEC_16);
     const item = at16.querySelector<SVGGElement>('g.scene-stockings');
     expect(item).not.toBeNull();
     expect(item?.dataset.item).toBe('stockings');
@@ -1448,6 +1486,7 @@ describe('three stockings with labels on the mantel — one calendar item from D
 
   it('hangs the three stockings at deterministic heights with tidy spacing on the mantel, clear of the Saltire and the thistle', () => {
     const scene = renderScene(allOpened(), DEC_24);
+    expect(scene.querySelector('g.scene-stockings')).not.toBeNull();
     const stockings = Array.from(scene.querySelectorAll<SVGGElement>('g.scene-stocking'));
     expect(stockings).toHaveLength(3);
     const boxes = stockings.map((s) => bboxOf(Array.from(s.querySelectorAll('rect, circle, ellipse'))));
@@ -1551,106 +1590,90 @@ describe('stage 16 robin on the windowsill (WC-06T6)', () => {
   });
 });
 
-function dogPolygonPoints(): Array<[number, number]> {
-  const nums = (DOG_SILHOUETTE_PATH.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
-  const m = /translate\(\s*(-?[\d.]+)\s+(-?[\d.]+)\s*\)\s*scale\(\s*(-?[\d.]+)\s+(-?[\d.]+)\s*\)/.exec(
-    DOG_TRANSFORM,
-  );
-  const tx = Number(m?.[1]);
-  const ty = Number(m?.[2]);
-  const sx = Number(m?.[3]);
-  const sy = Number(m?.[4]);
-  const pts: Array<[number, number]> = [];
-  for (let i = 0; i + 1 < nums.length; i += 2) {
-    pts.push([tx + sx * nums[i], ty + sy * nums[i + 1]]);
-  }
-  return pts;
-}
-
-function pointInPolygon(p: [number, number], poly: Array<[number, number]>): boolean {
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i, i += 1) {
-    const [xi, yi] = poly[i];
-    const [xj, yj] = poly[j];
-    if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
-
-describe('stage 17 retro radio on the floor next to the armchair (WC-06T6)', () => {
+describe('stage 17 retro radio on the floor RIGHT of the side table, larger, pulsing (WC-06T6 follow-up ruling #3)', () => {
   const stage17scene = () =>
     renderScene(new Set(Array.from({ length: 17 }, (_, i) => i + 1)), DEC_10);
 
-  it('has the retro structure: wood body, cream panel, speaker grid, dial + needle, feet, antenna', () => {
+  it('has the retro structure, larger: wood body, cream panel, speaker grid, dial + needle, feet, antenna', () => {
     const scene = stage17scene();
     const stage17 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="17"]');
     expect(stage17?.classList.contains('scene-stage--earned')).toBe(true);
     const radio = stage17?.querySelector<SVGGElement>('g.scene-radio');
     expect(radio).not.toBeNull();
     expect(radio?.querySelector('rect.scene-radio-body')?.getAttribute('fill')).toBe('#8a6b4f');
+    const body = radio?.querySelector<SVGRectElement>('rect.scene-radio-body');
+    expect(Number(body?.getAttribute('width'))).toBeGreaterThanOrEqual(20);
     expect(radio?.querySelector('rect.scene-radio-panel')).not.toBeNull();
-    expect(radio?.querySelectorAll('line.scene-radio-speaker')).toHaveLength(3);
+    expect(radio?.querySelectorAll('line.scene-radio-speaker').length).toBeGreaterThanOrEqual(3);
     expect(radio?.querySelector('circle.scene-radio-dial')).not.toBeNull();
     expect(radio?.querySelector('line.scene-radio-dial-needle')).not.toBeNull();
     expect(radio?.querySelectorAll('rect.scene-radio-foot')).toHaveLength(2);
     expect(radio?.querySelector('line.scene-radio-antenna')).not.toBeNull();
   });
 
-  it('sits on the floor next to (left of) the armchair, clear of chair, tree pool, rug, hearth and the dog silhouette', () => {
+  it('sits on the floor to the RIGHT of the side table, clear of side table, window, tree spot and gift pile', () => {
     const scene = stage17scene();
     const stage17 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="17"]');
-    const box = bboxOf(
-      Array.from(stage17?.querySelectorAll('rect, circle, ellipse, polygon, line, path') ?? []),
+    const shapes = Array.from(
+      stage17?.querySelectorAll('rect, circle, ellipse, polygon, line, path') ?? [],
     );
+    const box = bboxOf(shapes);
     expect(box.minY).toBeGreaterThanOrEqual(232);
     expect(box.maxY).toBeLessThanOrEqual(300);
-    const chair = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="10"]');
-    const chairBox = bboxOf(Array.from(chair?.querySelectorAll('rect') ?? []));
-    expect(box.maxX).toBeLessThanOrEqual(chairBox.minX);
-    const pool = scene.querySelector<SVGEllipseElement>('g.scene-tree ellipse.scene-tree-pool');
-    expect(overlaps(box, bboxOf([pool as SVGEllipseElement]))).toBe(false);
-    const rugBox: Box = { minX: RUG.x, minY: RUG.y, maxX: RUG.x + RUG.w, maxY: RUG.y + RUG.h };
-    expect(overlaps(box, rugBox)).toBe(false);
-    expect(box.maxX).toBeLessThan(HEARTH_EDGE_X);
-    const dog = dogPolygonPoints();
-    for (const corner of [
-      [box.minX, box.minY],
-      [box.maxX, box.minY],
-      [box.minX, box.maxY],
-      [box.maxX, box.maxY],
-    ] as Array<[number, number]>) {
-      expect(pointInPolygon(corner, dog)).toBe(false);
-    }
+    const table = scene.querySelector<SVGGElement>('g.scene-side-table');
+    const tableBox = bboxOf(Array.from(table?.querySelectorAll('rect') ?? []));
+    expect(box.minX).toBeGreaterThanOrEqual(tableBox.maxX);
+    // larger than the old radio
+    expect(box.maxX - box.minX).toBeGreaterThanOrEqual(22);
+    // clear of the window, the tree spot and the gift pile
+    const windowBox: Box = { minX: 20, minY: 19, maxX: 148, maxY: 157 };
+    expect(overlaps(box, windowBox)).toBe(false);
+    const tree = scene.querySelector<SVGGElement>('g.scene-tree');
+    const treeBox = bboxOf(Array.from(tree?.querySelectorAll('rect, ellipse') ?? []));
+    expect(overlaps(box, treeBox)).toBe(false);
+    const pile = scene.querySelector<SVGGElement>('g.scene-gift-pile');
+    const pileBox = bboxOf(Array.from(pile?.querySelectorAll('rect, circle, ellipse, path') ?? []));
+    expect(overlaps(box, pileBox)).toBe(false);
+    expect(box.maxX).toBeLessThanOrEqual(340);
   });
 
-  it('floats 2-3 music notes with staggered deterministic delays (no audio)', () => {
+  it('has 2-4 music symbols AROUND the radio with staggered deterministic delays (CSS only, no audio)', () => {
     const stage17 = stage17scene().querySelector<SVGGElement>('g.scene-stage[data-stage="17"]');
-    const notes = Array.from(stage17?.querySelectorAll<SVGGElement>('g.scene-radio-note') ?? []);
+    const notes = Array.from(stage17?.querySelectorAll<SVGTextElement>('text.scene-radio-note') ?? []);
     expect(notes.length).toBeGreaterThanOrEqual(2);
-    expect(notes.length).toBeLessThanOrEqual(3);
+    expect(notes.length).toBeLessThanOrEqual(4);
     for (const note of notes) {
-      expect(note.querySelector('.scene-radio-note-head')).not.toBeNull();
-      expect(note.querySelector('.scene-radio-note-stem')).not.toBeNull();
-      expect(note.style.animationDelay).toMatch(/^-?\d+s$/);
+      expect(['♪', '♫']).toContain(note.textContent);
+      expect(note.getAttribute('fill')).toBe('#d9b64f');
+      expect(note.style.animationDelay).toMatch(/^-?\d+(\.\d+)?s$/);
     }
-    expect(notes.map((n) => n.style.animationDelay)).toEqual(['0s', '-2s', '-4s']);
+    expect(notes.map((n) => n.style.animationDelay)).toEqual(['0s', '-0.9s', '-1.8s']);
+    // symbols are placed around (above/right of) the radio body, not inside the pane
+    const body = stage17?.querySelector<SVGRectElement>('rect.scene-radio-body');
+    const bx = Number(body?.getAttribute('x'));
+    const by = Number(body?.getAttribute('y'));
+    for (const note of notes) {
+      const nx = Number(note.getAttribute('x'));
+      const ny = Number(note.getAttribute('y'));
+      expect(ny < by + 4 || nx > bx + 20).toBe(true);
+    }
   });
 
-  it('is stage-gated (not earned before 17 doors); bob ~3s ±1 unit and note float in CSS, reduced-motion static/hidden', () => {
+  it('is stage-gated (not earned before 17 doors); pulse ~2.6s scale+glow loop and note pulse in CSS, reduced-motion static/hidden', () => {
     const notYet = renderScene(new Set(Array.from({ length: 16 }, (_, i) => i + 1)), DEC_10);
     expect(
       notYet.querySelector('g.scene-stage[data-stage="17"]')?.classList.contains('scene-stage--earned'),
     ).toBe(false);
     const css = readFileSync(path.join(process.cwd(), 'src', 'styles', 'scene.css'), 'utf8');
-    expect(css).toMatch(/\.scene-radio\s*\{[^}]*animation:\s*scene-radio-bob 3s/);
-    const bob = /@keyframes scene-radio-bob \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
-    expect(bob).toContain('translateY(1)');
-    expect(bob).toContain('translateY(-1)');
-    const float = /@keyframes scene-note-float \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
-    expect(float).toContain('translateY(-16)');
-    expect(float).toContain('opacity');
+    expect(css).toMatch(/\.scene-radio\s*\{[^}]*animation:\s*scene-radio-pulse 2\.6s/);
+    const pulse = /@keyframes scene-radio-pulse \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(pulse).toContain('scale(1)');
+    expect(pulse).toContain('scale(1.04)');
+    expect(pulse).toContain('drop-shadow(0 0 7px rgba(217, 164, 65, 0.6))');
+    const notePulse = /@keyframes scene-note-pulse \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(notePulse).toContain('scale(0.8)');
+    expect(notePulse).toContain('scale(1.2)');
+    expect(css).toMatch(/\.scene-radio-note\s*\{[^}]*animation:\s*scene-note-pulse 2\.6s/);
     const reduced = /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
     expect(reduced).toContain('.scene-radio');
     expect(reduced).toContain('.scene-radio-note');

@@ -3,9 +3,11 @@ import {
   CALENDAR_ITEM_IDS,
   CALENDAR_ITEM_STARTS,
   FIRST_ADVENT,
+  STOCKINGS_MIN_STAGE,
   STOCKINGS_START,
   TREE_START,
   calendarItemsForDate,
+  stockingsVisibleForDate,
 } from './calendar-items';
 
 const NOV_28 = new Date(2026, 10, 28, 12, 0, 0);
@@ -61,5 +63,25 @@ describe('calendarItemsForDate', () => {
     expect(calendarItemsForDate(new Date(2027, 5, 1, 12))).toEqual(['wreath', 'tree', 'stockings']);
     expect(calendarItemsForDate(new Date(2026, 10, 28, 23, 59, 59))).toEqual([]);
     expect(calendarItemsForDate(new Date(2026, 11, 15, 23, 59, 59))).toEqual(['wreath', 'tree']);
+  });
+});
+
+describe('stockingsVisibleForDate (per human ruling: date >= Dec 16 AND stage 14 earned)', () => {
+  const opened = (n: number) => new Set(Array.from({ length: n }, (_, i) => i + 1));
+
+  it('needs BOTH the Dec-16 date and >= 14 opened doors', () => {
+    expect(STOCKINGS_MIN_STAGE).toBe(14);
+    expect(stockingsVisibleForDate(DEC_16, opened(0))).toBe(false);
+    expect(stockingsVisibleForDate(DEC_16, opened(13))).toBe(false);
+    expect(stockingsVisibleForDate(DEC_16, opened(14))).toBe(true);
+    expect(stockingsVisibleForDate(DEC_16, opened(24))).toBe(true);
+    expect(stockingsVisibleForDate(DEC_15, opened(24))).toBe(false);
+    expect(stockingsVisibleForDate(NOV_28, opened(24))).toBe(false);
+    expect(stockingsVisibleForDate(new Date(2026, 11, 20, 12), opened(13))).toBe(false);
+    expect(stockingsVisibleForDate(new Date(2026, 11, 20, 12), opened(14))).toBe(true);
+  });
+
+  it('is deterministic', () => {
+    expect(stockingsVisibleForDate(DEC_16, opened(14))).toBe(stockingsVisibleForDate(DEC_16, opened(14)));
   });
 });

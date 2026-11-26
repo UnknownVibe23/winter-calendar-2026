@@ -251,39 +251,34 @@
 .scene-radio {
   transform-box: fill-box;
   transform-origin: 50% 100%;
-  animation: scene-radio-bob 3s ease-in-out infinite alternate;
+  animation: scene-radio-pulse 2.6s ease-in-out infinite alternate;
 }
 
-@keyframes scene-radio-bob {
+@keyframes scene-radio-pulse {
   from {
-    transform: translateY(1);
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 rgba(217, 164, 65, 0));
   }
   to {
-    transform: translateY(-1);
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 7px rgba(217, 164, 65, 0.6));
   }
 }
 
 .scene-radio-note {
   transform-box: fill-box;
-  transform-origin: 50% 100%;
-  opacity: 0;
-  animation: scene-note-float 6s linear infinite;
+  transform-origin: 50% 50%;
+  animation: scene-note-pulse 2.6s ease-in-out infinite alternate;
 }
 
-@keyframes scene-note-float {
-  0% {
-    transform: translateY(0);
-    opacity: 0;
+@keyframes scene-note-pulse {
+  from {
+    transform: scale(0.8);
+    opacity: 0.4;
   }
-  15% {
-    opacity: 0.9;
-  }
-  70% {
-    opacity: 0.5;
-  }
-  100% {
-    transform: translateY(-16);
-    opacity: 0;
+  to {
+    transform: scale(1.2);
+    opacity: 1;
   }
 }
 

@@ -1457,3 +1457,28 @@
   a Highland cow on the shelf. **Alternatives considered:** headless
   browser CI (rejected: no new dependencies). **Decided-by:**
   coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T6 follow-up ruling #1: stockings gated on the mantel.
+  **Decision:** per human ruling, the stockings calendar item appears only
+  when BOTH hold: date >= Dec 16 2026 AND stage 14 earned (>= 14 doors
+  opened); the reveal moment plays once at the stockings' first
+  appearance (whichever comes last: the Dec-16 date tick or the door-14
+  earn). Tests at equal strength: date + 0 opens -> none; date + 13 opens
+  -> none; date + 14 opens -> present with reveal; labels M / M / N with
+  paw print and draw order unchanged. **Alternatives considered:** none.
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T6 follow-up ruling #2: opened-door tiles.
+  **Decision:** per human ruling, opened PHOTO doors show the day's photo
+  thumbnail (center-cropped, cover) filling the tile inner area, wrapped
+  in the per-door festive tint as a colored frame (`door--photo-frame`),
+  plus the persistent opened glow (`door--opened`); locked/scratchable
+  doors keep the colored scratch surface only; text-only opened doors
+  keep the dimmed-number look. **Alternatives considered:** none.
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T6 follow-up ruling #3: radio reposition + upgrade.
+  **Decision:** per human ruling, the stage-17 retro radio sits on the
+  floor to the RIGHT of the side table and is larger; it pulses gently
+  (~2-3 s scale/glow loop) with 2-4 music symbols around it pulsing at
+  staggered deterministic delays (CSS only, no sound); reduced motion
+  renders it static with no pulsing symbols; clearance to side table,
+  window, tree spot and gift pile asserted. **Alternatives considered:**
+  none. **Decided-by:** planner. **Status:** Proposed in PR #8

@@ -159,6 +159,35 @@
   display: none;
 }
 
+/*
+ * Opened PHOTO doors: the day's photo thumbnail fills the tile's inner area
+ * (center-cropped, cover) and is wrapped in the door's festive per-door tint
+ * as a colored frame; the persistent opened glow stays on top of it.
+ */
+.door--photo-frame {
+  border: 3px solid var(--door-tint, #132a4d);
+}
+
+.door--photo-frame .door-thumb {
+  display: block;
+  position: absolute;
+  inset: 3px;
+  z-index: 1;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.door--opened.door--has-photo .door-number {
+  display: none;
+}
+
+/* text-only opened doors keep the dimmed-number opened look */
+.door--opened:not(.door--has-photo) .door-number {
+  opacity: 0.55;
+}
+
 .door-frost {
   position: absolute;
   inset: 0;

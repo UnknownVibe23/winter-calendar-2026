@@ -1,7 +1,7 @@
 import { CREAM, NIGHT_BLUE } from './door-palette';
 import { COO_PATHS } from './assets/coo-adapted';
 import { TREE_FOLIAGE_BOTTOM_Y, TREE_FOLIAGE_TOP_Y, TREE_PATHS, TREE_PROFILE } from './assets/tree-adapted';
-import { calendarItemsForDate } from './calendar-items';
+import { calendarItemsForDate, stockingsVisibleForDate } from './calendar-items';
 import { decemberDayForDate } from './doors';
 import { GIFT_SLOTS, giftSpecForIndex, giftsForOpenedDoors } from './gifts';
 import { glowStepForDay } from './glow';
@@ -743,57 +743,54 @@ function stage16Robin(): SVGGElement {
 }
 
 /**
- * Stage 17: a small retro radio on the floor next to the armchair — warm wood
- * body, cream front panel with a speaker grid and a dial, tiny feet and a
- * thin antenna. It gently bobs while 2-3 music notes float up from it and
- * fade out (pure CSS, no sound).
+ * One music-notation symbol (♪ / ♫) floating around the radio: an SVG text
+ * glyph in scene gold with a staggered deterministic pulse delay. Pure CSS,
+ * no sound.
  */
-function radioNote(x: number, y: number, delay: number): SVGGElement {
-  const note = group([
-    svgEl('ellipse', {
-      cx: x,
-      cy: y,
-      rx: 1.1,
-      ry: 0.8,
-      fill: XMAS_GOLD,
-      transform: `rotate(-20 ${x} ${y})`,
-      class: 'scene-radio-note-head',
-    }),
-    svgEl('path', {
-      d: `M ${x + 0.95} ${y - 0.3} L ${x + 0.95} ${y - 4.6} Q ${x + 2.6} ${y - 4.2} ${x + 2.2} ${y - 2.4}`,
-      stroke: XMAS_GOLD,
-      'stroke-width': 0.7,
-      fill: 'none',
-      'stroke-linecap': 'round',
-      class: 'scene-radio-note-stem',
-    }),
-  ]);
-  note.classList.add('scene-radio-note');
-  note.style.animationDelay = `${delay}s`;
-  return note;
+function radioSymbol(x: number, y: number, glyph: string, size: number, delay: number): SVGTextElement {
+  const t = svgEl('text', {
+    x,
+    y,
+    'text-anchor': 'middle',
+    'font-size': size,
+    fill: XMAS_GOLD,
+    class: 'scene-radio-note',
+  });
+  t.textContent = glyph;
+  t.style.animationDelay = `${delay}s`;
+  return t;
 }
 
+/**
+ * Stage 17: a larger retro radio on the floor to the RIGHT of the side table
+ * — warm wood body, cream front panel with a speaker grid and a dial, tiny
+ * feet and a thin antenna. It gently pulses (soft breathing scale + glow,
+ * ~2.6 s) while 3 music symbols around it pulse with staggered delays
+ * (CSS only, no sound).
+ */
 function stage17Radio(): SVGGElement {
   const radio = group([
-    svgEl('line', { x1: 77, y1: 263, x2: 71, y2: 253, stroke: WOOD_DARK, 'stroke-width': 0.8, class: 'scene-radio-antenna' }),
-    circle(71, 253, 0.9, GOLD_CREAM, { class: 'scene-radio-antenna-tip' }),
-    rect(74, 263, 16, 9.5, WOOD, { rx: 2, class: 'scene-radio-body' }),
-    rect(76, 264.5, 12, 6.5, CREAM, { rx: 1, opacity: 0.92, class: 'scene-radio-panel' }),
-    svgEl('line', { x1: 77.5, y1: 265.8, x2: 77.5, y2: 269.8, stroke: WOOD_DARK, 'stroke-width': 0.8, class: 'scene-radio-speaker' }),
-    svgEl('line', { x1: 79.5, y1: 265.8, x2: 79.5, y2: 269.8, stroke: WOOD_DARK, 'stroke-width': 0.8, class: 'scene-radio-speaker' }),
-    svgEl('line', { x1: 81.5, y1: 265.8, x2: 81.5, y2: 269.8, stroke: WOOD_DARK, 'stroke-width': 0.8, class: 'scene-radio-speaker' }),
-    circle(85, 267.8, 2.6, 'none', { stroke: WOOD_DARK, 'stroke-width': 0.6, class: 'scene-radio-dial-rim' }),
-    circle(85, 267.8, 2, NIGHT_BLUE, { class: 'scene-radio-dial' }),
-    svgEl('line', { x1: 85, y1: 267.8, x2: 86, y2: 266.6, stroke: CREAM, 'stroke-width': 0.5, class: 'scene-radio-dial-needle' }),
-    rect(76, 272.5, 2.5, 1.8, WOOD_DARK, { class: 'scene-radio-foot' }),
-    rect(87.5, 272.5, 2.5, 1.8, WOOD_DARK, { class: 'scene-radio-foot' }),
+    svgEl('line', { x1: 310, y1: 272, x2: 304, y2: 262, stroke: WOOD_DARK, 'stroke-width': 0.9, class: 'scene-radio-antenna' }),
+    circle(304, 262, 1.2, GOLD_CREAM, { class: 'scene-radio-antenna-tip' }),
+    rect(306, 272, 24, 20, WOOD, { rx: 3, class: 'scene-radio-body' }),
+    rect(306, 272, 24, 2.5, WOOD_LIGHT, { class: 'scene-radio-body-top' }),
+    rect(309, 275, 18, 12, CREAM, { rx: 1.5, opacity: 0.92, class: 'scene-radio-panel' }),
+    svgEl('line', { x1: 311, y1: 278, x2: 311, y2: 284, stroke: WOOD_DARK, 'stroke-width': 0.9, class: 'scene-radio-speaker' }),
+    svgEl('line', { x1: 313, y1: 278, x2: 313, y2: 284, stroke: WOOD_DARK, 'stroke-width': 0.9, class: 'scene-radio-speaker' }),
+    svgEl('line', { x1: 315, y1: 278, x2: 315, y2: 284, stroke: WOOD_DARK, 'stroke-width': 0.9, class: 'scene-radio-speaker' }),
+    svgEl('line', { x1: 317, y1: 278, x2: 317, y2: 284, stroke: WOOD_DARK, 'stroke-width': 0.9, class: 'scene-radio-speaker' }),
+    circle(322.5, 281, 4, 'none', { stroke: WOOD_DARK, 'stroke-width': 0.8, class: 'scene-radio-dial-rim' }),
+    circle(322.5, 281, 3, NIGHT_BLUE, { class: 'scene-radio-dial' }),
+    svgEl('line', { x1: 322.5, y1: 281, x2: 323.8, y2: 279.4, stroke: CREAM, 'stroke-width': 0.6, class: 'scene-radio-dial-needle' }),
+    rect(309, 292, 3.5, 3, WOOD_DARK, { class: 'scene-radio-foot' }),
+    rect(323.5, 292, 3.5, 3, WOOD_DARK, { class: 'scene-radio-foot' }),
   ]);
   radio.classList.add('scene-radio');
   return group([
     radio,
-    radioNote(79, 261, 0),
-    radioNote(83, 259, -2),
-    radioNote(86, 261.5, -4),
+    radioSymbol(313, 269, '♪', 5, 0),
+    radioSymbol(323, 265, '♫', 6, -0.9),
+    radioSymbol(331, 271, '♪', 4.5, -1.8),
   ]);
 }
 
@@ -1344,18 +1341,45 @@ export function renderScene(opened: Set<number>, now: Date): HTMLElement {
     }
   }
   if (items.has('stockings')) {
-    const stockings = stockingsItem();
-    svg.append(stockings);
-    if (revealItems.has('stockings')) {
-      applyRevealMoment(stockings, 4);
-    }
+    // per human ruling: visible only when the date is on/after Dec 16 AND the
+    // mantelpiece stage (14) is earned; the reveal plays once at the first
+    // appearance (the Dec-16 date tick or the door-14 earn, whichever is last)
+    ensureStockings(svg, opened, now, revealItems.has('stockings'));
   }
   section.append(svg);
-  syncSceneStages(section, opened);
+  syncSceneStages(section, opened, now);
   return section;
 }
 
-export function syncSceneStages(root: ParentNode, opened: Set<number>): void {
+/**
+ * Appends the stockings item iff it is currently visible (date >= Dec 16 AND
+ * >= 14 doors opened). When `reveal` is set (the Dec-16 date tick) or the
+ * group is newly appended by a stage sync (the door-14 earn), the once-only
+ * reveal moment plays on it.
+ */
+function ensureStockings(
+  svg: SVGSVGElement,
+  opened: Set<number>,
+  now: Date,
+  reveal: boolean,
+): SVGGElement | null {
+  const existing = svg.querySelector<SVGGElement>('g.scene-stockings');
+  if (!stockingsVisibleForDate(now, opened)) {
+    existing?.remove();
+    return null;
+  }
+  if (existing !== null) {
+    return existing;
+  }
+  const stockings = stockingsItem();
+  svg.append(stockings);
+  if (reveal) {
+    applyRevealMoment(stockings, 4);
+  }
+  return stockings;
+}
+
+export function syncSceneStages(root: ParentNode, opened: Set<number>, now?: Date): void {
   const earned = new Set(earnedStages(opened));
   for (const stageGroup of root.querySelectorAll<SVGGElement>('g.scene-stage')) {
     const stage = Number(stageGroup.dataset.stage);
@@ -1368,6 +1392,20 @@ export function syncSceneStages(root: ParentNode, opened: Set<number>): void {
   const pile = root.querySelector<SVGGElement>('g.scene-gift-pile');
   if (pile !== null) {
     syncGiftPile(pile, opened);
+  }
+  if (now !== undefined) {
+    // the stockings item follows date + stage-14: keep the DOM in sync, and
+    // play the once-only reveal when the door-14 earn makes it first appear
+    const svg = root.querySelector('svg');
+    if (svg !== null && calendarItemsForDate(now).includes('stockings')) {
+      const wasVisible = svg.querySelector('g.scene-stockings') !== null;
+      const el = ensureStockings(svg, opened, now, false);
+      if (el !== null && !wasVisible) {
+        applyRevealMoment(el, 4);
+      }
+    } else {
+      root.querySelector('g.scene-stockings')?.remove();
+    }
   }
 }
 
