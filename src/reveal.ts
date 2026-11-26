@@ -1,4 +1,4 @@
-import { calendarItemsForDay, type CalendarItemId } from './calendar-items';
+import { CALENDAR_ITEM_IDS, CALENDAR_ITEM_STARTS, type CalendarItemId } from './calendar-items';
 import { createPrng } from './snow';
 import { earnedStages } from './scene-stages';
 
@@ -7,8 +7,6 @@ export const REVEAL_SEED = 20261207;
 
 const REVEAL_STAR_MIN = 8;
 const REVEAL_STAR_EXTRA = 4;
-const DAY_MIN = 0;
-const DAY_MAX = 31;
 
 /**
  * Stages newly earned by a door open: earned(after) minus earned(before).
@@ -20,18 +18,19 @@ export function newlyEarnedStages(before: Set<number>, after: Set<number>): numb
   return earnedStages(after).filter((stage) => !beforeEarned.has(stage));
 }
 
+function sameCalendarDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
 /**
- * Calendar-day items that play the reveal moment on the given December day.
- * Once-only semantics derived from the calendar day (no storage): the items
- * first appear on Dec 1, so the reveal plays exactly on day 1; from Dec 2
- * on they render instantly with no replay.
+ * Calendar items that play the reveal moment on the given date. Once-only
+ * semantics per item, derived from the calendar date (no storage): each
+ * item plays its reveal exactly on its own start day (wreath on the 1st of
+ * Advent, Nov 29 2026; picture on Dec 1 2026) and renders instantly on
+ * every later visit.
  */
-export function revealItemsForDay(day: number): CalendarItemId[] {
-  const clamped = Math.max(DAY_MIN, Math.min(DAY_MAX, Math.floor(day)));
-  if (clamped !== 1) {
-    return [];
-  }
-  return calendarItemsForDay(clamped);
+export function revealItemsForDate(now: Date): CalendarItemId[] {
+  return CALENDAR_ITEM_IDS.filter((id) => sameCalendarDay(now, CALENDAR_ITEM_STARTS[id]));
 }
 
 export interface RevealStar {

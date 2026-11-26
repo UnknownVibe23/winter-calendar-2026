@@ -1,20 +1,31 @@
-export const WREATH_CANDLE_DAYS: readonly number[] = [1, 7, 14, 21];
-export const WREATH_CANDLE_COUNT = WREATH_CANDLE_DAYS.length;
-
-const DAY_MIN = 0;
-const DAY_MAX = 31;
+import { CALENDAR_MONTH, CALENDAR_YEAR } from './doors';
 
 /**
- * How many of the four advent-wreath candles are lit on a December day:
- * 1 from Dec 1, 2 from Dec 7, 3 from Dec 14, 4 from Dec 21; 0 before
- * Dec 1 (day < 1). The day is clamped to 0..31 and the result is
- * deterministic.
+ * The four REAL Advent Sundays of the calendar year 2026: Nov 29 (1st of
+ * Advent), Dec 6, Dec 13, Dec 20. The wreath's candles are lit by calendar
+ * date against these constants (the app's year is fixed to 2026, so
+ * hardcoding is correct and deterministic).
  */
-export function wreathLitCandles(day: number): number {
-  const clamped = Math.max(DAY_MIN, Math.min(DAY_MAX, Math.floor(day)));
+export const ADVENT_SUNDAYS: readonly Date[] = [
+  new Date(CALENDAR_YEAR, CALENDAR_MONTH - 1, 29),
+  new Date(CALENDAR_YEAR, CALENDAR_MONTH, 6),
+  new Date(CALENDAR_YEAR, CALENDAR_MONTH, 13),
+  new Date(CALENDAR_YEAR, CALENDAR_MONTH, 20),
+];
+
+export const WREATH_CANDLE_COUNT = ADVENT_SUNDAYS.length;
+
+/**
+ * How many of the four advent-wreath candles are lit on a given date:
+ * one more per Advent Sunday (Nov 29 -> 1, Dec 6 -> 2, Dec 13 -> 3,
+ * Dec 20 -> 4), 0 before the 1st of Advent. Pure timestamp comparison
+ * against the Advent Sunday constants, deterministic.
+ */
+export function adventCandlesLitForDate(now: Date): number {
+  const t = now.getTime();
   let lit = 0;
-  for (const candleDay of WREATH_CANDLE_DAYS) {
-    if (clamped >= candleDay) {
+  for (const sunday of ADVENT_SUNDAYS) {
+    if (t >= sunday.getTime()) {
       lit += 1;
     }
   }

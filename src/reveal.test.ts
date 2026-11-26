@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   REVEAL_MOMENT_MS,
   newlyEarnedStages,
-  revealItemsForDay,
+  revealItemsForDate,
   revealStars,
   starPath,
 } from './reveal';
@@ -30,15 +30,27 @@ describe('newlyEarnedStages', () => {
   });
 });
 
-describe('revealItemsForDay', () => {
-  it('plays the reveal moment exactly on Dec 1 (once-only by date)', () => {
-    expect(revealItemsForDay(1)).toEqual(['picture', 'wreath']);
-    expect(revealItemsForDay(0)).toEqual([]);
-    expect(revealItemsForDay(2)).toEqual([]);
-    expect(revealItemsForDay(24)).toEqual([]);
-    expect(revealItemsForDay(31)).toEqual([]);
-    expect(revealItemsForDay(99)).toEqual([]);
-    expect(revealItemsForDay(-3)).toEqual([]);
+describe('revealItemsForDate', () => {
+  it('plays the wreath reveal exactly on the 1st of Advent (Nov 29 2026), once only', () => {
+    expect(revealItemsForDate(new Date(2026, 10, 29, 12))).toEqual(['wreath']);
+    expect(revealItemsForDate(new Date(2026, 10, 29, 0, 0, 0))).toEqual(['wreath']);
+    expect(revealItemsForDate(new Date(2026, 10, 28, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2026, 10, 30, 12))).toEqual([]);
+  });
+
+  it('plays the picture reveal exactly on Dec 1 2026, once only', () => {
+    expect(revealItemsForDate(new Date(2026, 11, 1, 12))).toEqual(['picture']);
+    expect(revealItemsForDate(new Date(2026, 11, 2, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2026, 11, 24, 12))).toEqual([]);
+  });
+
+  it('plays no reveal on any other day (before Advent, between start dates, later dates/years)', () => {
+    expect(revealItemsForDate(new Date(2026, 10, 28, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2026, 11, 6, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2026, 11, 31, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2025, 11, 25, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2027, 10, 28, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2027, 11, 1, 12))).toEqual([]);
   });
 });
 
