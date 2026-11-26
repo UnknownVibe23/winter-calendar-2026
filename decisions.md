@@ -1520,3 +1520,98 @@
   `shot-coo-v2-360.png`, `shot-dec24-v2-360.png`). **Alternatives
   considered:** none. **Decided-by:** coding-agent. **Status:** Proposed in
   PR #8
+- **Context:** WC-06T7 round-7 verdicts share one root cause: elements the
+  user is meant to notice must be legible at phone scale (~1 scene unit =
+  ~1 CSS px at 360 px width).
+  **Decision:** new readability-floor principle: decorative elements the
+  user should notice are >= ~8x8 scene units on their smallest dimensions,
+  text glyphs font-size >= ~9 units, focal small creatures in the ~20 unit
+  class. Geometry assertions reference these floors where practical. It is
+  calibration guidance, not a mechanical formula: if a floor and a clearance
+  contract conflict, the conflict is reported rather than silently shrinking
+  below the floor. **Alternatives considered:** none. **Decided-by:**
+  planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T7 stage-17 radio music symbols were text glyphs at
+  font-size 4.5-6 units (invisible at phone scale).
+  **Decision:** count stays 3 (the arc reads clearly with 3; 2-4 allowed).
+  Sizes 11/13/10 units at (300,255) / (318,248) / (333,255) — an arc
+  above-left / above / above-right of the radio body (x 306-330, top y
+  272). Each glyph gets a soft warm gold halo (r = 0.7*size, opacity 0.16,
+  #d9a441) behind it. Staggered deterministic delays 0 / -0.9 / -1.8 s, CSS
+  pulse unchanged, no sound; reduced motion hides notes and halos. Clearance
+  asserted at equal strength: radio-body box right of the side table, whole
+  stage box within the right floor pocket (maxX <= 340) and clear of window,
+  tree spot and gift pile, each halo clear of side table/window/tree/pile.
+  **Alternatives considered:** 4 symbols (rejected: 3 already read clearly
+  in the arc). **Decided-by:** planner (floor + glow), coding-agent
+  (positions/sizes). **Status:** Proposed in PR #8
+- **Context:** WC-06T7 stage-16 robin was ~9x8 units and — root cause found
+  via a 360 px pixel checkpoint — sat at x 24-40, where the tree (drawn
+  after stage 16) occludes the sill up to x 41.3 at sill height.
+  **Decision:** robin scaled ~2.2x to the ~20-unit class (body 20x17, bbox
+  22.5x20), back lightened #6b5a4a -> #8a7a68 (contrast vs wall 2.08 -> 3.3),
+  breast #d96b3a kept, halo strengthened to r 11.5 @ 0.18. Placed on the
+  left half of the sill immediately RIGHT of the tree foliage (x 42.5-65),
+  standing ON the sill (legs to y 145), clear of candle/mug/heather at equal
+  strength; new assertion: fully right of the tree silhouette at the bird's
+  own heights; castle view above the bird line (y <= 124) asserted clear.
+  Breathing idle, reduced-motion guard and stage-16 gating unchanged.
+  **Alternatives considered:** keeping the far-left sill end x 16-27 (only
+  ~11 units wide there — below the floor, rejected per the section-0 rule).
+  **Decided-by:** planner (floor + contrast), coding-agent (placement).
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T7 gift pile was ~6-8 unit gifts; the card wants them
+  roughly doubled to the 10-14 x 8-11 class with neat stacking kept.
+  **Decision:** gift specs now w 10-14 / h 8-11 (seeded variance kept, box +
+  sack only, tricolor; giftsForOpenedDoors min(8, floor(n/3)), 8 slots,
+  reveal on the multiple-of-3 open all unchanged). Slots re-laid as two
+  staggered rows over the whole tree-skirt floor (by 295/300; every gift top
+  >= 281 clears the pot bottom 280.8; footprint x 0-64, clear of the dog at
+  x >= 64.05); the pile bbox contract (x 0-72, y 280-300) is unchanged and
+  green. The stage-21 large present moved from the left of the tree (x 1-22)
+  to the free floor pocket between the dog and the side table (x 224-250)
+  and was bumped 21x18 -> 26x24: the tree-skirt floor cannot hold both the
+  large present and a neat doubled pile (the dog covers x 64-221), and the
+  clearly-bigger relation is re-expressed as >= 1.75x in BOTH dimensions (was
+  > 2x width, impossible at the new pile width within the strip).
+  Stage-12 fireplace presents untouched. **Alternatives considered:**
+  keeping the present at the left and letting same-row pile gifts overlap
+  heavily (rejected: breaks neat stacking). **Decided-by:** planner (scale
+  + relation), coding-agent (layout). **Status:** Proposed in PR #8
+- **Context:** WC-06T7 winter grid: every door tile — including still-locked
+  future doors — must accumulate snow and frost as the calendar advances
+  from Dec 1 (calendar-DATE ramp, independent of the door's own unlock
+  date), with the waiting-days neglect frost staying on top.
+  **Decision:** door-snow.ts gains daysSinceDec1, snowRampForDate (0 before
+  Dec 1, SNOW_DUST_DEPTH + 0.02/day since Dec 1) and frostRampForDate (base
+  1 + 0.08/day since Dec 1). snowDepthForDoor / frostDensityForDoor = ramp +
+  daysSinceUnlock * per-day growth (additive neglect bonus), clamped to the
+  unchanged maxima 0.65 / 2.5. Nov 28/30 -> zero accumulation; Dec 1 -> ramp
+  start on every door; monotone; per-door ramp equality on a date; neglect
+  bonus additive (asserted unclamped); day-number readability contract
+  unchanged (number painted last at full opacity, contrast >= 4.5 per tint,
+  asserted for all 24 doors at the clamp); glow state machine and scratch
+  erase (caps + frost together) untouched. **Alternatives considered:**
+  lowering the clamp so caps never reach the number (rejected: the >= 4.5
+  contrast assertion is the readability contract per the card).
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T7 automated-vs-manual split.
+  **Decision:** automated: 429 unit tests (32 files) — ramp boundaries
+  (Nov 28/30 zero, Dec 1 start, monotone Dec 1-31, clamp, per-door ramp
+  equality, neglect additivity, per-tint contrast at max frost, syncDoorSnow
+  depth follows the ramp), radio symbol floor/arc/halo/clearance/gating/CSS,
+  robin floor/contrast/tree-occlusion clearance/sill/clearances/CSS, gift
+  specs 10-14 x 8-11, slot layout vs pot/dog/large present, pile bbox
+  unchanged, large-present >= 1.75x both dims + pocket placement, plus all
+  prior tests. Manual smoke (`npm run dev` with `?date=`): Nov 28/30 bare
+  grid with zero accumulation, Dec 1 all-door light frost incl. door 24,
+  Dec 15 clearly wintrier uniform grid + neglected door frostier than the
+  fresh one, readable numbers/tints, robin at 16 opens, radio symbols at 17,
+  first pile gift at 3 opens, large present vs pile at 21. Checkpoint:
+  the real renderScene SVG rasterized with sharp (devDependency) at exactly
+  360 CSS px and pixel-sampled — robin body/breast/eye/leg, radio body/
+  panel/halos, tricolor gift wraps and the large present's gold ribbon all
+  confirmed present at 1 unit = 1 px (music glyphs need a browser font, not
+  available to the rasterizer). **Alternatives considered:** headless
+  browser CI (rejected: no new dependencies). **Decided-by:**
+  coding-agent. **Status:** Proposed in PR #8
