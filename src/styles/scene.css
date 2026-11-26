@@ -136,7 +136,7 @@
   .scene-flame,
   .scene-light,
   .scene-steam,
-  .scene-tail,
+  .scene-dog,
   .scene-bulb,
   .scene-bulb-chain,
   .scene-reveal,
@@ -145,18 +145,18 @@
   }
 }
 
-.scene-tail {
+.scene-dog {
   transform-box: fill-box;
-  transform-origin: 0% 100%;
-  animation: scene-tail-wag 1.5s ease-in-out infinite alternate;
+  transform-origin: 50% 100%;
+  animation: scene-dog-breathe 1.5s ease-in-out infinite alternate;
 }
 
-@keyframes scene-tail-wag {
+@keyframes scene-dog-breathe {
   from {
-    transform: rotate(-9deg);
+    transform: scale(1);
   }
   to {
-    transform: rotate(11deg);
+    transform: scale(1.015);
   }
 }
 

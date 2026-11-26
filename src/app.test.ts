@@ -139,7 +139,8 @@ describe('renderApp', () => {
     expect(lockedDoor?.querySelector('svg.door-snow')).not.toBeNull();
   });
 
-  it('plays the sparkle-and-glow reveal on the newly earned stage after the lightbox closes', () => {
+  it('plays the sparkle-and-glow reveal on the newly earned stage after the lightbox closes and scrolls to the page top', () => {
+    const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     renderApp(container, content, DEC_5);
     const door = container.querySelector<HTMLButtonElement>('button.door[data-door="3"]');
     door?.click();
@@ -155,14 +156,17 @@ describe('renderApp', () => {
     ).toBeGreaterThanOrEqual(8);
     const stage2 = container.querySelector<SVGGElement>('g.scene-stage[data-stage="2"]');
     expect(stage2?.classList.contains('scene-reveal')).toBe(false);
+    expect(scrollSpy).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
   });
 
-  it('does not replay the stage reveal when an already opened door is reopened', () => {
+  it('scrolls to the page top on every lightbox close, but replays no reveal when an already opened door is reopened', () => {
+    const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     localStorage.setItem('wc.opened', '[3]');
     renderApp(container, content, DEC_5);
     const door = container.querySelector<HTMLButtonElement>('button.door[data-door="3"]');
     door?.click();
     container.querySelector<HTMLButtonElement>('.lightbox-close')?.click();
+    expect(scrollSpy).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
     expect(container.querySelectorAll('.scene-reveal')).toHaveLength(0);
   });
 
