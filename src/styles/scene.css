@@ -174,7 +174,8 @@
     animation: none;
   }
 
-  .scene-radio-note {
+  .scene-radio-note,
+  .scene-radio-note-halo {
     display: none;
   }
 }

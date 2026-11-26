@@ -1662,17 +1662,25 @@ describe('stage 17 retro radio on the floor RIGHT of the side table, larger, pul
   it('sits on the floor to the RIGHT of the side table, clear of side table, window, tree spot and gift pile', () => {
     const scene = stage17scene();
     const stage17 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="17"]');
-    const shapes = Array.from(
-      stage17?.querySelectorAll('rect, circle, ellipse, polygon, line, path') ?? [],
+    const radio = stage17?.querySelector<SVGGElement>('g.scene-radio');
+    const bodyBox = bboxOf(
+      Array.from(radio?.querySelectorAll('rect, circle, ellipse, polygon, line, path') ?? []),
     );
-    const box = bboxOf(shapes);
-    expect(box.minY).toBeGreaterThanOrEqual(232);
-    expect(box.maxY).toBeLessThanOrEqual(300);
+    expect(bodyBox.minY).toBeGreaterThanOrEqual(232);
+    expect(bodyBox.maxY).toBeLessThanOrEqual(300);
     const table = scene.querySelector<SVGGElement>('g.scene-side-table');
     const tableBox = bboxOf(Array.from(table?.querySelectorAll('rect') ?? []));
-    expect(box.minX).toBeGreaterThanOrEqual(tableBox.maxX);
+    expect(bodyBox.minX).toBeGreaterThanOrEqual(tableBox.maxX);
     // larger than the old radio
-    expect(box.maxX - box.minX).toBeGreaterThanOrEqual(22);
+    expect(bodyBox.maxX - bodyBox.minX).toBeGreaterThanOrEqual(22);
+    // the whole stage (body + arc symbols) stays in the right floor pocket
+    const allShapes = Array.from(
+      stage17?.querySelectorAll('rect, circle, ellipse, polygon, line, path') ?? [],
+    );
+    const box = bboxOf(allShapes);
+    expect(box.minY).toBeGreaterThanOrEqual(232);
+    expect(box.maxY).toBeLessThanOrEqual(300);
+    expect(box.maxX).toBeLessThanOrEqual(340);
     // clear of the window, the tree spot and the gift pile
     const windowBox: Box = { minX: 20, minY: 19, maxX: 148, maxY: 157 };
     expect(overlaps(box, windowBox)).toBe(false);
@@ -1682,28 +1690,59 @@ describe('stage 17 retro radio on the floor RIGHT of the side table, larger, pul
     const pile = scene.querySelector<SVGGElement>('g.scene-gift-pile');
     const pileBox = bboxOf(Array.from(pile?.querySelectorAll('rect, circle, ellipse, path') ?? []));
     expect(overlaps(box, pileBox)).toBe(false);
-    expect(box.maxX).toBeLessThanOrEqual(340);
+    expect(overlaps(bodyBox, tableBox)).toBe(false);
   });
 
-  it('has 2-4 music symbols AROUND the radio with staggered deterministic delays (CSS only, no audio)', () => {
-    const stage17 = stage17scene().querySelector<SVGGElement>('g.scene-stage[data-stage="17"]');
+  it('has 3 music symbols in an arc above-left/above/above-right of the radio at the text readability floor, each with a soft gold halo (CSS only, no audio)', () => {
+    const scene = stage17scene();
+    const stage17 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="17"]');
     const notes = Array.from(stage17?.querySelectorAll<SVGTextElement>('text.scene-radio-note') ?? []);
-    expect(notes.length).toBeGreaterThanOrEqual(2);
-    expect(notes.length).toBeLessThanOrEqual(4);
+    expect(notes).toHaveLength(3);
+    const halos = Array.from(stage17?.querySelectorAll<SVGCircleElement>('circle.scene-radio-note-halo') ?? []);
+    expect(halos).toHaveLength(3);
+    for (const halo of halos) {
+      expect(halo.getAttribute('fill')).toBe('#d9a441');
+      expect(Number(halo.getAttribute('opacity'))).toBeGreaterThan(0);
+      expect(Number(halo.getAttribute('opacity'))).toBeLessThanOrEqual(0.25);
+      expect(Number(halo.getAttribute('r'))).toBeGreaterThanOrEqual(6);
+    }
     for (const note of notes) {
       expect(['♪', '♫']).toContain(note.textContent);
       expect(note.getAttribute('fill')).toBe('#d9b64f');
       expect(note.style.animationDelay).toMatch(/^-?\d+(\.\d+)?s$/);
+      // readability floor: text glyphs font-size >= 9 units, card range 10-14
+      const size = Number(note.getAttribute('font-size'));
+      expect(size).toBeGreaterThanOrEqual(9);
+      expect(size).toBeGreaterThanOrEqual(10);
+      expect(size).toBeLessThanOrEqual(14);
     }
     expect(notes.map((n) => n.style.animationDelay)).toEqual(['0s', '-0.9s', '-1.8s']);
-    // symbols are placed around (above/right of) the radio body, not inside the pane
+    // arc: every symbol sits ABOVE the radio body, spread left / center / right of it
     const body = stage17?.querySelector<SVGRectElement>('rect.scene-radio-body');
     const bx = Number(body?.getAttribute('x'));
     const by = Number(body?.getAttribute('y'));
+    const bw = Number(body?.getAttribute('width'));
+    const xs = notes.map((n) => Number(n.getAttribute('x')));
     for (const note of notes) {
-      const nx = Number(note.getAttribute('x'));
-      const ny = Number(note.getAttribute('y'));
-      expect(ny < by + 4 || nx > bx + 20).toBe(true);
+      expect(Number(note.getAttribute('y'))).toBeLessThan(by);
+    }
+    expect(Math.min(...xs)).toBeLessThan(bx);
+    expect(Math.max(...xs)).toBeGreaterThan(bx + bw);
+    expect(xs.some((nx) => nx >= bx && nx <= bx + bw)).toBe(true);
+    // each symbol + halo clear of the side table, window, tree spot and gift pile
+    const table = scene.querySelector<SVGGElement>('g.scene-side-table');
+    const tableBox = bboxOf(Array.from(table?.querySelectorAll('rect') ?? []));
+    const windowBox: Box = { minX: 20, minY: 19, maxX: 148, maxY: 157 };
+    const tree = scene.querySelector<SVGGElement>('g.scene-tree');
+    const treeBox = bboxOf(Array.from(tree?.querySelectorAll('rect, ellipse') ?? []));
+    const pile = scene.querySelector<SVGGElement>('g.scene-gift-pile');
+    const pileBox = bboxOf(Array.from(pile?.querySelectorAll('rect, circle, ellipse, path') ?? []));
+    for (const halo of halos) {
+      const haloBox = bboxOf([halo]);
+      expect(overlaps(haloBox, tableBox)).toBe(false);
+      expect(overlaps(haloBox, windowBox)).toBe(false);
+      expect(overlaps(haloBox, treeBox)).toBe(false);
+      expect(overlaps(haloBox, pileBox)).toBe(false);
     }
   });
 

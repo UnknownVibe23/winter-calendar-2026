@@ -750,11 +750,16 @@ function stage16Robin(): SVGGElement {
 }
 
 /**
- * One music-notation symbol (♪ / ♫) floating around the radio: an SVG text
- * glyph in scene gold with a staggered deterministic pulse delay. Pure CSS,
- * no sound.
+ * One music-notation symbol (♪ / ♫) floating in an arc above the radio: a
+ * soft warm gold halo circle behind an SVG text glyph (font-size in the
+ * 10-14 readability floor for text glyphs) with a staggered deterministic
+ * pulse delay. Pure CSS, no sound.
  */
-function radioSymbol(x: number, y: number, glyph: string, size: number, delay: number): SVGTextElement {
+function radioSymbol(x: number, y: number, glyph: string, size: number, delay: number): SVGGElement {
+  const halo = circle(x, y - size * 0.35, size * 0.7, GOLD, {
+    opacity: 0.16,
+    class: 'scene-radio-note-halo',
+  });
   const t = svgEl('text', {
     x,
     y,
@@ -765,15 +770,15 @@ function radioSymbol(x: number, y: number, glyph: string, size: number, delay: n
   });
   t.textContent = glyph;
   t.style.animationDelay = `${delay}s`;
-  return t;
+  return group([halo, t]);
 }
 
 /**
  * Stage 17: a larger retro radio on the floor to the RIGHT of the side table
  * — warm wood body, cream front panel with a speaker grid and a dial, tiny
  * feet and a thin antenna. It gently pulses (soft breathing scale + glow,
- * ~2.6 s) while 3 music symbols around it pulse with staggered delays
- * (CSS only, no sound).
+ * ~2.6 s) while 3 music symbols in an arc above-left / above / above-right
+ * of the body pulse with staggered delays (CSS only, no sound).
  */
 function stage17Radio(): SVGGElement {
   const radio = group([
@@ -795,9 +800,9 @@ function stage17Radio(): SVGGElement {
   radio.classList.add('scene-radio');
   return group([
     radio,
-    radioSymbol(313, 269, '♪', 5, 0),
-    radioSymbol(323, 265, '♫', 6, -0.9),
-    radioSymbol(331, 271, '♪', 4.5, -1.8),
+    radioSymbol(300, 255, '♪', 11, 0),
+    radioSymbol(318, 248, '♫', 13, -0.9),
+    radioSymbol(333, 255, '♪', 10, -1.8),
   ]);
 }
 
