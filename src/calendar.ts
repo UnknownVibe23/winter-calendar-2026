@@ -5,7 +5,7 @@ import { snowDepthForDoor, sparkleBurst, syncDoorSnow } from './door-snow';
 import { doorState, todayDoor, type DoorState } from './doors';
 import type { LightboxHandle } from './lightbox';
 import { newlyEarnedStages } from './reveal';
-import { revealSceneStages, renderScene, scrollToPageTop, syncSceneStages } from './scene';
+import { revealSceneGifts, revealSceneStages, renderScene, scrollToPageTop, syncSceneStages } from './scene';
 
 export const DOOR_ORDER: readonly number[] = [
   8, 13, 16, 4, 18, 3, 21, 19, 23, 20, 1, 10, 5, 24, 7, 9, 12, 15, 14, 17, 2, 11, 22, 6,
@@ -92,6 +92,7 @@ export function renderCalendar(container: HTMLElement, options: CalendarOptions)
     if (fresh.length > 0) {
       revealSceneStages(scene, fresh);
     }
+    revealSceneGifts(scene, before, options.opened);
   }
 
   function activate(doorNumber: number): void {

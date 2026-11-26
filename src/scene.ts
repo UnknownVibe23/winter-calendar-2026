@@ -1,9 +1,11 @@
 import { CREAM, NIGHT_BLUE } from './door-palette';
 import { calendarItemsForDate } from './calendar-items';
 import { decemberDayForDate } from './doors';
+import { GIFT_SLOTS, giftSpecForIndex, giftsForOpenedDoors } from './gifts';
 import { glowStepForDay } from './glow';
 import { REVEAL_MOMENT_MS, revealItemsForDate, revealStars, starPath } from './reveal';
-import { SCENE_STAGE_COUNT, earnedStages } from './scene-stages';
+import { SCENE_STAGE_COUNT, earnedStages, openedDoorCount } from './scene-stages';
+import { createPrng } from './snow';
 import { adventCandlesLitForDate } from './wreath';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -54,6 +56,15 @@ const HILL_HEATHER_BACK = '#7a6a52';
 const HILL_HEATHER_FRONT = '#5f6b45';
 const HEATHER_PINK = '#b98bb8';
 const STAG_DARK = '#2e2620';
+const XMAS_RED = '#a3262e';
+const XMAS_GOLD = '#d9b64f';
+const XMAS_GREEN = '#2e6b3f';
+const BRASS = '#d9b64f';
+const GARLAND_DARK = '#1d4d2b';
+const TREE_LIGHT = '#2e6b3f';
+const POT_RIM = '#3a241b';
+const COOKIE = '#a06a3a';
+const XMAS_TRICOLOR: readonly string[] = [XMAS_RED, XMAS_GOLD, XMAS_GREEN];
 
 const PANE_X = 28;
 const PANE_Y = 27;
@@ -61,10 +72,30 @@ const PANE_W = 112;
 const PANE_H = 110;
 const MANTEL_TOP = 102;
 export const CHAIR_RAIL_Y = 159;
-export const ROD_X = 8;
+export const ROD_X = 5;
 export const ROD_Y = 13;
-export const ROD_W = 226;
+export const ROD_W = 158;
 export const ROD_H = 3.5;
+export const TREE_AXIS_X = 34;
+const TREE_SEED = 20261224;
+
+/** Five symmetric tiers of the base-art tree, all sharing the trunk axis x. */
+const TREE_TIERS: ReadonlyArray<{ apexY: number; baseY: number; hw: number }> = [
+  { apexY: 106, baseY: 142, hw: 8 },
+  { apexY: 138, baseY: 174, hw: 13 },
+  { apexY: 166, baseY: 202, hw: 19 },
+  { apexY: 194, baseY: 230, hw: 25 },
+  { apexY: 222, baseY: 258, hw: 31 },
+];
+
+/** Spiral strand swags across the cone (widely at the bottom, narrowing up). */
+const TREE_STRANDS: ReadonlyArray<{ y: number; hw: number; bulbs: number }> = [
+  { y: 244, hw: 19, bulbs: 7 },
+  { y: 212, hw: 12.5, bulbs: 6 },
+  { y: 182, hw: 8.4, bulbs: 5 },
+];
+
+const TREE_BAUBLES_PER_TIER: readonly number[] = [2, 2, 3, 3, 3];
 
 const REVEAL_CLASS = 'scene-reveal';
 
@@ -132,15 +163,15 @@ function baseRoom(): SVGGElement {
 
 /**
  * Bare side table (base art, always present): a simple wooden table on the
- * floor right of the rug, in front of the hearth. The advent wreath stands
- * centered on it from the 1st of Advent on.
+ * floor right of the rug, in front of the hearth, wide enough for the
+ * centered advent wreath plus the stage-23 plate and milk glass.
  */
 function baseSideTable(): SVGGElement {
   const table = group([
-    rect(264, 268, 26, 5, WOOD),
-    rect(264, 268, 26, 2, WOOD_LIGHT),
-    rect(267, 273, 3, 24, WOOD_DARK),
-    rect(284, 273, 3, 24, WOOD_DARK),
+    rect(252, 268, 50, 5, WOOD),
+    rect(252, 268, 50, 2, WOOD_LIGHT),
+    rect(255, 273, 3, 24, WOOD_DARK),
+    rect(296, 273, 3, 24, WOOD_DARK),
   ]);
   table.classList.add('scene-side-table');
   return table;
@@ -148,15 +179,16 @@ function baseSideTable(): SVGGElement {
 
 /**
  * One parted curtain panel hanging from the rod: flat warm panel with a rod
- * pocket, fold lines and a hem. Panels flank the window and never reach the
- * glass (pane x 28..140).
+ * pocket, fold lines and a tidy hem that ends cleanly just above the
+ * windowsill (sill top y 145, hem bottom y 143). Panels flank the window and
+ * never reach the glass (pane x 28..140).
  */
 function curtainPanel(x0: number, x1: number): SVGGElement {
   const w = x1 - x0;
   const children: SVGElement[] = [
-    rect(x0, 16, w, 136, CURTAIN),
+    rect(x0, 16, w, 127, CURTAIN),
     rect(x0, 16, w, 5, CURTAIN_FOLD),
-    rect(x0, 147, w, 5, CURTAIN_FOLD),
+    rect(x0, 138, w, 5, CURTAIN_FOLD, { class: 'scene-curtain-hem' }),
   ];
   for (let x = x0 + 5; x < x1 - 1; x += 5) {
     children.push(
@@ -164,7 +196,7 @@ function curtainPanel(x0: number, x1: number): SVGGElement {
         x1: x,
         y1: 21,
         x2: x,
-        y2: 147,
+        y2: 138,
         stroke: CURTAIN_FOLD,
         'stroke-width': 1.4,
         opacity: 0.55,
@@ -196,12 +228,18 @@ function stage1WindowFrame(): SVGGElement {
   ]);
 }
 
+/**
+ * Stage 2: frosted panes plus the framed highlands picture on the wall (the
+ * room's first wall decoration after her first open) in the upper
+ * chair-rail zone.
+ */
 function stage2FrostedPanes(): SVGGElement {
   return group([
     rect(28, 27, 52, 52, PANE, { opacity: 0.32 }),
     rect(88, 27, 52, 52, PANE, { opacity: 0.32 }),
     rect(28, 87, 52, 50, PANE, { opacity: 0.32 }),
     rect(88, 87, 52, 50, PANE, { opacity: 0.32 }),
+    basePicture(),
   ]);
 }
 
@@ -479,46 +517,106 @@ function stage14Mantelpiece(): SVGGElement {
   return group([rect(228, MANTEL_TOP, 124, 12, WOOD), rect(228, MANTEL_TOP, 124, 3, WOOD_LIGHT), saltire]);
 }
 
-const LIGHT_COLORS: readonly string[] = [GOLD, CREAM, ORANGE];
+/** Teardrop drop shape hanging down from (cx, topY) with radius r. */
+function dropPath(cx: number, topY: number, r: number): string {
+  return [
+    `M ${cx} ${topY}`,
+    `C ${cx + r} ${topY + r * 0.6} ${cx + r} ${topY + r * 1.6} ${cx} ${topY + r * 2.2}`,
+    `C ${cx - r} ${topY + r * 1.6} ${cx - r} ${topY + r * 0.6} ${cx} ${topY}`,
+    'Z',
+  ].join(' ');
+}
+
+function quadPoint(t: number, x0: number, y0: number, cxq: number, cyq: number, x1: number, y1: number): [number, number] {
+  const bx = (1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * cxq + t * t * x1;
+  const by = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * cyq + t * t * y1;
+  return [bx, by];
+}
 
 /**
- * Drooping chain of warm light bulbs hanging from the curtain rod in the
- * wall zone right of the window: both wire ends are anchored ON the rod
- * (with visible anchor rings), a sagging quadratic wire with 7 larger bulbs
- * on short stems, gentle sway and deterministic alternating twinkle.
- * Revealed with stage 15 (garland family) — not base art.
+ * One capped Christmas bulb hanging DOWN from a point on a wire/garland:
+ * short stem, brass cap, soft transparent halo and the glowing drop body
+ * with the gentle deterministic twinkle (3+ elements per bulb).
  */
-function bulbChain(): SVGGElement {
-  const x0 = 166;
-  const y0 = 16;
-  const x1 = 228;
-  const cxq = 197;
-  const cyq = 100;
-  const children: SVGElement[] = [
-    svgEl('path', {
-      d: `M${x0} ${y0} Q${cxq} ${cyq} ${x1} ${y0}`,
-      stroke: WOOD_DARK,
-      'stroke-width': 1.5,
-      fill: 'none',
-      class: 'scene-chain-wire',
+function hangingBulb(bx: number, by: number, color: string, index: number): SVGGElement {
+  const bulb = group([
+    svgEl('line', { x1: bx, y1: by, x2: bx, y2: by + 2.2, stroke: WOOD_DARK, 'stroke-width': 0.9 }),
+    rect(bx - 1.3, by + 2.2, 2.6, 2.2, BRASS, { rx: 0.5, class: 'scene-bulb-cap' }),
+    circle(bx, by + 7.2, 5, color, { opacity: 0.16, class: 'scene-bulb-halo' }),
+    path(dropPath(bx, by + 4.7, 2.1), color, {
+      class: 'scene-bulb scene-chain-bulb',
+      style: `animation-delay:-${((index * 0.45) % 2.8).toFixed(2)}s`,
     }),
-    circle(x0, y0, 1.8, GOLD_CREAM, { class: 'scene-chain-anchor' }),
-    circle(x1, y0, 1.8, GOLD_CREAM, { class: 'scene-chain-anchor' }),
-  ];
-  const count = 7;
-  for (let i = 0; i < count; i += 1) {
-    const t = i / (count - 1);
-    const bx = (1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * cxq + t * t * x1;
-    const by = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * cyq + t * t * y0;
-    const color = LIGHT_COLORS[i % LIGHT_COLORS.length];
+  ]);
+  bulb.classList.add('scene-chain-bulb');
+  return bulb;
+}
+
+/**
+ * Wall bulb chain (stage 15), re-anchored OFF the curtain rod on its own two
+ * small gold wall hooks: the wire is a light-fir GARLAND — a sagging
+ * two-tone green band (dark base with a lighter center line and needle
+ * accents) — from which real capped tricolor bulbs hang down in the wall
+ * zone right of the window, clear of the picture and the window pane.
+ * Gentle sway + deterministic alternating twinkle, reduced-motion safe.
+ */
+function wallGarland(): SVGGElement {
+  const x0 = 170;
+  const y0 = 32;
+  const x1 = 224;
+  const cxq = 197;
+  const cyq = 74;
+  const d = `M${x0} ${y0} Q${cxq} ${cyq} ${x1} ${y0}`;
+  const children: SVGElement[] = [];
+  for (const hx of [x0, x1]) {
     children.push(
-      svgEl('line', { x1: bx, y1: by, x2: bx, y2: by + 3.5, stroke: WOOD_DARK, 'stroke-width': 1 }),
-      circle(bx, by + 7.5, 7, color, { opacity: 0.16 }),
-      circle(bx, by + 7.5, 3.6, color, {
-        class: 'scene-bulb',
-        style: `animation-delay:-${((i * 0.4) % 2.8).toFixed(2)}s`,
+      svgEl('line', { x1: hx, y1: 26, x2: hx, y2: 29, stroke: GOLD_CREAM, 'stroke-width': 1.4 }),
+      circle(hx, 29.5, 2.4, GOLD_CREAM, { class: 'scene-chain-hook' }),
+      circle(hx, y0, 1.6, GOLD_CREAM, { class: 'scene-chain-anchor' }),
+    );
+  }
+  children.push(
+    svgEl('path', {
+      d,
+      stroke: GARLAND_DARK,
+      'stroke-width': 5,
+      'stroke-linecap': 'round',
+      fill: 'none',
+      class: 'scene-garland-band',
+    }),
+    svgEl('path', {
+      d,
+      stroke: XMAS_GREEN,
+      'stroke-width': 2,
+      'stroke-linecap': 'round',
+      fill: 'none',
+      opacity: 0.9,
+      class: 'scene-garland-band-center',
+    }),
+  );
+  const needleCount = 8;
+  for (let i = 0; i < needleCount; i += 1) {
+    const t = 0.1 + (0.8 * i) / (needleCount - 1);
+    const [nx, ny] = quadPoint(t, x0, y0, cxq, cyq, x1, y0);
+    const dir = i % 2 === 0 ? 1 : -1;
+    children.push(
+      svgEl('line', {
+        x1: nx,
+        y1: ny,
+        x2: nx + dir * 2.4,
+        y2: ny + 3.6,
+        stroke: XMAS_GREEN,
+        'stroke-width': 1,
+        'stroke-linecap': 'round',
+        class: 'scene-garland-needle',
       }),
     );
+  }
+  const count = 7;
+  for (let i = 0; i < count; i += 1) {
+    const t = 0.14 + (0.72 * i) / (count - 1);
+    const [bx, by] = quadPoint(t, x0, y0, cxq, cyq, x1, y0);
+    children.push(hangingBulb(bx, by, XMAS_TRICOLOR[i % XMAS_TRICOLOR.length], i));
   }
   const chain = group(children);
   chain.classList.add('scene-bulb-chain');
@@ -526,6 +624,10 @@ function bulbChain(): SVGGElement {
   return chain;
 }
 
+/**
+ * Stage 15 (garland family): the mantel garland with its bow plus the wall
+ * fir-garland bulb chain on its two gold wall hooks.
+ */
 function stage15Garland(): SVGGElement {
   const children: SVGElement[] = [];
   const count = 17;
@@ -543,25 +645,62 @@ function stage15Garland(): SVGGElement {
     path('M290 122 L299 115 L299 129 Z', RED),
     circle(290, 122, 2.5, GOLD_CREAM),
   );
-  children.push(bulbChain());
+  children.push(wallGarland());
   return group(children);
 }
 
-function stocking(x: number, fill: string): SVGGElement {
-  return group([
+/**
+ * Small flat paw print (pad + four toes) in warm cream, used as a label
+ * accent on one stocking.
+ */
+function pawPrint(cx: number, cy: number): SVGGElement {
+  const paw = group([
+    svgEl('ellipse', { cx, cy: cy + 1.6, rx: 1.7, ry: 1.4, fill: CREAM, class: 'scene-paw-pad' }),
+    circle(cx - 1.9, cy - 0.6, 0.75, CREAM, { class: 'scene-paw-toe' }),
+    circle(cx - 0.65, cy - 1.3, 0.75, CREAM, { class: 'scene-paw-toe' }),
+    circle(cx + 0.65, cy - 1.3, 0.75, CREAM, { class: 'scene-paw-toe' }),
+    circle(cx + 1.9, cy - 0.6, 0.75, CREAM, { class: 'scene-paw-toe' }),
+  ]);
+  paw.classList.add('scene-paw-print');
+  return paw;
+}
+
+/**
+ * One mantel stocking with a cream cuff, knit body, toe and a display-font
+ * label letter (SVG text, styled via .scene-stocking-label); optionally a
+ * small paw print beside/below the letter.
+ */
+function stocking(x: number, fill: string, label: string, withPaw: boolean): SVGGElement {
+  const children: SVGElement[] = [
     rect(x + 4, 114, 4, 5, CREAM),
     rect(x, 118, 16, 7, CREAM, { rx: 2 }),
     rect(x + 2, 124, 12, 22, fill, { rx: 5 }),
     circle(x + 4, 148, 6, fill),
-  ]);
+  ];
+  const text = svgEl('text', {
+    x: x + 8,
+    y: 139,
+    'text-anchor': 'middle',
+    class: 'scene-stocking-label',
+  });
+  text.textContent = label;
+  children.push(text);
+  if (withPaw) {
+    children.push(pawPrint(x + 8, 143.5));
+  }
+  const g = group(children);
+  g.classList.add('scene-stocking');
+  g.dataset.label = label;
+  return g;
 }
 
 function stage16FirstStocking(): SVGGElement {
-  return stocking(236, RED);
+  return stocking(244, RED, 'M', false);
 }
 
-function stage17SecondStocking(): SVGGElement {
-  return stocking(312, PINE);
+/** Stage 17: two stockings together — label M and label N with a paw print. */
+function stage17TwoStockings(): SVGGElement {
+  return group([stocking(268, PINE, 'M', false), stocking(292, RED, 'N', true)]);
 }
 
 /**
@@ -650,77 +789,277 @@ function stage20HeatherBouquet(): SVGGElement {
   return group(children);
 }
 
-function stage21ChristmasTree(): SVGGElement {
-  const tree = group([
-    svgEl('ellipse', { cx: 46, cy: 288, rx: 38, ry: 9, fill: CRATER, class: 'scene-tree-skirt' }),
+/**
+ * Deterministically scattered baubles across the five tiers: 10-14 circles
+ * in the Christmas tricolor palette with cream accents, each kept inside its
+ * tier silhouette (so the top tier stays clear of the castle view).
+ */
+function treeBaubles(): SVGElement[] {
+  const rand = createPrng(TREE_SEED);
+  const els: SVGElement[] = [];
+  let index = 0;
+  for (let tier = 0; tier < TREE_TIERS.length; tier += 1) {
+    const { apexY, baseY, hw } = TREE_TIERS[tier];
+    const count = TREE_BAUBLES_PER_TIER[tier];
+    for (let k = 0; k < count; k += 1) {
+      const r = 1.7 + rand() * 0.9;
+      const y = apexY + 5 + rand() * (baseY - apexY - 10);
+      const hwAt = (hw * (y - apexY)) / (baseY - apexY);
+      const maxOff = Math.max(hwAt - r - 0.6, 0.5);
+      const x = TREE_AXIS_X + (rand() * 2 - 1) * maxOff;
+      const color = index % 5 === 4 ? CREAM : XMAS_TRICOLOR[index % XMAS_TRICOLOR.length];
+      els.push(circle(x, y, r, color, { class: 'scene-bauble', stroke: 'rgba(0,0,0,0.25)', 'stroke-width': 0.4 }));
+      els.push(circle(x - r * 0.3, y - r * 0.3, r * 0.32, '#ffffff', { opacity: 0.4, class: 'scene-bauble-hi' }));
+      index += 1;
+    }
+  }
+  return els;
+}
+
+/**
+ * One spiral strand swag across the cone at height y (half-width hw): a
+ * short wire segment with evenly distributed capped drop bulbs hanging down
+ * from it, in the tricolor with halos and the deterministic twinkle.
+ */
+function treeStrand(spec: { y: number; hw: number; bulbs: number }, strandIndex: number, bulbOffset: number): SVGGElement {
+  const x1 = TREE_AXIS_X - spec.hw;
+  const x2 = TREE_AXIS_X + spec.hw;
+  const y = spec.y;
+  const d = `M ${x1} ${y} Q ${TREE_AXIS_X} ${y + 7} ${x2} ${y}`;
+  const children: SVGElement[] = [
+    svgEl('path', { d, stroke: WOOD_DARK, 'stroke-width': 0.8, fill: 'none', class: 'scene-strand-wire' }),
+  ];
+  for (let i = 0; i < spec.bulbs; i += 1) {
+    const t = spec.bulbs === 1 ? 0.5 : i / (spec.bulbs - 1);
+    const [bx, by] = quadPoint(t, x1, y, TREE_AXIS_X, y + 7, x2, y);
+    const color = XMAS_TRICOLOR[(bulbOffset + i) % XMAS_TRICOLOR.length];
+    const bulb = group([
+      svgEl('line', { x1: bx, y1: by, x2: bx, y2: by + 1.6, stroke: WOOD_DARK, 'stroke-width': 0.8 }),
+      rect(bx - 1.1, by + 1.6, 2.2, 1.8, BRASS, { rx: 0.4, class: 'scene-bulb-cap' }),
+      circle(bx, by + 5.4, 4.6, color, { opacity: 0.15, class: 'scene-bulb-halo' }),
+      path(dropPath(bx, by + 3.7, 1.9), color, {
+        class: 'scene-bulb scene-strand-bulb',
+        style: `animation-delay:-${(((bulbOffset + i) * 0.45) % 2.8).toFixed(2)}s`,
+      }),
+    ]);
+    bulb.classList.add('scene-strand-bulb-group');
+    children.push(bulb);
+  }
+  const strand = group(children);
+  strand.classList.add('scene-tree-strand');
+  strand.dataset.strand = String(strandIndex);
+  strand.dataset.bulbs = String(spec.bulbs);
+  return strand;
+}
+
+/**
+ * The Christmas tree as BASE ART, visible from the very first visit: straight
+ * vertical trunk axis (all five tiers share x = TREE_AXIS_X), symmetric
+ * conical two-tone green shape, trunk in a small pot, welcoming skirt and
+ * light pool — fully decorated from the start with tricolor baubles and the
+ * spiral light strands (only the top star waits for stage 24).
+ */
+function baseTree(): SVGGElement {
+  const children: SVGElement[] = [
     svgEl('ellipse', {
-      cx: 46,
-      cy: 290,
-      rx: 46,
-      ry: 9,
+      cx: TREE_AXIS_X,
+      cy: 292,
+      rx: 38,
+      ry: 8,
       fill: GOLD,
       opacity: 0.15,
       class: 'scene-tree-pool',
     }),
-    rect(36, 282, 22, 16, POT),
-    polygon('6,282 84,282 46,228', PINE),
-    polygon('12,238 74,238 44,192', PINE),
-    polygon('18,200 62,200 40,162', PINE),
-    polygon('24,168 50,168 36,138', PINE),
-    polygon('28,142 40,142 34,120', PINE),
-    present(6, 285, 22, 14, PLUM, GOLD_CREAM),
-    present(62, 288, 18, 12, RED, CREAM),
-    present(30, 290, 20, 10, PINE, GOLD_CREAM),
-    present(48, 292, 14, 8, GOLD_CREAM, RED),
-  ]);
+    svgEl('ellipse', { cx: TREE_AXIS_X, cy: 288, rx: 30, ry: 8, fill: CRATER, class: 'scene-tree-skirt' }),
+    rect(TREE_AXIS_X - 2.5, 256, 5, 14, TRUNK, { class: 'scene-tree-trunk' }),
+    rect(TREE_AXIS_X - 10, 266, 20, 4, POT_RIM),
+    rect(TREE_AXIS_X - 9, 268, 18, 12, POT, { class: 'scene-tree-pot' }),
+  ];
+  TREE_TIERS.forEach((tier, index) => {
+    children.push(
+      svgEl('polygon', {
+        points: `${TREE_AXIS_X},${tier.apexY} ${TREE_AXIS_X - tier.hw},${tier.baseY} ${TREE_AXIS_X + tier.hw},${tier.baseY}`,
+        fill: index % 2 === 0 ? PINE : TREE_LIGHT,
+        class: 'scene-tree-tier',
+      }),
+    );
+  });
+  children.push(...treeBaubles());
+  let bulbOffset = 0;
+  TREE_STRANDS.forEach((spec, index) => {
+    children.push(treeStrand(spec, index, bulbOffset));
+    bulbOffset += spec.bulbs;
+  });
+  const tree = group(children);
   tree.classList.add('scene-tree');
   return tree;
 }
 
-function stage22StringLights(): SVGGElement {
+/** One deterministic small gift of the pile, drawn at its slot. */
+function buildGift(index: number): SVGGElement {
+  const spec = giftSpecForIndex(index);
+  const slot = GIFT_SLOTS[index];
+  const { cx, by } = slot;
   const children: SVGElement[] = [];
-  const strands: Array<[number, number, number, number]> = [
-    [16, 252, 40, 168],
-    [64, 252, 40, 168],
-  ];
-  let index = 0;
-  for (const [x1, y1, x2, y2] of strands) {
-    for (let i = 0; i <= 6; i += 1) {
-      const t = i / 6;
-      const x = x1 + (x2 - x1) * t;
-      const y = y1 + (y2 - y1) * t;
-      const color = LIGHT_COLORS[index % LIGHT_COLORS.length];
-      children.push(circle(x, y, 4.5, color, { opacity: 0.22 }));
-      children.push(
-        circle(x, y, 2, color, {
-          class: 'scene-light',
-          style: `animation-delay:-${((index * 0.45) % 2.8).toFixed(2)}s`,
-        }),
-      );
-      index += 1;
-    }
+  if (spec.shape === 'box') {
+    children.push(
+      rect(cx - spec.w / 2, by - spec.h, spec.w, spec.h, spec.wrap, { rx: 1.5 }),
+      rect(cx - 1.2, by - spec.h, 2.4, spec.h, spec.ribbon),
+      rect(cx - spec.w / 2, by - spec.h / 2 - 1, spec.w, 2, spec.ribbon),
+      circle(cx - 2, by - spec.h - 0.8, 1.4, spec.ribbon),
+      circle(cx + 2, by - spec.h - 0.8, 1.4, spec.ribbon),
+    );
+  } else if (spec.shape === 'cylinder') {
+    children.push(
+      rect(cx - spec.w / 2, by - spec.h, spec.w, spec.h, spec.wrap),
+      svgEl('ellipse', { cx, cy: by - spec.h, rx: spec.w / 2, ry: 1.6, fill: spec.ribbon }),
+      rect(cx - 1.2, by - spec.h, 2.4, spec.h, spec.ribbon, { opacity: 0.9 }),
+    );
+  } else {
+    children.push(
+      path(
+        `M ${cx} ${by - spec.h - 2} C ${cx - spec.w / 2} ${by - spec.h + 2} ${cx - spec.w / 2 + 1} ${by - 2} ${cx} ${by} C ${cx + spec.w / 2 - 1} ${by - 2} ${cx + spec.w / 2} ${by - spec.h + 2} ${cx} ${by - spec.h - 2} Z`,
+        spec.wrap,
+        { class: 'scene-gift-sack' },
+      ),
+      rect(cx - 1.6, by - spec.h - 3, 3.2, 2.4, spec.ribbon, { rx: 1 }),
+    );
   }
-  return group(children);
-}
-
-function stage23TreetopStar(): SVGGElement {
-  return group([path(starPath(34, 114, 7), GOLD)]);
+  const gift = group(children);
+  gift.classList.add('scene-gift');
+  gift.dataset.gift = String(index);
+  return gift;
 }
 
 /**
- * Stage 24: red bow at the dog's neck + a small wrapped gift at its paws,
- * positioned on the approved silhouette (mirrored: head/neck at the right).
+ * The growing gift pile (base art, not a stage): holds exactly
+ * giftsForOpenedDoors(openedCount) small gifts, one per multiple of 3 opened
+ * doors, stacked neatly on and around the tree skirt.
  */
-function stage24DogPresent(): SVGGElement {
+function giftPile(opened: Set<number>): SVGGElement {
+  const pile = group([]);
+  pile.classList.add('scene-gift-pile');
+  syncGiftPile(pile, opened);
+  return pile;
+}
+
+function syncGiftPile(pile: SVGGElement, opened: Set<number>): void {
+  const count = giftsForOpenedDoors(openedDoorCount(opened));
+  for (const child of Array.from(pile.children)) {
+    const giftIndex = Number((child as SVGGElement).dataset?.gift ?? '-1');
+    if (giftIndex >= count) {
+      child.remove();
+    }
+  }
+  for (let index = 0; index < count; index += 1) {
+    if (pile.querySelector(`g.scene-gift[data-gift="${index}"]`) === null) {
+      pile.append(buildGift(index));
+    }
+  }
+}
+
+/**
+ * Stage 21: a large wrapped present under/beside the tree — clearly bigger
+ * than the seeded pile gifts — with its own reveal.
+ */
+function stage21LargePresent(): SVGGElement {
+  const g = present(1, 282, 21, 18, PLUM, GOLD_CREAM);
+  g.classList.add('scene-large-present');
+  return g;
+}
+
+/** Five-point folded-paper star polygon points. */
+function star5Points(cx: number, cy: number, r: number): string {
+  const pts: string[] = [];
+  for (let i = 0; i < 10; i += 1) {
+    const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rr = i % 2 === 0 ? r : r * 0.45;
+    pts.push(`${(cx + rr * Math.cos(angle)).toFixed(2)},${(cy + rr * Math.sin(angle)).toFixed(2)}`);
+  }
+  return pts.join(' ');
+}
+
+/**
+ * Stage 22: 3-5 small folded-paper stars hanging on short threads in the
+ * upper window zone (the top frame band above the glass), deterministic
+ * sizes — they never overlap the pane, so the castle/city view stays clear.
+ */
+function stage22PaperStars(): SVGGElement {
+  const specs: Array<{ x: number; r: number }> = [
+    { x: 40, r: 2.8 },
+    { x: 62, r: 3.4 },
+    { x: 88, r: 3.8 },
+    { x: 116, r: 3.1 },
+  ];
+  const children: SVGElement[] = [];
+  specs.forEach((spec, index) => {
+    children.push(
+      svgEl('line', {
+        x1: spec.x,
+        y1: 19.5,
+        x2: spec.x,
+        y2: 23 - spec.r + 0.6,
+        stroke: WOOD_DARK,
+        'stroke-width': 0.7,
+        class: 'scene-star-thread',
+      }),
+      svgEl('polygon', {
+        points: star5Points(spec.x, 23, spec.r),
+        fill: index % 2 === 0 ? CREAM : GOLD_CREAM,
+        class: 'scene-paper-star',
+      }),
+    );
+  });
+  const stars = group(children);
+  stars.classList.add('scene-paper-stars');
+  stars.dataset.stars = String(specs.length);
+  return stars;
+}
+
+/**
+ * Stage 23: a cookie plate and a glass of milk on the side table (flat art
+ * with a warm light accent), flanking the centered advent wreath.
+ */
+function stage23SantaTreat(): SVGGElement {
+  const treat = group([
+    circle(260, 264, 4, GOLD, { opacity: 0.14, class: 'scene-treat-glow' }),
+    svgEl('ellipse', { cx: 259, cy: 266.8, rx: 4, ry: 1.4, fill: CRATER, class: 'scene-cookie-plate' }),
+    circle(257.4, 265.6, 1.15, COOKIE, { class: 'scene-cookie' }),
+    circle(259.6, 265.2, 1.15, COOKIE, { class: 'scene-cookie' }),
+    circle(261.4, 266.0, 1.15, COOKIE, { class: 'scene-cookie' }),
+    rect(291, 259, 5.5, 9, PANE, { opacity: 0.5, rx: 1, class: 'scene-milk-glass' }),
+    rect(291.7, 262, 4.1, 5.6, CREAM, { class: 'scene-milk' }),
+  ]);
+  treat.classList.add('scene-santa-treat');
+  return treat;
+}
+
+/**
+ * Stage 24 — the Christmas-Eve moment: a Santa hat on the dog's head (a
+ * separate element on the silhouette's head geometry; the silhouette path
+ * itself stays untouched), a red bow centered neatly ON the wrapped gift at
+ * the dog's paws, and the radiant gold star glowing on top of the tree.
+ */
+function stage24ChristmasEve(): SVGGElement {
+  const hat = group([
+    rect(194, 215.5, 18, 4.5, CREAM, { rx: 2.2, class: 'scene-hat-brim' }),
+    path('M196 216 L202 204 L210 216 Z', XMAS_RED, { class: 'scene-hat-cone' }),
+    circle(202, 203, 2.6, CREAM, { class: 'scene-hat-pom' }),
+  ]);
+  hat.classList.add('scene-dog-hat');
+  const gift = present(191, 287, 15, 11, XMAS_RED, GOLD_CREAM);
+  gift.classList.add('scene-dog-gift');
   const bow = group([
-    path('M185 240 L178 236 L178 244 Z', RED),
-    path('M185 240 L192 236 L192 244 Z', RED),
-    circle(185, 240, 2, GOLD_CREAM),
+    path('M198.5 292.5 L192 288.8 L192 296.2 Z', RED),
+    path('M198.5 292.5 L205 288.8 L205 296.2 Z', RED),
+    circle(198.5, 292.5, 2, GOLD_CREAM),
   ]);
   bow.classList.add('scene-dog-bow');
-  const gift = present(191, 287, 15, 11, RED, GOLD_CREAM);
-  gift.classList.add('scene-dog-gift');
-  return group([bow, gift]);
+  const star = group([
+    circle(TREE_AXIS_X, 98, 10, XMAS_GOLD, { opacity: 0.22, class: 'scene-tree-star-glow' }),
+    path(starPath(TREE_AXIS_X, 98, 7), XMAS_GOLD, { class: 'scene-tree-star' }),
+  ]);
+  return group([hat, gift, bow, star]);
 }
 
 /**
@@ -748,8 +1087,8 @@ function stag(cx: number, cy: number, s: number): SVGGElement {
 
 /**
  * Framed Scottish-highlands picture on the wall above the mantel (upper
- * chair-rail zone), calendar item from Dec 1: rolling heather hills, a
- * misty glen and two small stag silhouettes — no snow, no text.
+ * chair-rail zone), earned with stage 2: rolling heather hills, a misty
+ * glen and two small stag silhouettes — no snow, no text.
  */
 function basePicture(): SVGGElement {
   const picture = group([
@@ -883,14 +1222,14 @@ const STAGE_BUILDERS: Array<() => SVGGElement> = [
   stage14Mantelpiece,
   stage15Garland,
   stage16FirstStocking,
-  stage17SecondStocking,
+  stage17TwoStockings,
   stage18WallShelfWithBook,
   stage19ThistleVignette,
   stage20HeatherBouquet,
-  stage21ChristmasTree,
-  stage22StringLights,
-  stage23TreetopStar,
-  stage24DogPresent,
+  stage21LargePresent,
+  stage22PaperStars,
+  stage23SantaTreat,
+  stage24ChristmasEve,
 ];
 
 export function renderScene(opened: Set<number>, now: Date): HTMLElement {
@@ -908,17 +1247,16 @@ export function renderScene(opened: Set<number>, now: Date): HTMLElement {
   const items = new Set(calendarItemsForDate(now));
   const revealItems = new Set(revealItemsForDate(now));
   svg.append(windowPaneClip(), baseRoom(), baseSkyline(), baseSideTable());
-  if (items.has('picture')) {
-    const picture = basePicture();
-    svg.append(picture);
-    if (revealItems.has('picture')) {
-      applyRevealMoment(picture, 1);
-    }
-  }
   for (let index = 0; index < SCENE_STAGE_COUNT; index += 1) {
+    if (index === 20) {
+      // the fully decorated tree and the gift pile are base art: drawn above
+      // the window/furniture stages but under stages 21-24 (large present,
+      // paper stars, santa treat, christmas-eve moment)
+      svg.append(baseTree(), giftPile(opened));
+    }
     if (index === SCENE_STAGE_COUNT - 1) {
       // the dog stands on the rug (stage 9), so it is drawn above the
-      // furniture stages but under the stage-24 bow and gift on its neck
+      // furniture stages but under the stage-24 hat/bow/gift on its geometry
       svg.append(baseDog());
     }
     const stageGroup = STAGE_BUILDERS[index]();
@@ -948,13 +1286,25 @@ export function syncSceneStages(root: ParentNode, opened: Set<number>): void {
   if (skyline !== null) {
     skyline.classList.toggle('scene-skyline--earned', earned.has(SKYLINE_STAGE));
   }
+  const pile = root.querySelector<SVGGElement>('g.scene-gift-pile');
+  if (pile !== null) {
+    syncGiftPile(pile, opened);
+  }
+}
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
 }
 
 /**
- * One-shot sparkle-and-glow reveal moment on a scene element: a soft golden
- * glow pulse plus the seeded sparkle-star pattern for REVEAL_MOMENT_MS,
- * then the class and stars are removed and the element settles into its
- * normal look. No lasting loop.
+ * One-shot sparkle-and-glow reveal moment on a scene element: a soft
+ * PULSATING golden glow (REVEAL_PULSES gentle pulses) plus the seeded
+ * sparkle-star pattern for REVEAL_MOMENT_MS (~4s), then the class and stars
+ * are removed and the element settles into its normal look. No lasting loop.
+ * Reduced motion: no pulse, the moment settles instantly.
  */
 export function applyRevealMoment(el: SVGGElement, seed: number): void {
   if (el.classList.contains(REVEAL_CLASS)) {
@@ -973,10 +1323,11 @@ export function applyRevealMoment(el: SVGGElement, seed: number): void {
     );
   }
   el.append(stars);
+  const settleMs = prefersReducedMotion() ? 0 : REVEAL_MOMENT_MS + 100;
   window.setTimeout(() => {
     el.classList.remove(REVEAL_CLASS);
     stars.remove();
-  }, REVEAL_MOMENT_MS + 100);
+  }, settleMs);
 }
 
 /**
@@ -992,6 +1343,21 @@ export function revealSceneStages(root: ParentNode, stages: number[]): void {
 }
 
 /**
+ * Plays the reveal moment on each newly appearing pile gift: a gift appears
+ * exactly on the open that reaches a multiple of 3 opened doors.
+ */
+export function revealSceneGifts(root: ParentNode, before: Set<number>, after: Set<number>): void {
+  const beforeCount = giftsForOpenedDoors(openedDoorCount(before));
+  const afterCount = giftsForOpenedDoors(openedDoorCount(after));
+  for (let index = beforeCount; index < afterCount; index += 1) {
+    const gift = root.querySelector<SVGGElement>(`g.scene-gift[data-gift="${index}"]`);
+    if (gift !== null) {
+      applyRevealMoment(gift, 100 + index);
+    }
+  }
+}
+
+/**
  * Smoothly scrolls the page to the top after a lightbox closes (and thus
  * after a door opens); guarded for reduced motion (auto instead of smooth).
  */
@@ -999,8 +1365,5 @@ export function scrollToPageTop(): void {
   if (typeof window.scrollTo !== 'function') {
     return;
   }
-  const reduced =
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+  window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
 }

@@ -61,18 +61,24 @@
 }
 
 .scene-reveal {
-  animation: scene-reveal-glow 2.6s ease-out;
+  animation: scene-reveal-glow 4s ease-out;
 }
 
 @keyframes scene-reveal-glow {
   0% {
     filter: drop-shadow(0 0 0 rgba(217, 164, 65, 0));
   }
-  25% {
-    filter: drop-shadow(0 0 16px rgba(217, 164, 65, 0.85));
+  18% {
+    filter: drop-shadow(0 0 18px rgba(217, 164, 65, 0.9));
   }
-  60% {
-    filter: drop-shadow(0 0 8px rgba(217, 164, 65, 0.4));
+  38% {
+    filter: drop-shadow(0 0 6px rgba(217, 164, 65, 0.3));
+  }
+  58% {
+    filter: drop-shadow(0 0 14px rgba(217, 164, 65, 0.75));
+  }
+  78% {
+    filter: drop-shadow(0 0 5px rgba(217, 164, 65, 0.28));
   }
   100% {
     filter: drop-shadow(0 0 0 rgba(217, 164, 65, 0));
@@ -127,6 +133,26 @@
   }
 }
 
+.scene-stocking-label {
+  font-family: var(--font-display);
+  font-size: 8px;
+  font-weight: 700;
+  fill: #f3e2c3;
+}
+
+.scene-tree-star-glow {
+  animation: scene-star-glow 3s ease-in-out infinite alternate;
+}
+
+@keyframes scene-star-glow {
+  from {
+    opacity: 0.12;
+  }
+  to {
+    opacity: 0.32;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .scene-stage,
   .scene-skyline {
@@ -140,7 +166,8 @@
   .scene-bulb,
   .scene-bulb-chain,
   .scene-reveal,
-  .scene-reveal-star {
+  .scene-reveal-star,
+  .scene-tree-star-glow {
     animation: none;
   }
 }
