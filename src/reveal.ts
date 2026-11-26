@@ -2,7 +2,8 @@ import { CALENDAR_ITEM_IDS, CALENDAR_ITEM_STARTS, type CalendarItemId } from './
 import { createPrng } from './snow';
 import { earnedStages } from './scene-stages';
 
-export const REVEAL_MOMENT_MS = 2600;
+export const REVEAL_MOMENT_MS = 4000;
+export const REVEAL_PULSES = 2;
 export const REVEAL_SEED = 20261207;
 
 const REVEAL_STAR_MIN = 8;
@@ -26,8 +27,7 @@ function sameCalendarDay(a: Date, b: Date): boolean {
  * Calendar items that play the reveal moment on the given date. Once-only
  * semantics per item, derived from the calendar date (no storage): each
  * item plays its reveal exactly on its own start day (wreath on the 1st of
- * Advent, Nov 29 2026; picture on Dec 1 2026) and renders instantly on
- * every later visit.
+ * Advent, Nov 29 2026) and renders instantly on every later visit.
  */
 export function revealItemsForDate(now: Date): CalendarItemId[] {
   return CALENDAR_ITEM_IDS.filter((id) => sameCalendarDay(now, CALENDAR_ITEM_STARTS[id]));

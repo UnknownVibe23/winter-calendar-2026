@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   REVEAL_MOMENT_MS,
+  REVEAL_PULSES,
   newlyEarnedStages,
   revealItemsForDate,
   revealStars,
@@ -38,15 +39,11 @@ describe('revealItemsForDate', () => {
     expect(revealItemsForDate(new Date(2026, 10, 30, 12))).toEqual([]);
   });
 
-  it('plays the picture reveal exactly on Dec 1 2026, once only', () => {
-    expect(revealItemsForDate(new Date(2026, 11, 1, 12))).toEqual(['picture']);
-    expect(revealItemsForDate(new Date(2026, 11, 2, 12))).toEqual([]);
-    expect(revealItemsForDate(new Date(2026, 11, 24, 12))).toEqual([]);
-  });
-
-  it('plays no reveal on any other day (before Advent, between start dates, later dates/years)', () => {
+  it('plays no reveal on any other day (before Advent, from Nov 30 on, later dates/years)', () => {
     expect(revealItemsForDate(new Date(2026, 10, 28, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2026, 11, 1, 12))).toEqual([]);
     expect(revealItemsForDate(new Date(2026, 11, 6, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2026, 11, 24, 12))).toEqual([]);
     expect(revealItemsForDate(new Date(2026, 11, 31, 12))).toEqual([]);
     expect(revealItemsForDate(new Date(2025, 11, 25, 12))).toEqual([]);
     expect(revealItemsForDate(new Date(2027, 10, 28, 12))).toEqual([]);
@@ -54,10 +51,10 @@ describe('revealItemsForDate', () => {
   });
 });
 
-describe('reveal moment duration', () => {
-  it('is a few seconds (2-3s) and one-shot', () => {
-    expect(REVEAL_MOMENT_MS).toBeGreaterThanOrEqual(2000);
-    expect(REVEAL_MOMENT_MS).toBeLessThanOrEqual(3000);
+describe('reveal moment duration and pulses', () => {
+  it('is ~4s (REVEAL_MOMENT_MS = 4000) with REVEAL_PULSES = 2 gentle glow pulses, one-shot', () => {
+    expect(REVEAL_MOMENT_MS).toBe(4000);
+    expect(REVEAL_PULSES).toBe(2);
   });
 });
 
