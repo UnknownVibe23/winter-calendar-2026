@@ -724,26 +724,30 @@ function stockingsItem(): SVGGElement {
   return g;
 }
 
-const ROBIN_BACK = '#6b5a4a';
+const ROBIN_BACK = '#8a7a68';
 const ROBIN_BREAST = '#d96b3a';
 
 /**
- * Stage 16: a small flat robin on the left end of the windowsill — round
- * winter body, red-orange breast and face patch, brown-grey back, tiny beak
- * and tail, softly lit by a warm halo, with a gentle breathing idle.
+ * Stage 16: a clearly visible flat robin on the left half of the windowsill,
+ * standing ON the sill — round winter body in the ~20-unit readability-floor
+ * class for focal creatures, red-orange breast and face patch, lighter
+ * muted brown-grey back, tiny beak and tail, strongly lit by a warm halo,
+ * with a gentle breathing idle. It sits immediately RIGHT of the tree
+ * foliage (the tree is drawn after this stage and would occlude the sill's
+ * far-left x 27-41) and left of the sill candle.
  */
 function stage16Robin(): SVGGElement {
   const robin = group([
-    circle(33, 139, 7.5, GOLD, { opacity: 0.12, class: 'scene-robin-halo' }),
-    svgEl('polygon', { points: '28,140 24,143.5 28.5,143.8', fill: ROBIN_BACK, class: 'scene-robin-tail' }),
-    svgEl('ellipse', { cx: 32, cy: 139, rx: 4.5, ry: 4, fill: ROBIN_BACK, class: 'scene-robin-back' }),
-    svgEl('ellipse', { cx: 34.5, cy: 140.5, rx: 2.6, ry: 3, fill: ROBIN_BREAST, class: 'scene-robin-breast' }),
-    circle(34.8, 135.8, 2.9, ROBIN_BACK, { class: 'scene-robin-head' }),
-    circle(35.6, 136.6, 1.9, ROBIN_BREAST, { class: 'scene-robin-face' }),
-    circle(36.2, 135.6, 0.6, FIREBOX, { class: 'scene-robin-eye' }),
-    svgEl('polygon', { points: '37.6,136.3 39.6,137 37.6,137.6', fill: '#3a2f23', class: 'scene-robin-beak' }),
-    svgEl('line', { x1: 30.8, y1: 142.8, x2: 30.8, y2: 145, stroke: '#3a2f23', 'stroke-width': 0.7, class: 'scene-robin-leg' }),
-    svgEl('line', { x1: 33.2, y1: 142.8, x2: 33.2, y2: 145, stroke: '#3a2f23', 'stroke-width': 0.7, class: 'scene-robin-leg' }),
+    circle(52, 135, 11.5, GOLD, { opacity: 0.18, class: 'scene-robin-halo' }),
+    svgEl('polygon', { points: '46.5,138.5 42.5,142.5 47.5,143', fill: ROBIN_BACK, class: 'scene-robin-tail' }),
+    svgEl('ellipse', { cx: 52.5, cy: 136, rx: 10, ry: 8.5, fill: ROBIN_BACK, class: 'scene-robin-back' }),
+    svgEl('ellipse', { cx: 57, cy: 138, rx: 5.5, ry: 6, fill: ROBIN_BREAST, class: 'scene-robin-breast' }),
+    circle(58.5, 130.5, 5.5, ROBIN_BACK, { class: 'scene-robin-head' }),
+    circle(59.3, 131.5, 3.4, ROBIN_BREAST, { class: 'scene-robin-face' }),
+    circle(60.2, 130.2, 1.05, FIREBOX, { class: 'scene-robin-eye' }),
+    svgEl('polygon', { points: '63,130.9 65,131.9 63,132.8', fill: '#3a2f23', class: 'scene-robin-beak' }),
+    svgEl('line', { x1: 49.5, y1: 143.5, x2: 49.5, y2: 145, stroke: '#3a2f23', 'stroke-width': 1.1, class: 'scene-robin-leg' }),
+    svgEl('line', { x1: 54, y1: 143.5, x2: 54, y2: 145, stroke: '#3a2f23', 'stroke-width': 1.1, class: 'scene-robin-leg' }),
   ]);
   robin.classList.add('scene-robin');
   return group([robin]);

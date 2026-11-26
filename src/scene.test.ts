@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TREE_ELEMENTS, TREE_FOLIAGE_BOTTOM_Y, TREE_FOLIAGE_TOP_Y, TREE_PALETTE_REMAP } from './assets/tree-adapted';
 import { COO_ELEMENTS, COO_PALETTE_REMAP } from './assets/coo-adapted';
 import { REVEAL_MOMENT_MS, REVEAL_PULSES } from './reveal';
+import { contrastRatio } from './door-palette';
 import { giftsForOpenedDoors } from './gifts';
 import {
   CHAIR_RAIL_Y,
@@ -1572,37 +1573,52 @@ describe('three stockings with labels on the mantel — calendar item Dec 16 gat
   });
 });
 
-describe('stage 16 robin on the windowsill (WC-06T6)', () => {
+describe('stage 16 robin on the windowsill left half (WC-06T7 readability floor: ~20-unit focal creature)', () => {
   const stage16scene = () =>
     renderScene(new Set(Array.from({ length: 16 }, (_, i) => i + 1)), DEC_10);
 
-  it('sits a small flat robin on the sill: body, red-orange breast, head, eye, beak, tail, legs, soft halo', () => {
+  it('sits a clearly visible flat robin ON the sill: body, red-orange breast, head, eye, beak, tail, legs, strong warm halo', () => {
     const scene = stage16scene();
     const stage16 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="16"]');
     expect(stage16?.classList.contains('scene-stage--earned')).toBe(true);
     const robin = stage16?.querySelector<SVGGElement>('g.scene-robin');
     expect(robin).not.toBeNull();
-    expect(robin?.querySelector('ellipse.scene-robin-back')).not.toBeNull();
+    const back = robin?.querySelector('ellipse.scene-robin-back');
+    expect(back).not.toBeNull();
+    expect(back?.getAttribute('fill')).toBe('#8a7a68');
     expect(robin?.querySelector('ellipse.scene-robin-breast')?.getAttribute('fill')).toBe('#d96b3a');
     expect(robin?.querySelector('circle.scene-robin-head')).not.toBeNull();
     expect(robin?.querySelector('circle.scene-robin-eye')).not.toBeNull();
     expect(robin?.querySelector('polygon.scene-robin-beak')).not.toBeNull();
     expect(robin?.querySelector('polygon.scene-robin-tail')).not.toBeNull();
     expect(robin?.querySelectorAll('line.scene-robin-leg')).toHaveLength(2);
-    expect(robin?.querySelector('circle.scene-robin-halo')).not.toBeNull();
+    const halo = robin?.querySelector<SVGCircleElement>('circle.scene-robin-halo');
+    expect(halo).not.toBeNull();
+    expect(Number(halo?.getAttribute('opacity'))).toBeGreaterThanOrEqual(0.15);
+    expect(Number(halo?.getAttribute('r'))).toBeGreaterThanOrEqual(10);
     const box = bboxOf(
       Array.from(
         robin?.querySelectorAll('rect, circle, ellipse, polygon, line, path') ?? [],
       ).filter((el) => !el.classList.contains('scene-robin-halo')),
     );
+    // readability floor: focal small creature in the ~20 unit class (was ~9x8)
+    expect(box.maxX - box.minX).toBeGreaterThanOrEqual(18);
+    expect(box.maxY - box.minY).toBeGreaterThanOrEqual(18);
+    expect(Number(back?.getAttribute('rx'))).toBeGreaterThanOrEqual(9);
     const sill = scene.querySelector<SVGRectElement>('g.scene-stage[data-stage="7"] > rect');
     const sillX = Number(sill?.getAttribute('x'));
     const sillW = Number(sill?.getAttribute('width'));
     const sillTop = Number(sill?.getAttribute('y'));
     expect(box.minX).toBeGreaterThanOrEqual(sillX);
     expect(box.maxX).toBeLessThanOrEqual(sillX + sillW);
+    // standing ON the sill, not floating
     expect(box.maxY).toBeLessThanOrEqual(sillTop + 0.01);
     expect(box.maxY).toBeGreaterThanOrEqual(sillTop - 0.01);
+    // contrast at phone scale: lighter back + red-orange breast against the wall
+    const wall = '#2e2a45';
+    expect(contrastRatio('#8a7a68', wall)).toBeGreaterThan(contrastRatio('#6b5a4a', wall));
+    expect(contrastRatio('#8a7a68', wall)).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio('#d96b3a', wall)).toBeGreaterThanOrEqual(3);
     // clear of the sill candle, the mug and the heather vase
     const candle = scene.querySelector<SVGRectElement>('g.scene-stage[data-stage="7"] rect[x="66"]');
     const mug = scene.querySelector<SVGRectElement>('rect.scene-mug');
@@ -1616,10 +1632,20 @@ describe('stage 16 robin on the windowsill (WC-06T6)', () => {
       expect(overlaps(box, bboxOf([other as SVGRectElement]))).toBe(false);
     }
     expect(overlaps(box, heather)).toBe(false);
-    // clear of the castle in the pane
+    // clear of the tree foliage at sill height (the tree is drawn after stage
+    // 16 and would otherwise occlude the bird — the round-6 invisibility root
+    // cause): the robin sits fully right of the silhouette at its own heights
+    let maxTreeHw = 0;
+    for (let y = box.minY; y <= box.maxY; y += 0.5) {
+      maxTreeHw = Math.max(maxTreeHw, treeHalfWidthAt(y));
+    }
+    expect(box.minX).toBeGreaterThan(TREE_AXIS_X + maxTreeHw);
+    // the bird stands on the sill in front of the glass; the castle view above
+    // the bird line (y <= 124) stays fully uncovered
     const castleBox = bboxOf(
       Array.from(scene.querySelectorAll('g.scene-castle rect, g.scene-castle polygon')),
     );
+    castleBox.maxY = Math.min(castleBox.maxY, 124);
     expect(overlaps(box, castleBox)).toBe(false);
   });
 
