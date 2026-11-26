@@ -465,7 +465,8 @@
   code (`contrastRatio`) and unit-tested >= 4.5:1 for every pair (cream on
   the dark tints: 8.01 / 7.66 / 13.17 / 10.04; night-blue on gold-cream:
   7.00; cream on gold-cream would be 1.88 and is not used) — no shade
-  adjustments were needed. Scratch mechanics, 0.7 threshold, tap fallback
+  adjustments were needed. Scratch mechanics, 0.75 threshold (tuned after
+  the second art review, WC-06T2), tap fallback
   and zoom are untouched; only the paint changed. **Alternatives considered:**
   random frost texture (rejected: determinism required), adjusting the locked
   hex values (rejected: planner-locked; contrast passes as locked).
@@ -562,10 +563,11 @@
   tests) or the load rejects, it paints immediately as a failure fallback
   so a door can never get stuck. A `painted` flag additionally gates the
   scratch-threshold check so an unpainted (transparent) canvas can never
-  read as 100% scratched. Scratch mechanics, 0.7 threshold and tap
+  read as 100% scratched. Scratch mechanics, 0.75 threshold (tuned after
+  the second art review, WC-06T2) and tap
   fallback are untouched. happy-dom has no `document.fonts`, so the unit
-  tests exercise the synchronous path plus one test that stubs a
-  FontFaceSet and asserts the paint waits for `load`.
+  tests exercise the synchronous path plus tests that stub a
+  FontFaceSet and assert the paint waits for `load`.
   **Alternatives considered:** painting immediately with the fallback
   (rejected by the card), CSS-only number (rejected: the number must be
   scratched away with the frost). **Decided-by:** coding-agent.
@@ -709,3 +711,122 @@
   **Alternatives considered:** headless-browser visual CI (rejected: no
   new dependencies allowed). **Decided-by:** coding-agent. **Status:**
   Proposed in PR #8
+- **Context:** WC-06T2 art verdict: the cat must go, a dog takes its
+  place, and stage 24 becomes the planner re-lock "the dog gets its
+  present".
+  **Decision:** the cat artwork is removed; a charcoal flat-coated
+  retriever silhouette (`g.scene-dog`) stands by the fireplace as
+  permanent room art visible from day 1 (not a stage), with a red collar,
+  a gold tag (`scene-tag` glint) and a gentle 1.5s CSS tail wag
+  (`scene-tail`), both disabled under `prefers-reduced-motion`. Stage 24
+  (ids/order unchanged) is now `g.scene-dog-bow` (red bow on the collar)
+  plus a wrapped present at the dog's paws (`g.scene-dog-gift`), revealed
+  at 24 opened doors exactly like the old stage 24. **Alternatives
+  considered:** keeping the cat (rejected by the verdict), tying the dog
+  to a stage (rejected: card wants day-1 visibility). **Decided-by:**
+  planner (verdict), coding-agent (art). **Status:** Proposed in PR #8
+- **Context:** WC-06T2 z-order: the Edinburgh skyline rendered in front
+  of / inside the window glass.
+  **Decision:** the night sky + rooftop silhouettes moved out of stage 3
+  into the base scene as `g.scene-skyline`, clipped via
+  `clipPath#window-pane-clip` (rect 32,32,104,100 = the pane opening) and
+  drawn before all stage groups, so document order is skyline < panes
+  tint < frame/mullions (scene test asserts `compareDocumentPosition`).
+  The group is revealed exactly at stage 3 as before (syncSceneStages
+  toggles `scene-skyline--earned`), so the 24-stage invariants (count,
+  ids 1..24, order) are unchanged. Stage 3 now holds three warm lit
+  windows in the rooftops; the pane tint opacity went 0.92 -> 0.32 so
+  the city stays clearly visible through the frosted glass. **Alternatives
+  considered:** keeping the skyline inside stage 3 (rejected: it would
+  always paint after the frame in document order). **Decided-by:**
+  coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T2: the large empty wall above the mantelpiece.
+  **Decision:** `g.scene-picture` in the base scene: rounded dark frame
+  (100x70 at x240,y22, roughly the 124px mantel span, centered on the
+  fireplace) with a flat snowy-highlands art panel (pale sky, two hill
+  layers, snow-dust ellipses, a tiny bothy, a three-pine line), no text,
+  no fonts in SVG; permanent day-1 room art. **Alternatives considered:**
+  a stage reveal (rejected: card wants room inventory). **Decided-by:**
+  coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T2: advent wreath with calendar-lit candles.
+  **Decision:** new pure `src/wreath.ts`: `wreathLitCandles(day)` = 1 from
+  Dec 1, 2 from Dec 7, 3 from Dec 14, 4 from Dec 21, 0 before Dec 1 (day
+  < 1), clamped to 0..31, deterministic, fully unit-tested. The wreath
+  (`g.scene-wreath`: fir ring, berries, four candles) sits on the floor in
+  front of the hearth as permanent day-1 art; lit candles get a warm
+  `scene-flame` flame + glow, unlit stay dark. `decemberDayForDate(now)`
+  in `src/doors.ts` maps a date to the December day (0 before Dec 1, 32
+  after Dec 31). **Alternatives considered:** side table (rejected: the
+  mug occupies it; floor by the hearth is the free natural spot).
+  **Decided-by:** planner (thresholds), coding-agent (placement/art).
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T2: snow caps must accumulate visibly faster per day.
+  **Decision:** `src/door-snow.ts` constants retuned: dusting base 0.15 ->
+  0.18, growth 0.05 -> 0.08 per day since the door's unlock date, cap
+  0.55 -> 0.65; icicle threshold stays 0.3. Tests assert the exact new
+  constants and the clearly visible Dec 3 (0.18) < Dec 10 (0.58) < Dec 20
+  (0.65 cap) growth at equal strength. **Alternatives considered:** none
+  (card-pinned values). **Decided-by:** planner.
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T2: golden scene glow strengthening toward Dec 24.
+  **Decision:** new pure `src/glow.ts`: `glowStepForDay(day)` returns 5
+  static steps (0..4): step 0 before Dec 1 (no glow), then rising in
+  6-day buckets (Dec 1-6 -> 1, 7-12 -> 2, 13-18 -> 3, 19-31 -> 4 = full on
+  Dec 24), clamped and deterministic, unit-tested. `renderScene(opened,
+  now)` adds a `scene-glow-N` class on the `.living-room` section only;
+  `scene.css` applies a gold `drop-shadow` (rgba(217,164,65,...) rising
+  0.3 -> 0.78) to `.living-room-svg` only, so the glow never bleeds onto
+  the header or grid. No animation loop, static per day. **Alternatives
+  considered:** CSS variable (equivalent; class chosen for testability).
+  **Decided-by:** planner (5 steps), coding-agent (mapping/CSS).
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T2: slightly denser star background without busying
+  the page.
+  **Decision:** `STAR_COUNT` 48 -> 70 in `src/stars.ts`; the 22 added
+  stars (index >= `STAR_BASE_COUNT` 48) are smaller (0.8..2px vs
+  1..2.6px) and twinkle only every fifth (vs every third), total
+  twinkling 20/70 < 1/3; positions/delays of the original 48 unchanged,
+  still seeded/deterministic. **Alternatives considered:** uniform size
+  for all (rejected: card asks for subtler added stars). **Decided-by:**
+  planner (count), coding-agent (subtlety rule). **Status:** Proposed in
+  PR #8
+- **Context:** WC-06T2: scratch-to-open must take slightly more
+  scratching (75%).
+  **Decision:** `SCRATCH_OPEN_THRESHOLD` 0.7 -> 0.75 in `src/scratch.ts`
+  (tuned after the second art review) — the only scratch change; no
+  mechanic, shortcut or auto-open tweaks. scratch / scratch-canvas /
+  app e2e tests adapted to 75% at equal strength (74% stays closed, 75%
+  opens). **Alternatives considered:** none. **Decided-by:** planner.
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T2 audit: guarantee the frost number never
+  permanently shows the fallback font once `document.fonts` has loaded.
+  **Decision:** audited `whenDisplayFontReady` in `src/scratch-canvas.ts`:
+  with a FontFaceSet present, the first paint still waits for
+  `fonts.load(...)` + `fonts.ready`, and the frost now ALSO repaints on
+  every later `loadingdone` event, so a number painted via the failure
+  fallback is repainted in Mountains of Christmas as soon as the font
+  actually arrives. The repaint is guarded: it never runs after the user
+  started scratching (`erased`) or the door opened, so scratching is
+  never undone; happy-dom (no `document.fonts`) still paints
+  synchronously and all tests stay synchronous except the two stubbed
+  FontFaceSet tests (repaint-on-loadingdone, no-repaint-after-scratch).
+  **Alternatives considered:** repaint unconditionally (rejected: would
+  refill scratched frost). **Decided-by:** coding-agent (audit).
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T2 automated-vs-manual split for the second tuning
+  round.
+  **Decision:** automated: 297 unit tests (wreathLitCandles thresholds/
+  clamps, glowStepForDay steps/boundaries, decemberDayForDate, scene
+  document-order assertion skyline < frame + pane clip, skyline reveal at
+  stage 3, dog day-1 base art + stage-24 bow/gift with 24-stage
+  invariants, picture frame geometry, wreath candle lighting per date,
+  glow class per date, snow constants + visible growth, stars 70 with
+  per-segment size/twinkle rules, threshold 75% across scratch/
+  scratch-canvas/app, font loadingdone repaint + guard, plus all prior
+  tests). Manual smoke (`npm run dev` with `?date=`): dog look/tail wag,
+  bow+present at 24 doors, skyline behind the glass at every zoom, the
+  highlands picture, wreath flames per date, golden glow feel per date,
+  cap growth feel, star calmness, A55 360x780 smoothness, no fallback
+  font flash. **Alternatives considered:** headless-browser visual CI
+  (rejected: no new dependencies). **Decided-by:** coding-agent.
+  **Status:** Proposed in PR #8
