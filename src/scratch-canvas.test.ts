@@ -288,7 +288,7 @@ describe('attachScratchOverlay', () => {
     expect(clickListener).not.toHaveBeenCalled();
   });
 
-  it('opens the door at 70% scratched and swallows the trailing click', async () => {
+  it('opens the door at 75% scratched and swallows the trailing click', async () => {
     let alpha = frostedAlpha();
     const ctx = fakeContext(() => alpha);
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
@@ -302,7 +302,7 @@ describe('attachScratchOverlay', () => {
     for (let step = 1; step <= 8; step += 1) {
       door.dispatchEvent(pointerEvent('pointermove', 1, 10 + step * 10, 50));
     }
-    alpha = partialAlpha(0.7);
+    alpha = partialAlpha(0.75);
     door.dispatchEvent(pointerEvent('pointerup', 1, 90, 50));
     await new Promise((resolve) => setTimeout(resolve, 20));
 
@@ -310,7 +310,7 @@ describe('attachScratchOverlay', () => {
     expect(door.classList.contains('door--frosted')).toBe(false);
   });
 
-  it('does not open at 65% scratched (below the 70% threshold) and swallows the click of a scratch gesture', async () => {
+  it('does not open at 74% scratched (below the 75% threshold) and swallows the click of a scratch gesture', async () => {
     let alpha = frostedAlpha();
     const ctx = fakeContext(() => alpha);
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
@@ -324,7 +324,7 @@ describe('attachScratchOverlay', () => {
 
     door.dispatchEvent(pointerEvent('pointerdown', 1, 10, 50));
     door.dispatchEvent(pointerEvent('pointermove', 1, 40, 50));
-    alpha = partialAlpha(0.65);
+    alpha = partialAlpha(0.74);
     door.dispatchEvent(pointerEvent('pointerup', 1, 40, 50));
     await new Promise((resolve) => setTimeout(resolve, 20));
 

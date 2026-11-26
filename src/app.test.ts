@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from './app';
 import type { Content } from './content';
 import { DOOR_ORDER } from './calendar';
+import { SCRATCH_OPEN_THRESHOLD } from './scratch';
 
 const DEC_5 = new Date(2026, 11, 5, 15, 30, 0);
 
@@ -70,7 +71,7 @@ describe('renderApp', () => {
     expect(textOnly?.querySelector('.door-number')?.textContent).toBe('3');
   });
 
-  it('scratch-to-open end to end: frost canvas, scratch to 70%+ opens door and lightbox (stubbed canvas)', async () => {
+  it('scratch-to-open end to end: frost canvas, scratch to 75%+ opens door and lightbox (stubbed canvas)', async () => {
     let scratched = false;
     vi.spyOn(HTMLButtonElement.prototype, 'getBoundingClientRect').mockReturnValue({
       left: 0,
@@ -97,7 +98,9 @@ describe('renderApp', () => {
       lineTo: vi.fn(),
       stroke: vi.fn(),
       getImageData: vi.fn(() => ({
-        data: scratched ? partialAlpha(0.75) : new Uint8ClampedArray(32 * 32 * 4).fill(255),
+        data: scratched
+          ? partialAlpha(SCRATCH_OPEN_THRESHOLD)
+          : new Uint8ClampedArray(32 * 32 * 4).fill(255),
         width: 32,
         height: 32,
       })),
