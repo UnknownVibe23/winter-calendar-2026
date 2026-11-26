@@ -1133,7 +1133,7 @@
   planner. **Status:** Proposed in PR #8
 - **Context:** WC-06T4 automated-vs-manual split for the fourth tuning
   round.
-  **Decision:** automated: 369 unit tests (adventCandlesLitForDate incl.
+  **Decision:** automated: 368 unit tests (adventCandlesLitForDate incl.
   ?date= override, calendarItemsForDate/revealItemsForDate by date, dog
   path contract + mirror/size/placement geometry + black-fill contract +
   stage-24 bow/gift on the silhouette + breathing CSS reduced-motion
