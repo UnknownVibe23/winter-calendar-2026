@@ -82,7 +82,68 @@ describe('renderScene', () => {
     expect(stage(13).querySelectorAll('ellipse').length).toBeGreaterThanOrEqual(1);
     expect(stage(8).querySelectorAll('ellipse').length).toBeGreaterThanOrEqual(1);
     expect(stage(18).querySelectorAll('rect').length).toBeGreaterThanOrEqual(8);
-    expect(stage(3).querySelectorAll('ellipse').length).toBe(1);
+    expect(stage(3).querySelectorAll('circle').length).toBe(3);
+  });
+});
+
+describe('skyline behind the window glass', () => {
+  it('draws the skyline group before the window frame elements in document order', () => {
+    const scene = renderScene(new Set());
+    const skyline = scene.querySelector<SVGGElement>('g.scene-skyline');
+    const frame = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="1"]');
+    const panes = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="2"]');
+    expect(skyline).not.toBeNull();
+    expect(frame).not.toBeNull();
+    expect(panes).not.toBeNull();
+    expect(
+      frame?.compareDocumentPosition(skyline as Node) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+    expect(
+      panes?.compareDocumentPosition(skyline as Node) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+    expect(skyline?.classList.contains('scene-stage')).toBe(false);
+    expect(scene.querySelectorAll('g.scene-stage')).toHaveLength(24);
+  });
+
+  it('clips the skyline group to the window-pane rectangle', () => {
+    const scene = renderScene(new Set());
+    const skyline = scene.querySelector<SVGGElement>('g.scene-skyline');
+    const clipRef = skyline?.getAttribute('clip-path') ?? '';
+    const match = /#([^)]+)\)/.exec(clipRef);
+    expect(match).not.toBeNull();
+    const clipRect = scene.querySelector<SVGRectElement>(`clipPath#${match?.[1]} rect`);
+    expect(clipRect).not.toBeNull();
+    expect(clipRect?.getAttribute('x')).toBe('32');
+    expect(clipRect?.getAttribute('y')).toBe('32');
+    expect(clipRect?.getAttribute('width')).toBe('104');
+    expect(clipRect?.getAttribute('height')).toBe('100');
+    expect(skyline?.querySelectorAll('rect').length).toBeGreaterThanOrEqual(14);
+  });
+
+  it('reveals the outside skyline exactly at stage 3 and hides it again below', () => {
+    const two = renderScene(new Set([1, 2]));
+    expect(two.querySelector('g.scene-skyline')?.classList.contains('scene-skyline--earned')).toBe(
+      false,
+    );
+    const three = renderScene(new Set([1, 2, 3]));
+    expect(three.querySelector('g.scene-skyline')?.classList.contains('scene-skyline--earned')).toBe(
+      true,
+    );
+    const scene = renderScene(new Set([1, 2, 3]));
+    syncSceneStages(scene, new Set([1]));
+    expect(scene.querySelector('g.scene-skyline')?.classList.contains('scene-skyline--earned')).toBe(
+      false,
+    );
+  });
+
+  it('keeps stage 3 as warm lit windows in the rooftops', () => {
+    const scene = renderScene(new Set());
+    const stage3 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="3"]');
+    const windows = stage3?.querySelectorAll<SVGRectElement>('rect') ?? [];
+    expect(windows.length).toBe(3);
+    for (const win of windows) {
+      expect(win.getAttribute('fill')).toBe('#d9a441');
+    }
   });
 });
 

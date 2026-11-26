@@ -27,8 +27,18 @@
   transform: scale(1);
 }
 
+.scene-skyline {
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+
+.scene-skyline--earned {
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .scene-stage {
+  .scene-stage,
+  .scene-skyline {
     transition: none;
   }
 

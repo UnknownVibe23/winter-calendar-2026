@@ -10,7 +10,10 @@ const WOOD = '#8a6b4f';
 const WOOD_LIGHT = '#a5825f';
 const WOOD_DARK = '#6e5840';
 const PANE = '#dfe9f4';
+const SKY = '#3a5680';
 const SKYLINE = '#0a1830';
+const WINDOW_PANE_CLIP_ID = 'window-pane-clip';
+const SKYLINE_STAGE = 3;
 const GOLD = '#d9a441';
 const GOLD_CREAM = '#c9a24b';
 const ORANGE = '#e07b39';
@@ -89,15 +92,30 @@ function stage1WindowFrame(): SVGGElement {
 
 function stage2FrostedPanes(): SVGGElement {
   return group([
-    rect(32, 32, 48, 46, PANE, { opacity: 0.92 }),
-    rect(88, 32, 48, 46, PANE, { opacity: 0.92 }),
-    rect(32, 86, 48, 46, PANE, { opacity: 0.92 }),
-    rect(88, 86, 48, 46, PANE, { opacity: 0.92 }),
+    rect(32, 32, 48, 46, PANE, { opacity: 0.32 }),
+    rect(88, 32, 48, 46, PANE, { opacity: 0.32 }),
+    rect(32, 86, 48, 46, PANE, { opacity: 0.32 }),
+    rect(88, 86, 48, 46, PANE, { opacity: 0.32 }),
   ]);
 }
 
-function stage3RooftopSilhouette(): SVGGElement {
-  return group([
+function windowPaneClip(): SVGDefsElement {
+  const defs = svgEl('defs');
+  const clip = svgEl('clipPath', { id: WINDOW_PANE_CLIP_ID });
+  clip.append(rect(32, 32, 104, 100, 'none'));
+  defs.append(clip);
+  return defs;
+}
+
+/**
+ * Night sky and Edinburgh rooftop silhouettes OUTSIDE the window: clipped to
+ * the pane rectangle and drawn before (under) the frame, mullions and
+ * glazing tint. Revealed together with stage 3, like the old stage-3
+ * skyline, but always behind the glass.
+ */
+function baseSkyline(): SVGGElement {
+  const skyline = group([
+    rect(32, 32, 104, 100, SKY),
     svgEl('ellipse', { cx: 84, cy: 112, rx: 52, ry: 26, fill: CREAM, opacity: 0.07 }),
     rect(32, 116, 18, 16, SKYLINE),
     rect(50, 108, 16, 24, SKYLINE),
@@ -112,6 +130,20 @@ function stage3RooftopSilhouette(): SVGGElement {
     rect(104, 118, 14, 14, SKYLINE),
     rect(118, 110, 18, 22, SKYLINE),
     rect(122, 105, 3, 6, SKYLINE),
+  ]);
+  skyline.classList.add('scene-skyline');
+  skyline.setAttribute('clip-path', `url(#${WINDOW_PANE_CLIP_ID})`);
+  return skyline;
+}
+
+function stage3LitWindows(): SVGGElement {
+  return group([
+    circle(86, 106, 5, GOLD, { opacity: 0.16 }),
+    rect(84, 104, 4, 5, GOLD, { opacity: 0.9 }),
+    circle(89, 122, 5, GOLD, { opacity: 0.14 }),
+    rect(87, 120, 4, 5, GOLD, { opacity: 0.75 }),
+    circle(56, 118, 5, GOLD, { opacity: 0.15 }),
+    rect(54, 116, 4, 5, GOLD, { opacity: 0.85 }),
   ]);
 }
 
@@ -439,7 +471,7 @@ function baseDog(): SVGGElement {
 const STAGE_BUILDERS: Array<() => SVGGElement> = [
   stage1WindowFrame,
   stage2FrostedPanes,
-  stage3RooftopSilhouette,
+  stage3LitWindows,
   stage4Moon,
   stage5FirstStar,
   stage6SecondStar,
@@ -474,7 +506,9 @@ export function renderScene(opened: Set<number>): HTMLElement {
     focusable: 'false',
   });
   svg.append(
+    windowPaneClip(),
     group([rect(0, 0, 360, 232, WALL), rect(0, 232, 360, 68, FLOOR), rect(0, 226, 360, 6, BASEBOARD)]),
+    baseSkyline(),
     baseDog(),
   );
   for (let index = 0; index < SCENE_STAGE_COUNT; index += 1) {
@@ -493,5 +527,9 @@ export function syncSceneStages(root: ParentNode, opened: Set<number>): void {
   for (const stageGroup of root.querySelectorAll<SVGGElement>('g.scene-stage')) {
     const stage = Number(stageGroup.dataset.stage);
     stageGroup.classList.toggle('scene-stage--earned', earned.has(stage));
+  }
+  const skyline = root.querySelector<SVGGElement>('g.scene-skyline');
+  if (skyline !== null) {
+    skyline.classList.toggle('scene-skyline--earned', earned.has(SKYLINE_STAGE));
   }
 }
