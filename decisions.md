@@ -830,3 +830,160 @@
   font flash. **Alternatives considered:** headless-browser visual CI
   (rejected: no new dependencies). **Decided-by:** coding-agent.
   **Status:** Proposed in PR #8
+- **Context:** WC-06T3: black flat-coated retriever with room to breathe.
+  **Decision:** `src/scene.ts` `baseDog()` redrawn as a clearly recognizable
+  flat-coated retriever in solid black (`#0d0d10`) — one-piece head profile
+  with long muzzle and gentle stop, drop ear, deep chest with feathering,
+  four feathered legs, feathered wagging tail; ONLY subtle dark-gray
+  contour/highlight strokes (`#34343c`, incl. a stroked eye ring) keep the
+  silhouette readable, so it reads black, not charcoal. The red collar and
+  gold tag are removed (the stage-24 red bow + gift stay, moved to the new
+  neck/paw positions). The dog is slightly larger (body rx 19 -> 21) and
+  stands on the open rug area (body cx 205, clear of the hearth front at
+  x 228), drawn after stages 1-23 but before stage 24 so the rug is under
+  it and the bow/gift over it. Tail wag 1.5s CSS with reduced-motion
+  fallback unchanged. Black-fur contract test asserts the dominant body
+  fill is `#0d0d10` (max channel <= 0x18), every body fill is that black,
+  all strokes are dark gray (max channel <= 0x50) and no collar/tag/red
+  fill remains. **Alternatives considered:** charcoal body with gray
+  highlights (rejected: card demands it reads BLACK). **Decided-by:**
+  coding-agent (art), planner (card). **Status:** Proposed in PR #8
+- **Context:** WC-06T3: bare day-1 base state + calendar-day items.
+  **Decision:** new pure `src/calendar-items.ts`
+  `calendarItemsForDay(day)`: `['picture','wreath']` from Dec 1 on, `[]`
+  before (clamped 0..31, deterministic, unit-tested). `renderScene` gates
+  the framed highlands picture and the advent wreath on it, so until Nov 30
+  the room shows only its bare base state (wall/floor/window-skyline/dog/
+  bulb chain, glow step 0). **Alternatives considered:** keeping the
+  picture as permanent day-1 art (rejected: card moves it to Dec 1).
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T3: sparkle-and-glow reveal moments.
+  **Decision:** new pure `src/reveal.ts`: `newlyEarnedStages(before, after)`
+  = stages crossed by a door open; `revealItemsForDay(day)` plays the
+  calendar-item reveal exactly on day 1 (once-only derived from the
+  calendar day, NO new storage key; Dec 2+ renders instantly);
+  `revealStars(seed)` + `starPath` reuse the seeded sparkle-star pattern
+  (same four-point star shape family as the door sparkle burst).
+  `REVEAL_MOMENT_MS` = 2600ms one-shot. DOM side (`src/scene.ts`):
+  `applyRevealMoment` adds a `scene-reveal` class (soft golden glow pulse,
+  2.6s CSS) plus a seeded `g.scene-reveal-stars` layer, removed after the
+  moment; `revealSceneStages(root, stages)`; `scrollSceneIntoView` uses
+  `scrollIntoView({behavior:'smooth'})` guarded to 'auto' under
+  prefers-reduced-motion. Wiring: `openLightbox` handles gain `onClose(cb)`
+  (fired once on close); `renderCalendar` captures the opened set before
+  each activation and, on lightbox close, scrolls the scene into view and
+  reveals exactly the newly earned stages. The existing 400ms stage
+  transition stays for all other renders. Reduced-motion: reveal
+  animations disabled via media query. **Alternatives considered:** replay
+  on every lightbox close (rejected: card says only when NEW stages were
+  earned). **Decided-by:** planner (behavior), coding-agent (timing 2.6s).
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T3: wreath safely on the mantel with correct candle
+  light.
+  **Decision:** the advent wreath (still a calendar item, `g.scene-wreath`)
+  moved from the floor to the mantelpiece, centered (ring cx 290 within
+  mantel 228..352, ring bottom exactly on the mantel top y=102), drawn
+  after the stage groups so it sits on the mantel. Stockings moved outward
+  to x 236 / x 312 so both keep >= 8px clear spacing from the wreath ring
+  (placement + spacing asserted in the scene test). Each lit candle now
+  gets a flame + halo + a warm glow on the ring (`circle.scene-wreath-glow`)
+  + a radial warm spill ON the mantel (`ellipse.scene-wreath-spill` at the
+  mantel top); lit count unchanged (`wreathLitCandles`, Dec 1/7/14/21).
+  **Alternatives considered:** keeping the wreath on the floor (rejected:
+  card). **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T3: "Restore opened doors" recovery button.
+  **Decision:** new `src/restore.ts`: pure `restorableDoors(now): number[]`
+  (doors whose unlock date is today or earlier, using the same resolved
+  date the door logic uses, so the dev `?date=` override works) and
+  `restoreOpenedDoors(opened, now)` applied to the existing `wc.opened`
+  memory (no new storage key, nothing removed, future doors never
+  touched). UI: unobtrusive `button.options-restore` ("Restore opened
+  doors", >= 44px tap target) in a `.calendar-options` bar at the bottom;
+  tap opens an in-page modal (role=dialog, no confirm()) with the exact
+  card text and Cancel / "OK, restore" buttons (Escape and backdrop tap =
+  Cancel). OK saves the restored set silently (no per-door effects, popups
+  or reveal moments), closes the modal and re-renders the whole app.
+  Privacy view: it grants nothing the calendar date does not already
+  allow. Unit tests for the pure core + modal wiring, e2e in app.test.ts
+  (Dec 6 -> exactly doors 1-6 opened, 7-24 untouched, 6 stages earned
+  instantly with no reveal replay; Cancel changes nothing).
+  **Alternatives considered:** confirm() (rejected: card forbids it).
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T3: larger window, prominent castle, glow strictly
+  behind the glass.
+  **Decision:** window enlarged ~15.9% (frame outer 20,19,128,126 vs old
+  24,24,120,116; pane clip 28,27,112,110) — pane-size + area-ratio
+  asserted in the scene test. A dedicated castle silhouette
+  (`g.scene-castle`: keep + two battlemented towers + spire, 32x49 units)
+  sits fully inside the pane and clear of the mullion bars. All lit-window
+  halos (`circle.scene-halo`) and windows (`rect.scene-city-window`) moved
+  INTO the clipped skyline group, which is drawn before the frame/panes in
+  document order — the scene test asserts every halo is inside
+  `g.scene-skyline` and precedes the stage-2 pane tint, and that no stage
+  contains a halo (no glow on the room side). Stage 3 now holds only a
+  subtle warm reflection ON the glass (`path.scene-glass-reflection`,
+  clipped to the pane, opacity <= 0.1). Sill, candle, thistle and heather
+  moved with the window. **Alternatives considered:** halos in a separate
+  clipped group (rejected: card wants them in the skyline/clipped group).
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T3: drooping bulb chain in the dead wall zone.
+  **Decision:** `g.scene-bulb-chain` (data-bulbs=7) in the wall gap between
+  the window (right edge 148) and the picture (left edge 240): a drooping
+  quadratic wire with 7 warm bulbs (r 3.6, larger than the string lights'
+  r 2) on short stems, each with a soft halo, gentle group sway (6s) and
+  deterministic alternating twinkle delays; all animations disabled under
+  prefers-reduced-motion. Base room art from day 1. **Alternatives
+  considered:** hanging it over the mantel (rejected: garland already
+  there). **Decided-by:** coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T3: small Scottish accents.
+  **Decision:** Saltire = small standing flag on the right end of the
+  mantelpiece inside stage 14 (`g.scene-saltire`: pole on the mantel top,
+  blue flag with white diagonal cross, small scale); Highland-cow
+  figurine on the wall shelf inside stage 18 next to the book
+  (`g.scene-coo`: dark silhouette, orange-brown fringe over the face, two
+  tiny horns, standing on the shelf board); the armchair throw in stage 11
+  is now a visible tartan plaid (`g.scene-throw` data-pattern="tartan":
+  green base, warm red bands, thin gold cross-lines, fringe).
+  **Alternatives considered:** wall banner saltire (rejected: card wants a
+  standing flag). **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T3: wider, softer scene glow.
+  **Decision:** `src/styles/scene.css` only: each of the 5 day-driven
+  `scene-glow-N` steps now layers two gold drop-shadows (tight + wide,
+  e.g. step 4: 24px @ 0.78 + 60px @ 0.45) for a larger radius and softer
+  falloff; the 5-step `glowStepForDay` logic and the scene-strip-only
+  scoping (never header/grid) are unchanged. **Alternatives considered:**
+  changing the day mapping (rejected: card keeps the logic, only the
+  envelope grows). **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T3: scratching erases the snow cap too.
+  **Decision:** for scratchable (openable) doors the seeded snow cap and
+  icicles are now PAINTED INTO the scratch canvas (`paintSnowCap` in
+  `src/scratch-canvas.ts`, above the frost and the number, reusing the
+  unchanged pure `snowCapShapeForDoor`/`capEdgeY`/`iciclesForDoor` from
+  `src/door-snow.ts`), so every `destination-out` stroke erases snow,
+  icicles and frost together on the same single canvas (A55: no extra
+  layers/loops). Locked doors (no scratch surface) keep the static
+  `svg.door-snow` overlay as today — `syncDoorSnow` now attaches it only
+  when `doorState(...) === 'locked'`. Door-snow pure logic (depths, seeds,
+  shapes) untouched; paint-list tests adapted at full strength (cap art in
+  the painted list, painted after the number, deterministic, scratch test
+  erases both layers). **Alternatives considered:** separate erase pass
+  for the SVG overlay (rejected: card wants one canvas). **Decided-by:**
+  planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T3 automated-vs-manual split for the third tuning
+  round.
+  **Decision:** automated: 347 unit tests (calendarItemsForDay,
+  revealItemsForDay/newlyEarnedStages/revealStars, restorableDoors/
+  restoreOpenedDoors + modal wiring + app e2e restore state, black-fur
+  dog contract + stage-24 bow/gift, bare base state before Dec 1,
+  wreath-on-mantel placement/spacing/candle-spill, window pane size +
+  castle + halo layering document order, bulb chain / Saltire / coo /
+  tartan presence, cap-in-canvas paint list + scratch-erases-both,
+  lightbox onClose, stage reveal after lightbox close + one-shot removal,
+  plus all prior tests). Manual smoke (`npm run dev` with `?date=`):
+  black dog look/pose/wag on the rug, reveal sparkle feel, wreath candle
+  light on the mantel, window/castle/glass layering at every zoom, bulb
+  chain sway/twinkle, Saltire/coo/tartan look, wider glow feel, scratch
+  erasing cap+frost together, restore modal flow, A55 360x780 smoothness.
+  **Alternatives considered:** headless-browser visual CI (rejected: no
+  new dependencies). **Decided-by:** coding-agent. **Status:** Proposed in
+  PR #8
