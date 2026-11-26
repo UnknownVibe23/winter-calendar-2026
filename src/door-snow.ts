@@ -6,6 +6,9 @@ export const SNOW_DUST_DEPTH = 0.18;
 export const SNOW_GROWTH_PER_DAY = 0.08;
 export const SNOW_DEPTH_MAX = 0.65;
 export const ICICLE_MIN_DEPTH = 0.3;
+export const FROST_DENSITY_BASE = 1;
+export const FROST_DENSITY_PER_DAY = 0.15;
+export const FROST_DENSITY_MAX = 2.5;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -39,6 +42,22 @@ export function snowDepthForDoor(doorNumber: number, now: Date, opened: Set<numb
   const base = startOfLocalDayUtcMs(now) >= firstOfDecember ? SNOW_DUST_DEPTH : 0;
   const depth = base + daysSinceUnlock(doorNumber, now) * SNOW_GROWTH_PER_DAY;
   return Math.min(SNOW_DEPTH_MAX, Math.max(0, depth));
+}
+
+/**
+ * Frost density factor on the scratch surface of an UNOPENED door: the base
+ * 1 while the door is still locked/future, then growing with the days elapsed
+ * since the door's unlock date (neglected windows frost over more the longer
+ * they wait), clamped to FROST_DENSITY_MAX. Opened doors reset to the base.
+ * Deterministic; the day number stays readable because it is painted last at
+ * full opacity on the tint base (contrast >= 4.5 per door palette).
+ */
+export function frostDensityForDoor(doorNumber: number, now: Date, opened: Set<number>): number {
+  if (opened.has(doorNumber)) {
+    return FROST_DENSITY_BASE;
+  }
+  const density = FROST_DENSITY_BASE + daysSinceUnlock(doorNumber, now) * FROST_DENSITY_PER_DAY;
+  return Math.min(FROST_DENSITY_MAX, Math.max(FROST_DENSITY_BASE, density));
 }
 
 export interface SnowCapBump {

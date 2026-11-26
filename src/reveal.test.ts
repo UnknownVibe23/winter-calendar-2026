@@ -32,22 +32,28 @@ describe('newlyEarnedStages', () => {
 });
 
 describe('revealItemsForDate', () => {
-  it('plays the wreath reveal exactly on the 1st of Advent (Nov 29 2026), once only', () => {
+  it('plays each item reveal exactly on its own start day: wreath Nov 29, tree Dec 1, stockings Dec 16', () => {
     expect(revealItemsForDate(new Date(2026, 10, 29, 12))).toEqual(['wreath']);
     expect(revealItemsForDate(new Date(2026, 10, 29, 0, 0, 0))).toEqual(['wreath']);
-    expect(revealItemsForDate(new Date(2026, 10, 28, 12))).toEqual([]);
-    expect(revealItemsForDate(new Date(2026, 10, 30, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2026, 11, 1, 12))).toEqual(['tree']);
+    expect(revealItemsForDate(new Date(2026, 11, 1, 0, 0, 0))).toEqual(['tree']);
+    expect(revealItemsForDate(new Date(2026, 11, 16, 12))).toEqual(['stockings']);
+    expect(revealItemsForDate(new Date(2026, 11, 16, 0, 0, 0))).toEqual(['stockings']);
   });
 
-  it('plays no reveal on any other day (before Advent, from Nov 30 on, later dates/years)', () => {
+  it('plays no reveal on any other day (before Advent, between start days, after them, later dates/years)', () => {
     expect(revealItemsForDate(new Date(2026, 10, 28, 12))).toEqual([]);
-    expect(revealItemsForDate(new Date(2026, 11, 1, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2026, 10, 30, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2026, 11, 2, 12))).toEqual([]);
     expect(revealItemsForDate(new Date(2026, 11, 6, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2026, 11, 15, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2026, 11, 17, 12))).toEqual([]);
     expect(revealItemsForDate(new Date(2026, 11, 24, 12))).toEqual([]);
     expect(revealItemsForDate(new Date(2026, 11, 31, 12))).toEqual([]);
     expect(revealItemsForDate(new Date(2025, 11, 25, 12))).toEqual([]);
     expect(revealItemsForDate(new Date(2027, 10, 28, 12))).toEqual([]);
     expect(revealItemsForDate(new Date(2027, 11, 1, 12))).toEqual([]);
+    expect(revealItemsForDate(new Date(2027, 11, 16, 12))).toEqual([]);
   });
 });
 

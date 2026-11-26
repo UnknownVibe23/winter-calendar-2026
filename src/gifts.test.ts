@@ -59,11 +59,12 @@ describe('giftSpecForIndex', () => {
     }
   });
 
-  it('produces valid seeded specs: known shape, tricolor wrap, tricolor-or-cream ribbon, small size', () => {
+  it('produces valid seeded specs: box or sack only (no cap shapes), tricolor wrap, tricolor-or-cream ribbon, small size', () => {
     const shapesSeen = new Set<string>();
     for (let index = 0; index < GIFT_MAX; index += 1) {
       const spec = giftSpecForIndex(index);
       expect(GIFT_SHAPES).toContain(spec.shape);
+      expect(spec.shape).not.toBe('cylinder');
       expect(GIFT_TRICOLOR).toContain(spec.wrap);
       expect([...GIFT_TRICOLOR, '#f3e2c3']).toContain(spec.ribbon);
       expect(spec.w).toBeGreaterThanOrEqual(6);
@@ -72,7 +73,15 @@ describe('giftSpecForIndex', () => {
       expect(spec.h).toBeLessThanOrEqual(8);
       shapesSeen.add(spec.shape);
     }
-    expect(shapesSeen.size).toBeGreaterThanOrEqual(2);
+    expect(shapesSeen.size).toBe(2);
+    expect([...shapesSeen].sort()).toEqual(['box', 'sack']);
+  });
+});
+
+describe('GIFT_SHAPES (WC-06T6: no bulb-look cylinder gifts)', () => {
+  it('contains exactly box and sack', () => {
+    expect(GIFT_SHAPES).toEqual(['box', 'sack']);
+    expect(GIFT_SHAPES).not.toContain('cylinder');
   });
 });
 

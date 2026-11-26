@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { doorState } from './doors';
+import { DOOR_PALETTE, contrastRatio, tintForDoor } from './door-palette';
 import {
+  FROST_DENSITY_BASE,
+  FROST_DENSITY_MAX,
+  FROST_DENSITY_PER_DAY,
   ICICLE_MIN_DEPTH,
   SNOW_DEPTH_MAX,
   SNOW_DUST_DEPTH,
@@ -8,6 +12,7 @@ import {
   capEdgeY,
   daysSinceUnlock,
   doorSnowSvg,
+  frostDensityForDoor,
   iciclesForDoor,
   snowCapShapeForDoor,
   snowDepthForDoor,
@@ -105,6 +110,53 @@ describe('snowDepthForDoor', () => {
   it('is deterministic and door-specific', () => {
     expect(snowDepthForDoor(7, DEC_10, new Set())).toBe(snowDepthForDoor(7, DEC_10, new Set()));
     expect(snowDepthForDoor(7, DEC_10, new Set())).not.toBe(snowDepthForDoor(8, DEC_10, new Set()));
+  });
+});
+
+describe('frostDensityForDoor (WC-06T6: neglected windows frost over more the longer they wait)', () => {
+  it('uses the tuned base, per-day growth and clamp', () => {
+    expect(FROST_DENSITY_BASE).toBe(1);
+    expect(FROST_DENSITY_PER_DAY).toBe(0.15);
+    expect(FROST_DENSITY_MAX).toBe(2.5);
+  });
+
+  it('is the base while the door is still locked/future and for opened doors', () => {
+    expect(frostDensityForDoor(20, DEC_10, new Set())).toBe(FROST_DENSITY_BASE);
+    expect(frostDensityForDoor(5, NOV_30, new Set())).toBe(FROST_DENSITY_BASE);
+    expect(frostDensityForDoor(5, DEC_10, new Set([5]))).toBe(FROST_DENSITY_BASE);
+    expect(frostDensityForDoor(1, DEC_24, new Set([1]))).toBe(FROST_DENSITY_BASE);
+  });
+
+  it('grows with the days since the door unlock date and clamps at the max', () => {
+    expect(frostDensityForDoor(5, DEC_5, new Set())).toBeCloseTo(FROST_DENSITY_BASE, 10);
+    expect(frostDensityForDoor(5, DEC_10, new Set())).toBeCloseTo(
+      FROST_DENSITY_BASE + 5 * FROST_DENSITY_PER_DAY,
+      10,
+    );
+    expect(frostDensityForDoor(1, DEC_24, new Set())).toBe(FROST_DENSITY_MAX);
+    expect(frostDensityForDoor(1, DEC_26, new Set())).toBe(FROST_DENSITY_MAX);
+  });
+
+  it('is monotonically non-decreasing over December and deterministic', () => {
+    let previous = FROST_DENSITY_BASE;
+    for (let day = 1; day <= 26; day += 1) {
+      const now = new Date(2026, 11, day, 12, 0, 0);
+      const density = frostDensityForDoor(1, now, new Set());
+      expect(density).toBeGreaterThanOrEqual(previous);
+      expect(density).toBeLessThanOrEqual(FROST_DENSITY_MAX);
+      previous = density;
+    }
+    expect(frostDensityForDoor(7, DEC_10, new Set())).toBe(frostDensityForDoor(7, DEC_10, new Set()));
+    expect(frostDensityForDoor(7, DEC_10, new Set())).not.toBe(frostDensityForDoor(8, DEC_10, new Set()));
+  });
+
+  it('keeps the day number readable at the clamp: >= 4.5:1 contrast on the tint base for every door', () => {
+    expect(DOOR_PALETTE.length).toBe(5);
+    for (let door = 1; door <= 24; door += 1) {
+      const tint = tintForDoor(door);
+      expect(contrastRatio(tint.number, tint.frost)).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(frostDensityForDoor(1, DEC_24, new Set())).toBe(FROST_DENSITY_MAX);
   });
 });
 

@@ -4,12 +4,12 @@ import { createPrng } from './snow';
 /** Small gifts under the tree appear on every third opened door (3, 6, ..., 24), max 8. */
 export const GIFT_MAX = 8;
 
-export const GIFT_SEED = 20261225;
+export const GIFT_SEED = 20261226;
 
 /** Christmas tricolor palette used for the gift wraps and ribbons. */
 export const GIFT_TRICOLOR: readonly string[] = ['#a3262e', '#d9b64f', '#2e6b3f'];
 
-export const GIFT_SHAPES = ['box', 'cylinder', 'sack'] as const;
+export const GIFT_SHAPES = ['box', 'sack'] as const;
 
 export type GiftShape = (typeof GIFT_SHAPES)[number];
 
@@ -37,8 +37,9 @@ export interface GiftSpec {
 }
 
 /**
- * Deterministic per-index gift spec: seeded shape (box, cylinder, sack),
- * tricolor wrap + ribbon and a small size (6-8 scene units).
+ * Deterministic per-index gift spec: seeded shape (box or sack — no cap
+ * shapes, so nothing in the pile can read as a light bulb), tricolor wrap +
+ * ribbon and a small size (6-8 scene units).
  */
 export function giftSpecForIndex(index: number): GiftSpec {
   const rand = createPrng(GIFT_SEED + index * 7919);
