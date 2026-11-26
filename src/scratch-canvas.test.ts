@@ -332,6 +332,90 @@ describe('attachScratchOverlay', () => {
     expect(paintArcs(3).length).toBeGreaterThan(20);
   });
 
+  it('paints the snow cap and icicles INTO the canvas above the frost and the number when a depth is given', () => {
+    const ctx = fakeContext(frostedAlpha);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
+    const door = makeDoor();
+    attachScratchOverlay(door, 5, { onActivate: vi.fn(), snowDepth: 0.45 });
+    // cap soft pass + cap pass + 2-4 icicle triangles on top of the frost paint
+    expect(ctx.fillStyles).toContain('rgba(255, 255, 255, 0.3)');
+    expect(ctx.fillStyles).toContain('rgba(243, 226, 195, 0.92)');
+    expect(ctx.fillStyles).toContain('rgba(255, 255, 255, 0.5)');
+    const icicleFills = ctx.fillStyles.filter((style) => style === 'rgba(255, 255, 255, 0.5)').length;
+    expect(icicleFills).toBeGreaterThanOrEqual(2);
+    expect(icicleFills).toBeLessThanOrEqual(4);
+    // the cap is painted after the door number (above the frost layer stack)
+    const numberCall = ctx.fillText.mock.invocationCallOrder[0];
+    const lastFillCall = ctx.fill.mock.invocationCallOrder[ctx.fill.mock.invocationCallOrder.length - 1];
+    expect(numberCall).toBeLessThan(lastFillCall);
+    // cap outline spans the full door width along the top edge
+    const capMoves = ctx.moveTo.mock.calls.filter(([, y]) => y === 0);
+    expect(capMoves.length).toBeGreaterThanOrEqual(2);
+    expect(ctx.lineTo.mock.calls.some(([x]) => x === 200)).toBe(true);
+  });
+
+  it('paints no cap when no snow depth is given (locked-door path keeps the static SVG overlay)', () => {
+    const ctx = fakeContext(frostedAlpha);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
+    const door = makeDoor();
+    attachScratchOverlay(door, 5, { onActivate: vi.fn() });
+    expect(ctx.fillStyles).not.toContain('rgba(243, 226, 195, 0.92)');
+    expect(ctx.fillStyles).not.toContain('rgba(255, 255, 255, 0.5)');
+    expect(ctx.fillRect.mock.calls.length).toBe(1);
+  });
+
+  it('paints the cap deterministically per door (identical paint list every time)', () => {
+    const paint = (): unknown[] => {
+      const ctx = fakeContext(frostedAlpha);
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+        ctx as unknown as CanvasRenderingContext2D,
+      );
+      const door = makeDoor();
+      attachScratchOverlay(door, 7, { onActivate: vi.fn(), snowDepth: 0.5 });
+      return [
+        ctx.fillStyles,
+        ctx.strokeStyles,
+        ctx.arc.mock.calls,
+        ctx.fill.mock.calls.length,
+        ctx.moveTo.mock.calls,
+        ctx.lineTo.mock.calls,
+        ctx.stroke.mock.calls.length,
+        ctx.font,
+        ctx.fillText.mock.calls,
+      ];
+    };
+    expect(paint()).toEqual(paint());
+  });
+
+  it('a scratch stroke erases the cap and the frost together (one canvas, destination-out)', async () => {
+    let scratched = false;
+    const ctx = fakeContext(() => (scratched ? scratchedAlpha() : frostedAlpha()));
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
+    const door = makeDoor();
+    const onActivate = vi.fn();
+    attachScratchOverlay(door, 5, { onActivate, snowDepth: 0.6 });
+    expect(ctx.fillStyles).toContain('rgba(243, 226, 195, 0.92)');
+
+    door.dispatchEvent(pointerEvent('pointerdown', 1, 10, 50));
+    for (let step = 1; step <= 8; step += 1) {
+      door.dispatchEvent(pointerEvent('pointermove', 1, 10 + step * 10, 50));
+    }
+    scratched = true;
+    door.dispatchEvent(pointerEvent('pointerup', 1, 90, 50));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // the erase pass ran with destination-out on the same canvas that holds cap + frost
+    expect(ctx.globalCompositeOperation).toBe('destination-out');
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(door.classList.contains('door--frosted')).toBe(false);
+  });
+
   it('opens the door when scratching reaches the threshold and swallows the trailing click', async () => {
     let scratched = false;
     const ctx = fakeContext(() => (scratched ? scratchedAlpha() : frostedAlpha()));

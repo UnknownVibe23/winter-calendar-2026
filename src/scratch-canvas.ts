@@ -1,4 +1,5 @@
 import { tintForDoor } from './door-palette';
+import { capEdgeY, iciclesForDoor, snowCapShapeForDoor } from './door-snow';
 import { frostBloomsForDoor, frostStarsForDoor } from './frost';
 import {
   SCRATCH_GRID_SIZE,
@@ -21,13 +22,63 @@ const FROST_CREAM_RGB = '243, 226, 195';
 
 export interface ScratchOptions {
   onActivate: () => void;
+  snowDepth?: number;
 }
 
 export interface ScratchHandle {
   finish: () => void;
 }
 
-function paintFrost(ctx: CanvasRenderingContext2D, width: number, height: number, doorNumber: number): void {
+/**
+ * Paints the seeded snow cap and icicles INTO the scratch canvas, above the
+ * frost (and the number), so a scratch stroke erases snow, icicles and
+ * frost together (destination-out handles all layers of the one canvas).
+ */
+function paintSnowCap(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  doorNumber: number,
+  depth: number,
+): void {
+  const shape = snowCapShapeForDoor(doorNumber);
+  const capHeightY = depth * 100;
+  const capPath = (scale: number): void => {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(width, 0);
+    const steps = 24;
+    for (let index = steps; index >= 0; index -= 1) {
+      const x01 = index / steps;
+      ctx.lineTo(x01 * width, (capEdgeY(shape, capHeightY * scale, x01) / 100) * height);
+    }
+    ctx.fill();
+  };
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+  capPath(1.12);
+  ctx.fillStyle = `rgba(${FROST_CREAM_RGB}, 0.92)`;
+  capPath(1);
+  for (const icicle of iciclesForDoor(doorNumber, depth)) {
+    const x = icicle.x * width;
+    const halfW = (icicle.width * width) / 2;
+    const topY = (capEdgeY(shape, capHeightY, icicle.x) / 100) * height;
+    const length = icicle.length * height;
+    ctx.beginPath();
+    ctx.moveTo(x - halfW, topY);
+    ctx.lineTo(x, topY + length);
+    ctx.lineTo(x + halfW, topY);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.fill();
+  }
+}
+
+function paintFrost(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  doorNumber: number,
+  snowDepth: number,
+): void {
   const tint = tintForDoor(doorNumber);
   ctx.fillStyle = tint.frost;
   ctx.fillRect(0, 0, width, height);
@@ -59,6 +110,9 @@ function paintFrost(ctx: CanvasRenderingContext2D, width: number, height: number
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(String(doorNumber), width / 2, height / 2);
+  if (snowDepth > 0) {
+    paintSnowCap(ctx, width, height, doorNumber, snowDepth);
+  }
 }
 
 type FontsLike = {
@@ -106,11 +160,12 @@ export function attachScratchOverlay(
   let erased = false;
   let opened = false;
   const fontSize = Math.round(Math.min(width, height) * 0.42);
+  const snowDepth = options.snowDepth ?? 0;
   whenDisplayFontReady(() => {
     if (erased || opened) {
       return;
     }
-    paintFrost(ctx, width, height, doorNumber);
+    paintFrost(ctx, width, height, doorNumber, snowDepth);
     painted = true;
   }, `700 ${fontSize}px "Mountains of Christmas"`);
   door.append(canvas);

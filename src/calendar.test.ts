@@ -235,22 +235,30 @@ describe('renderCalendar', () => {
     expect(onActivate).toHaveBeenCalledWith(5);
   });
 
-  it('shows snow caps on unopened doors, none on opened doors', () => {
+  it('shows static snow caps on locked doors, none on opened or scratchable doors (cap is in the frost canvas)', () => {
     render(container, new Set([5]), DEC_10);
     expect(doorByNumber(container, 5).querySelector('svg.door-snow')).toBeNull();
-    for (const n of DOOR_ORDER.filter((door) => door !== 5)) {
+    for (const n of [1, 2, 3, 4, 6, 7, 8, 9, 10]) {
+      // openable doors are scratchable: their snow cap is painted into the scratch canvas
+      expect(doorByNumber(container, n).classList.contains('door--openable')).toBe(true);
+      expect(doorByNumber(container, n).querySelector('svg.door-snow')).toBeNull();
+    }
+    for (const n of DOOR_ORDER.filter((door) => door >= 11)) {
+      expect(doorByNumber(container, n).classList.contains('door--locked')).toBe(true);
       expect(doorByNumber(container, n).querySelector('svg.door-snow')).not.toBeNull();
     }
   });
 
-  it('clears the snow cap and fires a one-shot sparkle burst when a door opens', () => {
+  it('fires a one-shot sparkle burst when a door opens and keeps locked doors dusted', () => {
     const opened = new Set<number>();
     const onActivate = vi.fn((doorNumber: number) => {
       opened.add(doorNumber);
     });
     render(container, opened, DEC_10, onActivate);
     const door = doorByNumber(container, 5);
-    expect(door.querySelector('svg.door-snow')).not.toBeNull();
+    const locked = doorByNumber(container, 20);
+    expect(door.querySelector('svg.door-snow')).toBeNull();
+    expect(locked.querySelector('svg.door-snow')).not.toBeNull();
     door.click();
     expect(onActivate).toHaveBeenCalledWith(5);
     expect(door.querySelector('svg.door-snow')).toBeNull();
@@ -259,6 +267,7 @@ describe('renderCalendar', () => {
     expect(sparkle?.querySelectorAll('.door-sparkle-star').length).toBeGreaterThanOrEqual(6);
     sparkle?.querySelector('.door-sparkle-star')?.dispatchEvent(new Event('animationend', { bubbles: true }));
     expect(door.querySelector('.door-sparkle')).toBeNull();
+    expect(locked.querySelector('svg.door-snow')).not.toBeNull();
   });
 });
 

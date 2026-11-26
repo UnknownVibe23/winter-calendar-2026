@@ -1,4 +1,4 @@
-import { CALENDAR_MONTH, CALENDAR_YEAR, doorUnlockDate } from './doors';
+import { CALENDAR_MONTH, CALENDAR_YEAR, doorState, doorUnlockDate } from './doors';
 import { createPrng } from './snow';
 
 export const DOOR_SNOW_SEED = 20261206;
@@ -185,12 +185,18 @@ export function doorSnowSvg(doorNumber: number, depth: number): SVGSVGElement {
 }
 
 /**
- * Keeps the door's snow overlay in sync with its state: unopened doors get
- * the seeded snow cap sized by depth, opened doors stay clear.
+ * Keeps the door's static snow overlay in sync with its state: unopened
+ * LOCKED doors (no scratch surface) get the seeded snow cap sized by depth,
+ * opened doors stay clear, and scratchable (openable) doors paint the cap
+ * into the scratch canvas instead, so scratching erases snow and frost
+ * together.
  */
 export function syncDoorSnow(door: HTMLElement, doorNumber: number, now: Date, opened: Set<number>): void {
   door.querySelector('.door-snow')?.remove();
   if (opened.has(doorNumber)) {
+    return;
+  }
+  if (doorState(doorNumber, opened, now) !== 'locked') {
     return;
   }
   const depth = snowDepthForDoor(doorNumber, now, opened);

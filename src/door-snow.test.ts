@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { doorState } from './doors';
 import {
   ICICLE_MIN_DEPTH,
   SNOW_DEPTH_MAX,
@@ -210,28 +211,32 @@ describe('syncDoorSnow', () => {
     document.body.append(door);
   });
 
-  it('attaches a snow overlay to unopened doors from Dec 1 and removes it for opened doors', () => {
-    syncDoorSnow(door, 5, DEC_10, new Set());
+  it('attaches a snow overlay to unopened LOCKED doors from Dec 1 and removes it for opened doors', () => {
+    syncDoorSnow(door, 20, DEC_10, new Set());
     const overlay = door.querySelector<SVGSVGElement>('svg.door-snow');
     expect(overlay).not.toBeNull();
-    expect(overlay?.dataset.depth).toBe(
-      String(Math.round((SNOW_DUST_DEPTH + 5 * SNOW_GROWTH_PER_DAY) * 100) / 100),
-    );
-    syncDoorSnow(door, 5, DEC_10, new Set([5]));
+    expect(overlay?.dataset.depth).toBe(String(SNOW_DUST_DEPTH));
+    syncDoorSnow(door, 20, DEC_10, new Set([20]));
+    expect(door.querySelector('svg.door-snow')).toBeNull();
+  });
+
+  it('paints no static overlay on scratchable (openable) doors — the cap goes into the scratch canvas', () => {
+    syncDoorSnow(door, 5, DEC_10, new Set());
+    expect(doorState(5, new Set(), DEC_10)).toBe('openable');
     expect(door.querySelector('svg.door-snow')).toBeNull();
   });
 
   it('attaches nothing before Dec 1', () => {
-    syncDoorSnow(door, 5, NOV_30, new Set());
+    syncDoorSnow(door, 20, NOV_30, new Set());
     expect(door.querySelector('svg.door-snow')).toBeNull();
   });
 
   it('replaces an existing overlay instead of stacking', () => {
-    syncDoorSnow(door, 5, DEC_5, new Set());
-    syncDoorSnow(door, 5, DEC_24, new Set());
+    syncDoorSnow(door, 20, DEC_10, new Set());
+    syncDoorSnow(door, 20, new Date(2026, 11, 11, 12, 0, 0), new Set());
     expect(door.querySelectorAll('svg.door-snow')).toHaveLength(1);
     expect(door.querySelector<SVGSVGElement>('svg.door-snow')?.dataset.depth).toBe(
-      String(SNOW_DEPTH_MAX),
+      String(SNOW_DUST_DEPTH),
     );
   });
 });
