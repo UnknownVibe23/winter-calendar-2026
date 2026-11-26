@@ -1439,7 +1439,7 @@ describe('growing gift pile under the tree (every third opened door)', () => {
     }
   });
 
-  it('builds each gift deterministically per index: seeded shape + tricolor wrap/ribbon, small size', () => {
+  it('builds each gift deterministically per index: seeded shape + tricolor wrap/ribbon, readability-floor size (WC-06T7: 10-14 wide)', () => {
     const scene = renderScene(allOpened(), DEC_10);
     const pile = scene.querySelector<SVGGElement>('g.scene-gift-pile');
     const gifts = Array.from(pile?.querySelectorAll<SVGGElement>('g.scene-gift') ?? []);
@@ -1456,8 +1456,11 @@ describe('growing gift pile under the tree (every third opened door)', () => {
     ).toEqual(gifts.map((g) => g.outerHTML));
     for (const gift of gifts) {
       const box = bboxOf(Array.from(gift.querySelectorAll('rect, circle, ellipse, path')));
-      expect(box.maxX - box.minX).toBeLessThanOrEqual(9);
-      expect(box.maxY - box.minY).toBeLessThanOrEqual(11);
+      // readability floor: decorative element >= ~8x8 units, card range 10-14 wide / 8-11 high + bow/tie
+      expect(box.maxX - box.minX).toBeGreaterThanOrEqual(10);
+      expect(box.maxX - box.minX).toBeLessThanOrEqual(14);
+      expect(box.maxY - box.minY).toBeGreaterThanOrEqual(8);
+      expect(box.maxY - box.minY).toBeLessThanOrEqual(14);
       // no cap shapes: every pile gift is a cross-ribbon box or a sack, never a bulb-look cylinder
       expect(gift.querySelector('ellipse')).toBeNull();
       const isBox = gift.querySelectorAll('rect').length >= 3;
@@ -1860,7 +1863,7 @@ describe('adapted v2 reference assets (WC-06T6 ruling #4)', () => {
 });
 
 describe('stage 21 large present, stage 22 window paper stars, stage 23 cookie plate + milk', () => {
-  it('stage 21 places one large wrapped present under/beside the tree, clearly bigger than every pile gift', () => {
+  it('stage 21 places one large wrapped present on the free floor between dog and side table (WC-06T7: moved + bumped to 26x24), clearly bigger than every pile gift at the new scale', () => {
     const scene = renderScene(new Set(Array.from({ length: 21 }, (_, i) => i + 1)), DEC_10);
     const stage21 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="21"]');
     expect(stage21?.classList.contains('scene-large-present')).toBe(true);
@@ -1868,14 +1871,26 @@ describe('stage 21 large present, stage 22 window paper stars, stage 23 cookie p
     const large = stage21 as SVGGElement | null;
     expect(large).not.toBeNull();
     const largeBox = bboxOf(Array.from(large?.querySelectorAll('rect, circle') ?? []));
-    expect(largeBox.maxX - largeBox.minX).toBeGreaterThanOrEqual(18);
-    expect(largeBox.maxY - largeBox.minY).toBeGreaterThanOrEqual(15);
+    expect(largeBox.maxX - largeBox.minX).toBeGreaterThanOrEqual(24);
+    expect(largeBox.maxY - largeBox.minY).toBeGreaterThanOrEqual(20);
+    // on the floor in the dog-to-side-table pocket, inside the scene strip
+    expect(largeBox.minX).toBeGreaterThan(221);
+    expect(largeBox.maxX).toBeLessThanOrEqual(252);
+    expect(largeBox.minY).toBeGreaterThanOrEqual(272);
+    expect(largeBox.maxY).toBeLessThanOrEqual(300);
     const pile = scene.querySelector<SVGGElement>('g.scene-gift-pile');
+    const pileBox = bboxOf(Array.from(pile?.querySelectorAll('rect, circle, ellipse, path') ?? []));
+    expect(overlaps(largeBox, pileBox)).toBe(false);
     for (const gift of Array.from(pile?.querySelectorAll<SVGGElement>('g.scene-gift') ?? [])) {
       const giftBox = bboxOf(Array.from(gift.querySelectorAll('rect, circle, ellipse, path')));
-      expect(largeBox.maxX - largeBox.minX).toBeGreaterThan((giftBox.maxX - giftBox.minX) * 2);
+      // clearly dwarfs the pile gifts in BOTH dimensions (relation re-checked at the new pile scale)
+      expect(largeBox.maxX - largeBox.minX).toBeGreaterThan((giftBox.maxX - giftBox.minX) * 1.75);
+      expect(largeBox.maxY - largeBox.minY).toBeGreaterThan((giftBox.maxY - giftBox.minY) * 1.75);
     }
     expect(overlaps(largeBox, dogGeometry(scene).box)).toBe(false);
+    const table = scene.querySelector<SVGGElement>('g.scene-side-table');
+    const tableBox = bboxOf(Array.from(table?.querySelectorAll('rect') ?? []));
+    expect(overlaps(largeBox, tableBox)).toBe(false);
     expect(stage21?.querySelectorAll('polygon.scene-tree-tier')).toHaveLength(0);
   });
 

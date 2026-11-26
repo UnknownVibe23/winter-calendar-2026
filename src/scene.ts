@@ -1017,8 +1017,8 @@ function buildGift(index: number): SVGGElement {
 
 /**
  * The growing gift pile (base art, not a stage): holds exactly
- * giftsForOpenedDoors(openedCount) small gifts, one per multiple of 3 opened
- * doors, stacked neatly on and around the tree skirt.
+ * giftsForOpenedDoors(openedCount) gifts, one per multiple of 3 opened doors,
+ * stacked neatly in two rows on and around the tree skirt.
  */
 function giftPile(opened: Set<number>): SVGGElement {
   const pile = group([]);
@@ -1043,11 +1043,14 @@ function syncGiftPile(pile: SVGGElement, opened: Set<number>): void {
 }
 
 /**
- * Stage 21: a large wrapped present under/beside the tree — clearly bigger
- * than the seeded pile gifts — with its own reveal.
+ * Stage 21: a large wrapped present on the free floor pocket between the dog
+ * and the side table — bumped to stay clearly bigger than the seeded pile
+ * gifts at their new 10-14-wide scale — with its own reveal. (The tree-skirt
+ * floor x 0-64 now belongs to the doubled pile; the dog silhouette covers
+ * x 64-221.)
  */
 function stage21LargePresent(): SVGGElement {
-  const g = present(1, 282, 21, 18, PLUM, GOLD_CREAM);
+  const g = present(224, 276, 26, 24, PLUM, GOLD_CREAM);
   g.classList.add('scene-large-present');
   return g;
 }

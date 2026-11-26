@@ -39,7 +39,8 @@ export interface GiftSpec {
 /**
  * Deterministic per-index gift spec: seeded shape (box or sack — no cap
  * shapes, so nothing in the pile can read as a light bulb), tricolor wrap +
- * ribbon and a small size (6-8 scene units).
+ * ribbon and a readability-floor size (10-14 wide, 8-11 high scene units,
+ * with the seeded variance kept).
  */
 export function giftSpecForIndex(index: number): GiftSpec {
   const rand = createPrng(GIFT_SEED + index * 7919);
@@ -48,8 +49,8 @@ export function giftSpecForIndex(index: number): GiftSpec {
   const wrap = GIFT_TRICOLOR[wrapIndex];
   const ribbon =
     rand() < 0.35 ? CREAM : GIFT_TRICOLOR[(wrapIndex + 1 + Math.floor(rand() * 2)) % GIFT_TRICOLOR.length];
-  const w = 6 + Math.floor(rand() * 3);
-  const h = 6 + Math.floor(rand() * 3);
+  const w = 10 + Math.floor(rand() * 5);
+  const h = 8 + Math.floor(rand() * 4);
   return { shape, wrap, ribbon, w, h };
 }
 
@@ -59,17 +60,20 @@ export interface GiftSlot {
 }
 
 /**
- * Fixed neat pile slots on and around the tree skirt: a back row and a front
- * row flanking the pot, all clear of the trunk/pot, the dog and the
- * stage-21 large present.
+ * Fixed neat pile slots on and around the tree skirt: two staggered rows
+ * (back row by 295, front row by 300) spanning the whole tree-skirt floor
+ * (x 0-64, clear of the dog silhouette at x >= 64.05). Every slot bottom is
+ * low enough that even the tallest gift (h 11 + sack tie) stays below the
+ * pot (top >= 281 > pot bottom 280.8); the stage-21 large present lives in
+ * the dog-to-side-table pocket, clear of this footprint.
  */
 export const GIFT_SLOTS: readonly GiftSlot[] = [
-  { cx: 28, by: 292 },
-  { cx: 36, by: 292 },
-  { cx: 44, by: 292 },
-  { cx: 52, by: 292 },
-  { cx: 32, by: 300 },
-  { cx: 40, by: 300 },
-  { cx: 48, by: 300 },
-  { cx: 56, by: 300 },
+  { cx: 7, by: 295 },
+  { cx: 23, by: 295 },
+  { cx: 39, by: 295 },
+  { cx: 55, by: 295 },
+  { cx: 15, by: 300 },
+  { cx: 31, by: 300 },
+  { cx: 47, by: 300 },
+  { cx: 57, by: 300 },
 ];

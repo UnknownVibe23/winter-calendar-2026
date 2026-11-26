@@ -59,22 +59,25 @@ describe('giftSpecForIndex', () => {
     }
   });
 
-  it('produces valid seeded specs: box or sack only (no cap shapes), tricolor wrap, tricolor-or-cream ribbon, small size', () => {
+  it('produces valid seeded specs: box or sack only (no cap shapes), tricolor wrap, tricolor-or-cream ribbon, readability-floor size with variance (WC-06T7: 10-14 wide, 8-11 high)', () => {
     const shapesSeen = new Set<string>();
+    const sizes = new Set<string>();
     for (let index = 0; index < GIFT_MAX; index += 1) {
       const spec = giftSpecForIndex(index);
       expect(GIFT_SHAPES).toContain(spec.shape);
       expect(spec.shape).not.toBe('cylinder');
       expect(GIFT_TRICOLOR).toContain(spec.wrap);
       expect([...GIFT_TRICOLOR, '#f3e2c3']).toContain(spec.ribbon);
-      expect(spec.w).toBeGreaterThanOrEqual(6);
-      expect(spec.w).toBeLessThanOrEqual(8);
-      expect(spec.h).toBeGreaterThanOrEqual(6);
-      expect(spec.h).toBeLessThanOrEqual(8);
+      expect(spec.w).toBeGreaterThanOrEqual(10);
+      expect(spec.w).toBeLessThanOrEqual(14);
+      expect(spec.h).toBeGreaterThanOrEqual(8);
+      expect(spec.h).toBeLessThanOrEqual(11);
+      sizes.add(`${spec.w}x${spec.h}`);
       shapesSeen.add(spec.shape);
     }
     expect(shapesSeen.size).toBe(2);
     expect([...shapesSeen].sort()).toEqual(['box', 'sack']);
+    expect(sizes.size).toBeGreaterThanOrEqual(4);
   });
 });
 
@@ -91,14 +94,22 @@ describe('GIFT_SLOTS', () => {
     const keys = GIFT_SLOTS.map((slot) => `${slot.cx},${slot.by}`);
     expect(new Set(keys).size).toBe(GIFT_MAX);
     expect(GIFT_SLOTS).toEqual([
-      { cx: 28, by: 292 },
-      { cx: 36, by: 292 },
-      { cx: 44, by: 292 },
-      { cx: 52, by: 292 },
-      { cx: 32, by: 300 },
-      { cx: 40, by: 300 },
-      { cx: 48, by: 300 },
-      { cx: 56, by: 300 },
+      { cx: 7, by: 295 },
+      { cx: 23, by: 295 },
+      { cx: 39, by: 295 },
+      { cx: 55, by: 295 },
+      { cx: 15, by: 300 },
+      { cx: 31, by: 300 },
+      { cx: 47, by: 300 },
+      { cx: 57, by: 300 },
     ]);
+  });
+
+  it('keeps every slot on the tree-skirt floor (x 0-64, clear of the dog at x >= 64.05) and low enough that even the tallest gift (h 11 + sack tie) clears the tree pot bottom (WC-06T7)', () => {
+    for (const slot of GIFT_SLOTS) {
+      expect(slot.cx - 7).toBeGreaterThanOrEqual(0);
+      expect(slot.cx + 7).toBeLessThan(64.05);
+      expect(slot.by - 11 - 3).toBeGreaterThan(280.8);
+    }
   });
 });
