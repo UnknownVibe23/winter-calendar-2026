@@ -36,17 +36,25 @@ export interface GiftSpec {
   h: number;
 }
 
+/** The bulb gold from the tricolor: never used as a SACK wrap (WC-06T9), where it reads as a lightbulb. */
+const SACK_FORBIDDEN_WRAP = '#d9b64f';
+
 /**
  * Deterministic per-index gift spec: seeded shape (box or sack — no cap
  * shapes, so nothing in the pile can read as a light bulb), tricolor wrap +
  * ribbon and a readability-floor size (10-14 wide, 8-11 high scene units,
- * with the seeded variance kept).
+ * with the seeded variance kept). WC-06T9: sacks NEVER take the gold wrap
+ * (deterministic remap to the next red/green entry; seeding, draw order,
+ * ribbon logic and sizes unchanged) — gold stays valid for boxes.
  */
 export function giftSpecForIndex(index: number): GiftSpec {
   const rand = createPrng(GIFT_SEED + index * 7919);
   const shape = GIFT_SHAPES[Math.floor(rand() * GIFT_SHAPES.length)];
   const wrapIndex = Math.floor(rand() * GIFT_TRICOLOR.length);
-  const wrap = GIFT_TRICOLOR[wrapIndex];
+  const wrap =
+    shape === 'sack' && GIFT_TRICOLOR[wrapIndex] === SACK_FORBIDDEN_WRAP
+      ? GIFT_TRICOLOR[(wrapIndex + 1) % GIFT_TRICOLOR.length]
+      : GIFT_TRICOLOR[wrapIndex];
   const ribbon =
     rand() < 0.35 ? CREAM : GIFT_TRICOLOR[(wrapIndex + 1 + Math.floor(rand() * 2)) % GIFT_TRICOLOR.length];
   const w = 10 + Math.floor(rand() * 5);

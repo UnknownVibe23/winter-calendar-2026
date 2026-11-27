@@ -160,6 +160,16 @@
 }
 
 /*
+ * Openable (still frosted) PHOTO doors: the thumbnail is rendered BENEATH the
+ * scratch canvas (z-index 0 vs the canvas z-index 2), so erasing the frost
+ * reveals the door's photo (WC-06T9). Locked doors keep the thumbnail hidden
+ * via the base .door-thumb rule above.
+ */
+.door--openable .door-thumb {
+  display: block;
+}
+
+/*
  * Opened PHOTO doors: the day's photo thumbnail fills the tile's inner area
  * (center-cropped, cover) and is wrapped in the door's festive per-door tint
  * as a colored frame; the persistent opened glow stays on top of it.

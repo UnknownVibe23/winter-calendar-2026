@@ -79,6 +79,21 @@ describe('giftSpecForIndex', () => {
     expect([...shapesSeen].sort()).toEqual(['box', 'sack']);
     expect(sizes.size).toBeGreaterThanOrEqual(4);
   });
+
+  it('never wraps a SACK in the bulb gold (WC-06T9: gold sack + cinch tie reads as a lightbulb); sacks use red/green only, boxes may keep gold', () => {
+    let sacksSeen = 0;
+    for (let index = 0; index < GIFT_MAX; index += 1) {
+      const spec = giftSpecForIndex(index);
+      if (spec.shape === 'sack') {
+        sacksSeen += 1;
+        expect(spec.wrap).not.toBe('#d9b64f');
+        expect([GIFT_TRICOLOR[0], GIFT_TRICOLOR[2]]).toContain(spec.wrap);
+      } else {
+        expect(GIFT_TRICOLOR).toContain(spec.wrap);
+      }
+    }
+    expect(sacksSeen).toBeGreaterThan(0);
+  });
 });
 
 describe('GIFT_SHAPES (WC-06T6: no bulb-look cylinder gifts)', () => {

@@ -136,17 +136,28 @@ type FontsLike = {
   addEventListener?: (type: string, listener: () => void) => void;
 };
 
-function whenDisplayFontReady(paint: () => void, fontSpec: string): void {
+interface FontFaceSetLike {
+  load: (font: string) => Promise<unknown>;
+  ready?: Promise<unknown>;
+  addEventListener?: (type: string, listener: () => void) => void;
+}
+
+function displayFonts(): FontFaceSetLike | undefined {
   const fonts = (document as Document & { fonts?: FontsLike }).fonts;
-  if (fonts && typeof fonts.load === 'function') {
-    const ready = fonts.ready instanceof Promise ? fonts.ready : Promise.resolve();
-    void Promise.all([fonts.load(fontSpec).catch(() => undefined), ready]).then(paint, paint);
-    if (typeof fonts.addEventListener === 'function') {
-      fonts.addEventListener('loadingdone', paint);
-    }
+  return fonts && typeof fonts.load === 'function' ? (fonts as FontFaceSetLike) : undefined;
+}
+
+function whenDisplayFontReady(paint: () => void, fontSpec: string): void {
+  const fonts = displayFonts();
+  if (fonts === undefined) {
+    paint();
     return;
   }
-  paint();
+  const ready = fonts.ready instanceof Promise ? fonts.ready : Promise.resolve();
+  void Promise.all([fonts.load(fontSpec).catch(() => undefined), ready]).then(paint, paint);
+  if (typeof fonts.addEventListener === 'function') {
+    fonts.addEventListener('loadingdone', paint);
+  }
 }
 
 export function attachScratchOverlay(
@@ -177,13 +188,21 @@ export function attachScratchOverlay(
   const fontSize = Math.round(Math.min(width, height) * 0.42);
   const snowDepth = options.snowDepth ?? 0;
   const frostDensity = options.frostDensity ?? 1;
-  whenDisplayFontReady(() => {
+  const paintSurface = (): void => {
     if (erased || opened) {
       return;
     }
     paintFrost(ctx, width, height, doorNumber, snowDepth, frostDensity);
     painted = true;
-  }, `700 ${fontSize}px "Mountains of Christmas"`);
+  };
+  // WC-06T9: paint an OPAQUE base coat IMMEDIATELY at attach time (the font
+  // stack already carries the serif fallback), so the photo beneath an
+  // openable door can never flash through an unpainted canvas on a slow
+  // font load. The display-font repaint below stays guarded by erased/opened.
+  paintSurface();
+  if (displayFonts() !== undefined) {
+    whenDisplayFontReady(paintSurface, `700 ${fontSize}px "Mountains of Christmas"`);
+  }
   door.append(canvas);
   door.classList.add('door--frosted');
 

@@ -459,10 +459,38 @@ describe('door glow state machine (WC-06T6: honest colored surfaces in every sta
     expect(css).toContain('.door--opened.door--has-photo .door-number');
     // text-only opened doors keep the dimmed-number look
     expect(/\.door--opened:not\(\.door--has-photo\) \.door-number\s*\{[^}]*opacity: 0\.55/.exec(css)).not.toBeNull();
-    // scratchable doors never swap the thumb onto the tile
-    expect(css).not.toContain('.door--openable .door-thumb');
+    // WC-06T9: an openable (still frosted) photo door renders its thumb BENEATH the scratch canvas
+    const openableThumbRule = /\.door--openable \.door-thumb\s*\{[^}]*\}/.exec(css)?.[0] ?? '';
+    expect(openableThumbRule).toContain('display: block');
+    // the base rule still hides the thumb everywhere else (locked doors included)
+    const baseThumbRule = /(^|\n)\.door-thumb\s*\{[^}]*\}/.exec(css)?.[0] ?? '';
+    expect(baseThumbRule).toContain('display: none');
+    expect(css).not.toMatch(/\.door--locked \.door-thumb/);
+    // stack order unchanged: thumb (z-index 0) below the door-frost canvas (z-index 2)
+    expect(baseThumbRule).toContain('z-index: 0');
+    const frostRule = /(^|\n)\.door-frost\s*\{[^}]*\}/.exec(css)?.[0] ?? '';
+    expect(frostRule).toContain('z-index: 2');
+    // door-number handling unchanged: hidden span rule while frosted
+    expect(css).toMatch(/\.door--frosted \.door-number\s*\{[^}]*display: none/);
     // the door base uses the per-door tint
     expect(/\.door\s*\{[^}]*background-color:\s*var\(--door-tint/.exec(css)).not.toBeNull();
+  });
+
+  it('WC-06T9: an openable photo door carries its thumb beneath the frost canvas; a locked photo door keeps the thumb element without the openable state; an opened photo door keeps the photo frame', () => {
+    render(container, new Set([5]), DEC_10, vi.fn(), photoDoors());
+    const openable = doorByNumber(container, 3);
+    expect(openable.classList.contains('door--openable')).toBe(true);
+    expect(openable.classList.contains('door--photo-frame')).toBe(false);
+    expect(openable.querySelector('img.door-thumb')).not.toBeNull();
+    expect(openable.querySelector('canvas.door-frost')).not.toBeNull();
+    const locked = doorByNumber(container, 20);
+    expect(locked.classList.contains('door--locked')).toBe(true);
+    expect(locked.classList.contains('door--openable')).toBe(false);
+    expect(locked.querySelector('img.door-thumb')).not.toBeNull();
+    const opened = doorByNumber(container, 5);
+    expect(opened.classList.contains('door--opened')).toBe(true);
+    expect(opened.classList.contains('door--photo-frame')).toBe(true);
+    expect(opened.querySelector('img.door-thumb')).not.toBeNull();
   });
 });
 

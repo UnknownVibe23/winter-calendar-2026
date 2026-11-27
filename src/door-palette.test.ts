@@ -1,17 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DOOR_ORDER } from './calendar';
 import {
   CREAM,
   DOOR_PALETTE,
-  GRID_COLUMNS,
   MIN_CONTRAST,
   NIGHT_BLUE,
   PALETTE_SIZE,
+  TINT_INDEX_BY_DOOR,
   contrastRatio,
   numberColorForFrost,
   relativeLuminance,
   tintForDoor,
 } from './door-palette';
+
+/** Rendered calendar grid widths (src/styles/calendar.css): 3 below 480px, 4 at 480-1023px, 8 at 1024px+. */
+const RENDERED_GRID_WIDTHS: readonly number[] = [3, 4, 8];
 
 describe('DOOR_PALETTE', () => {
   it('is the planner-locked five-tint palette in the locked order', () => {
@@ -33,75 +36,93 @@ describe('DOOR_PALETTE', () => {
   });
 });
 
+describe('TINT_INDEX_BY_DOOR (WC-06T9 frozen table)', () => {
+  it('is the frozen 24-entry table of valid palette indices, indexed by door number minus 1', () => {
+    expect(TINT_INDEX_BY_DOOR).toEqual([
+      3, 0, 1, 1, 1, 1, 1, 0, 2, 0, 4, 4,
+      3, 0, 3, 4, 3, 2, 4, 0, 2, 2, 3, 2,
+    ]);
+    for (const index of TINT_INDEX_BY_DOOR) {
+      expect(Number.isInteger(index)).toBe(true);
+      expect(index).toBeGreaterThanOrEqual(0);
+      expect(index).toBeLessThan(PALETTE_SIZE);
+    }
+  });
+});
+
 describe('tintForDoor', () => {
-  it('assigns tints deterministically by door number (WC-06T8 rebalance: full pinned mapping)', () => {
+  it('is a pure lookup: DOOR_PALETTE[TINT_INDEX_BY_DOOR[n - 1]] (WC-06T9: full pinned mapping)', () => {
     const expected: Record<number, string> = {
-      1: '#4a2545',
+      1: '#c9a24b',
       2: '#7a1f2b',
-      3: '#0b1d3a',
-      4: '#c9a24b',
-      5: '#c9a24b',
-      6: '#c9a24b',
-      7: '#7a1f2b',
+      3: '#1e4d2b',
+      4: '#1e4d2b',
+      5: '#1e4d2b',
+      6: '#1e4d2b',
+      7: '#1e4d2b',
       8: '#7a1f2b',
-      9: '#1e4d2b',
+      9: '#0b1d3a',
       10: '#7a1f2b',
-      11: '#1e4d2b',
+      11: '#4a2545',
       12: '#4a2545',
-      13: '#1e4d2b',
-      14: '#1e4d2b',
-      15: '#7a1f2b',
-      16: '#0b1d3a',
-      17: '#0b1d3a',
-      18: '#1e4d2b',
+      13: '#c9a24b',
+      14: '#7a1f2b',
+      15: '#c9a24b',
+      16: '#4a2545',
+      17: '#c9a24b',
+      18: '#0b1d3a',
       19: '#4a2545',
-      20: '#c9a24b',
-      21: '#c9a24b',
+      20: '#7a1f2b',
+      21: '#0b1d3a',
       22: '#0b1d3a',
-      23: '#0b1d3a',
-      24: '#4a2545',
+      23: '#c9a24b',
+      24: '#0b1d3a',
     };
     for (let n = 1; n <= 24; n += 1) {
+      expect(tintForDoor(n)).toBe(DOOR_PALETTE[TINT_INDEX_BY_DOOR[n - 1]]);
       expect(tintForDoor(n).frost).toBe(expected[n]);
     }
   });
 
-  it('is balanced across the 24 doors: every tint appears 4-5 times (WC-06T8)', () => {
-    const counts = new Map<string, number>();
+  it('is balanced across the 24 doors: exact frozen counts 5/5/5/5/4 (WC-06T9)', () => {
+    const counts = DOOR_PALETTE.map(() => 0);
     for (let n = 1; n <= 24; n += 1) {
-      const frost = tintForDoor(n).frost;
-      counts.set(frost, (counts.get(frost) ?? 0) + 1);
+      counts[TINT_INDEX_BY_DOOR[n - 1]] += 1;
     }
-    expect(counts.size).toBe(5);
-    let total = 0;
-    for (const tint of DOOR_PALETTE) {
-      const count = counts.get(tint.frost) ?? 0;
-      expect(count).toBeGreaterThanOrEqual(4);
-      expect(count).toBeLessThanOrEqual(5);
-      total += count;
-    }
-    expect(total).toBe(24);
+    expect(counts).toEqual([5, 5, 5, 5, 4]);
+    expect(counts.reduce((a, b) => a + b, 0)).toBe(24);
   });
 
-  it('has ZERO adjacent same-tint pairs in the rendered 4-column grid (WC-06T8): horizontal = consecutive DOOR_ORDER entries, vertical = 4 positions apart', () => {
-    expect(GRID_COLUMNS).toBe(4);
+  it('has ZERO adjacent same-tint pairs in ALL THREE rendered grid layouts (WC-06T9): horizontal = consecutive DOOR_ORDER entries within a row of width W, vertical = W positions apart', () => {
     expect(DOOR_ORDER).toHaveLength(24);
     const tintAt = (position: number): string => tintForDoor(DOOR_ORDER[position]).frost;
-    for (let position = 0; position < DOOR_ORDER.length; position += 1) {
-      // horizontal neighbor (same row, next column)
-      if (position % GRID_COLUMNS < GRID_COLUMNS - 1) {
-        expect(tintAt(position)).not.toBe(tintAt(position + 1));
-      }
-      // vertical neighbor (next row, same column)
-      if (position + GRID_COLUMNS < DOOR_ORDER.length) {
-        expect(tintAt(position)).not.toBe(tintAt(position + GRID_COLUMNS));
+    for (const width of RENDERED_GRID_WIDTHS) {
+      for (let position = 0; position < DOOR_ORDER.length; position += 1) {
+        // horizontal neighbor (same row, next column)
+        if (position % width < width - 1) {
+          expect(tintAt(position), `width ${width}, horizontal ${position}/${position + 1}`).not.toBe(
+            tintAt(position + 1),
+          );
+        }
+        // vertical neighbor (next row, same column)
+        if (position + width < DOOR_ORDER.length) {
+          expect(tintAt(position), `width ${width}, vertical ${position}/${position + width}`).not.toBe(
+            tintAt(position + width),
+          );
+        }
       }
     }
   });
 
-  it('is stable across repeated calls', () => {
-    for (let n = 1; n <= 24; n += 1) {
-      expect(tintForDoor(n)).toEqual(tintForDoor(n));
+  it('is deterministic and pure: stable across repeated calls and never touches runtime randomness', () => {
+    const randomSpy = vi.spyOn(Math, 'random');
+    try {
+      for (let n = 1; n <= 24; n += 1) {
+        expect(tintForDoor(n)).toEqual(tintForDoor(n));
+      }
+      expect(randomSpy).not.toHaveBeenCalled();
+    } finally {
+      randomSpy.mockRestore();
     }
   });
 });

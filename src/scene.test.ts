@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -1512,6 +1512,10 @@ describe('growing gift pile under the tree (every third opened door)', () => {
       const isBox = gift.querySelectorAll('rect').length >= 3;
       const isSack = gift.querySelector('path.scene-gift-sack') !== null;
       expect(isBox !== isSack).toBe(true);
+      // WC-06T9: no sack in the rendered pile carries the bulb-gold wrap
+      if (isSack) {
+        expect(gift.querySelector('path.scene-gift-sack')?.getAttribute('fill')).not.toBe('#d9b64f');
+      }
     }
     expect(pile?.outerHTML).not.toContain('cylinder');
   });
@@ -1849,7 +1853,7 @@ describe('stage 17 retro radio on the floor RIGHT of the side table, larger, pul
     }
   });
 
-  it('is stage-gated (not earned before 17 doors); pulse ~2.6s scale+glow loop and note pulse in CSS, reduced-motion static/hidden', () => {
+  it('is stage-gated (not earned before 17 doors); pulse ~2.6s scale+glow loop and note pulse in CSS, reduced-motion static/VISIBLE (WC-06T9)', () => {
     const notYet = renderScene(new Set(Array.from({ length: 16 }, (_, i) => i + 1)), DEC_10);
     expect(
       notYet.querySelector('g.scene-stage[data-stage="17"]')?.classList.contains('scene-stage--earned'),
@@ -1866,8 +1870,35 @@ describe('stage 17 retro radio on the floor RIGHT of the side table, larger, pul
     expect(css).toMatch(/\.scene-radio-note\s*\{[^}]*animation:\s*scene-note-pulse 2\.6s/);
     const reduced = /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
     expect(reduced).toContain('.scene-radio');
+    // WC-06T9: under reduced motion the quavers and their halos stay fully visible and static
     expect(reduced).toContain('.scene-radio-note');
-    expect(reduced).toContain('display: none');
+    expect(reduced).toContain('.scene-radio-note-halo');
+    expect(reduced).not.toContain('display: none');
+    expect(reduced).not.toContain('visibility: hidden');
+    const reducedAnimNone = /\.scene-radio,\s*\n?\s*\.scene-radio-note,\s*\n?\s*\.scene-radio-note-halo\s*\{[^}]*animation:\s*none/.exec(css);
+    expect(reducedAnimNone).not.toBeNull();
+  });
+
+  it('audit (WC-06T9): NO reduced-motion block in ANY stylesheet hides content (no display:none / visibility:hidden)', () => {
+    const stylesDir = path.join(process.cwd(), 'src', 'styles');
+    const files = [
+      ...readdirSync(stylesDir)
+        .filter((name) => name.endsWith('.css'))
+        .map((name) => path.join(stylesDir, name)),
+      path.join(process.cwd(), 'src', 'lightbox.css'),
+      path.join(process.cwd(), 'src', 'login.css'),
+    ];
+    const blockRe = /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/g;
+    let blocksFound = 0;
+    for (const file of files) {
+      const css = readFileSync(file, 'utf8');
+      for (const block of css.match(blockRe) ?? []) {
+        blocksFound += 1;
+        expect(block, `${path.basename(file)}: ${block}`).not.toMatch(/display:\s*none/);
+        expect(block, `${path.basename(file)}: ${block}`).not.toMatch(/visibility:\s*hidden/);
+      }
+    }
+    expect(blocksFound).toBeGreaterThanOrEqual(3);
   });
 });
 

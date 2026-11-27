@@ -167,7 +167,7 @@ describe('attachScratchOverlay', () => {
     expect(ctx.font).toContain('serif');
   });
 
-  it('waits for document.fonts before the first paint when the FontFaceSet API exists', async () => {
+  it('paints an OPAQUE base coat immediately at attach (fallback font) even while document.fonts is still loading, then repaints once the display font resolves (WC-06T9: no flash-through window)', async () => {
     let resolveLoad: (value: unknown) => void = () => undefined;
     const loadPromise = new Promise<unknown>((resolve) => {
       resolveLoad = resolve;
@@ -184,10 +184,16 @@ describe('attachScratchOverlay', () => {
       const door = makeDoor();
       attachScratchOverlay(door, 5, { onActivate: vi.fn() });
       expect(load).toHaveBeenCalledWith('700 42px "Mountains of Christmas"');
-      expect(ctx.fillText).not.toHaveBeenCalled();
+      // the first paint already happened synchronously: opaque tint base + number with the fallback font
+      expect(ctx.fillRect).toHaveBeenCalledTimes(1);
+      expect(ctx.fillStyles[0]).toBe(tintForDoor(5).frost);
+      expect(ctx.fillText).toHaveBeenCalledTimes(1);
+      expect(ctx.fillText).toHaveBeenCalledWith('5', 100, 50);
       resolveLoad([]);
       await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(ctx.fillText).toHaveBeenCalledWith('5', 100, 50);
+      // display-font repaint exactly as before
+      expect(ctx.fillText).toHaveBeenCalledTimes(2);
+      expect(ctx.fillText).toHaveBeenLastCalledWith('5', 100, 50);
     } finally {
       if (previous === undefined) {
         delete doc.fonts;
@@ -215,13 +221,14 @@ describe('attachScratchOverlay', () => {
       );
       const door = makeDoor();
       attachScratchOverlay(door, 5, { onActivate: vi.fn() });
+      // immediate base coat (1) + failed-load repaint (2)
       await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(ctx.fillText).toHaveBeenCalledTimes(1);
+      expect(ctx.fillText).toHaveBeenCalledTimes(2);
       expect(listeners.length).toBeGreaterThan(0);
       for (const listener of listeners) {
         listener();
       }
-      expect(ctx.fillText).toHaveBeenCalledTimes(2);
+      expect(ctx.fillText).toHaveBeenCalledTimes(3);
       expect(ctx.fillText).toHaveBeenLastCalledWith('5', 100, 50);
     } finally {
       if (previous === undefined) {
@@ -250,8 +257,9 @@ describe('attachScratchOverlay', () => {
       );
       const door = makeDoor();
       attachScratchOverlay(door, 5, { onActivate: vi.fn() });
+      // immediate base coat (1) + resolved-load repaint (2)
       await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(ctx.fillText).toHaveBeenCalledTimes(1);
+      expect(ctx.fillText).toHaveBeenCalledTimes(2);
       door.dispatchEvent(pointerEvent('pointerdown', 1, 10, 50));
       door.dispatchEvent(pointerEvent('pointermove', 1, 40, 50));
       door.dispatchEvent(pointerEvent('pointerup', 1, 40, 50));
@@ -259,7 +267,7 @@ describe('attachScratchOverlay', () => {
       for (const listener of listeners) {
         listener();
       }
-      expect(ctx.fillText).toHaveBeenCalledTimes(1);
+      expect(ctx.fillText).toHaveBeenCalledTimes(2);
     } finally {
       if (previous === undefined) {
         delete doc.fonts;
@@ -277,7 +285,7 @@ describe('attachScratchOverlay', () => {
     const door = makeDoor();
     attachScratchOverlay(door, 3, { onActivate: vi.fn() });
     const tint = tintForDoor(3);
-    expect(tint.frost).toBe('#0b1d3a');
+    expect(tint.frost).toBe('#1e4d2b');
     expect(ctx.fillStyles[0]).toBe(tint.frost);
     expect(ctx.fillStyles[ctx.fillStyles.length - 1]).toBe(tint.number);
     expect(ctx.fillStyles[ctx.fillStyles.length - 1]).toBe('#f3e2c3');
@@ -289,8 +297,8 @@ describe('attachScratchOverlay', () => {
       ctx as unknown as CanvasRenderingContext2D,
     );
     const door = makeDoor();
-    attachScratchOverlay(door, 4, { onActivate: vi.fn() });
-    expect(tintForDoor(4).frost).toBe('#c9a24b');
+    attachScratchOverlay(door, 13, { onActivate: vi.fn() });
+    expect(tintForDoor(13).frost).toBe('#c9a24b');
     expect(ctx.fillStyles[0]).toBe('#c9a24b');
     expect(ctx.fillStyles[ctx.fillStyles.length - 1]).toBe('#0b1d3a');
   });

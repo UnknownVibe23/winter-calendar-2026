@@ -170,14 +170,12 @@
   .scene-tree-star-glow,
   .scene-robin,
   .scene-radio,
-  .scene-radio-note {
+  .scene-radio-note,
+  .scene-radio-note-halo {
     animation: none;
   }
 
-  .scene-radio-note,
-  .scene-radio-note-halo {
-    display: none;
-  }
+  /* the three quavers and their halos stay fully visible, static (WC-06T9) */
 }
 
 .scene-dog {
