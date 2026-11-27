@@ -275,9 +275,9 @@ describe('attachScratchOverlay', () => {
       ctx as unknown as CanvasRenderingContext2D,
     );
     const door = makeDoor();
-    attachScratchOverlay(door, 5, { onActivate: vi.fn() });
-    const tint = tintForDoor(5);
-    expect(tint.frost).toBe('#4a2545');
+    attachScratchOverlay(door, 3, { onActivate: vi.fn() });
+    const tint = tintForDoor(3);
+    expect(tint.frost).toBe('#0b1d3a');
     expect(ctx.fillStyles[0]).toBe(tint.frost);
     expect(ctx.fillStyles[ctx.fillStyles.length - 1]).toBe(tint.number);
     expect(ctx.fillStyles[ctx.fillStyles.length - 1]).toBe('#f3e2c3');

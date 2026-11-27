@@ -1,6 +1,7 @@
 import { attachScratchOverlay, attachStaticDoorSurface, type ScratchHandle } from './scratch-canvas';
 import type { Content, DoorPhoto } from './content';
 import { countdownPhase, countdownText, daysUntilChristmasEve } from './countdown';
+import { DOOR_ORDER } from './door-order';
 import { frostDensityForDoor, snowDepthForDoor, sparkleBurst, syncDoorSnow } from './door-snow';
 import { doorState, todayDoor, type DoorState } from './doors';
 import { tintForDoor } from './door-palette';
@@ -8,9 +9,7 @@ import type { LightboxHandle } from './lightbox';
 import { newlyEarnedStages } from './reveal';
 import { revealSceneGifts, revealSceneStages, renderScene, scrollToPageTop, syncSceneStages } from './scene';
 
-export const DOOR_ORDER: readonly number[] = [
-  8, 13, 16, 4, 18, 3, 21, 19, 23, 20, 1, 10, 5, 24, 7, 9, 12, 15, 14, 17, 2, 11, 22, 6,
-];
+export { DOOR_ORDER };
 
 export interface CalendarOptions {
   opened: Set<number>;

@@ -1,5 +1,10 @@
+import { DOOR_ORDER } from './door-order';
+
 export const PALETTE_SIZE = 5;
 export const MIN_CONTRAST = 4.5;
+
+/** Columns of the rendered calendar grid (frozen 4-column layout). */
+export const GRID_COLUMNS = 4;
 
 export const CREAM = '#f3e2c3';
 export const NIGHT_BLUE = '#0b1d3a';
@@ -59,6 +64,24 @@ export const DOOR_PALETTE: readonly DoorTint[] = (
   ] as const
 ).map((tint) => ({ ...tint, number: numberColorForFrost(tint.frost) }));
 
+/**
+ * Position of a door in the frozen shuffled display order (0-based).
+ */
+const DOOR_POSITION: ReadonlyMap<number, number> = new Map(
+  DOOR_ORDER.map((door, position) => [door, position] as const),
+);
+
+/**
+ * Deterministic, device-independent tint assignment (pure function of the
+ * door number). Rebalanced (WC-06T8): the tint index is the rendered grid
+ * position colored by (column + row) mod 5, which gives balanced counts
+ * (4-5 doors per tint across the 24 doors) and guarantees no two adjacent
+ * tiles in the 4-column grid (horizontal = consecutive order entries,
+ * vertical = 4 positions apart) share a tint.
+ */
 export function tintForDoor(doorNumber: number): DoorTint {
-  return DOOR_PALETTE[(doorNumber - 1) % PALETTE_SIZE];
+  const position = DOOR_POSITION.get(doorNumber) ?? doorNumber - 1;
+  const column = position % GRID_COLUMNS;
+  const row = Math.floor(position / GRID_COLUMNS);
+  return DOOR_PALETTE[(column + row) % PALETTE_SIZE];
 }
