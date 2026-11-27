@@ -41,7 +41,7 @@ const DEC_20 = new Date(2026, 11, 20, 12, 0, 0);
 const DEC_24 = new Date(2026, 11, 24, 12, 0, 0);
 
 const PANE = { x: 28, y: 27, w: 112, h: 110 };
-const RUG = { x: 158, y: 264, w: 100, h: 34 };
+const RUG = { x: 158, y: 264, w: 88, h: 34 };
 const HEARTH_EDGE_X = 228;
 
 interface Box {
@@ -213,6 +213,21 @@ describe('renderScene', () => {
       ...hearth.map((r) => Number(r.getAttribute('y')) + Number(r.getAttribute('height'))),
     );
     expect(rugTop).toBeGreaterThanOrEqual(hearthBottom);
+  });
+
+  it('ends the tartan rug CLEAR of the side table and its legs (WC-06T8): rug right edge < side-table left edge', () => {
+    const scene = renderScene(new Set(), DEC_10);
+    const rugStage = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="9"]');
+    const rugBox = bboxOf(Array.from(rugStage?.querySelectorAll('rect') ?? []));
+    const table = scene.querySelector<SVGGElement>('g.scene-side-table');
+    const tableBox = bboxOf(Array.from(table?.querySelectorAll('rect') ?? []));
+    // chosen values: rug x 158 w 88 -> right edge 246; table (top + legs) starts at x 252
+    expect(rugBox.minX).toBe(158);
+    expect(rugBox.maxX).toBe(246);
+    expect(tableBox.minX).toBe(252);
+    expect(rugBox.maxX).toBeLessThan(tableBox.minX);
+    expect(tableBox.minX - rugBox.maxX).toBeGreaterThanOrEqual(4); // margin
+    expect(overlaps(rugBox, tableBox)).toBe(false);
   });
 
   it('adds presents, flickering flames, paper stars, steam, spill and shelf inside existing stages', () => {
@@ -1096,6 +1111,37 @@ describe('v2 scalloped spruce tree — calendar item from Dec 1, night-graded, c
     expect(new Set(bodyColors)).toEqual(new Set(['#a3262e', '#d9b64f', '#2e6b3f']));
   });
 
+  it('lifts every strand bulb (incl. halo) a hard margin above the gift-pile / tree-skirt floor zone, while staying ON the foliage (WC-06T8)', () => {
+    const scene = renderScene(allOpened(), DEC_10);
+    const tree = scene.querySelector<SVGGElement>('g.scene-tree');
+    const bulbs = Array.from(tree?.querySelectorAll<SVGGElement>('g.scene-strand-bulb-group') ?? []);
+    expect(bulbs).toHaveLength(18);
+    const pile = scene.querySelector<SVGGElement>('g.scene-gift-pile');
+    const skirt = tree?.querySelector('ellipse.scene-tree-skirt');
+    const floorBox = bboxOf([
+      ...Array.from(pile?.querySelectorAll('rect, circle, ellipse, path') ?? []),
+      ...(skirt ? [skirt] : []),
+    ]);
+    const boxDist = (a: Box, b: Box): number => {
+      const dx = Math.max(b.minX - a.maxX, a.minX - b.maxX, 0);
+      const dy = Math.max(b.minY - a.maxY, a.minY - b.maxY, 0);
+      return Math.hypot(dx, dy);
+    };
+    let minPileDist = Infinity;
+    for (const bulb of bulbs) {
+      const bulbBox = bboxOf(Array.from(bulb.querySelectorAll('line, rect, circle, path')));
+      // every bulb (halo included) sits clearly ON the foliage, above the foliage bottom
+      expect(bulbBox.minY).toBeGreaterThanOrEqual(TREE_FOLIAGE_TOP_Y);
+      expect(bulbBox.maxY).toBeLessThanOrEqual(TREE_FOLIAGE_BOTTOM_Y);
+      // hard margin above the gift-pile / tree-skirt floor zone (chosen margin: >= 24 units)
+      const dFloor = floorBox.minY - bulbBox.maxY;
+      expect(dFloor).toBeGreaterThanOrEqual(24);
+      minPileDist = Math.min(minPileDist, boxDist(bulbBox, bboxOf(Array.from(pile?.querySelectorAll('rect, circle, ellipse, path') ?? []))));
+    }
+    // lowest strand bulb bottom is y 248.9; floor zone top (skirt) is y 280 -> gap 31.1
+    expect(minPileDist).toBeGreaterThanOrEqual(24);
+  });
+
   it('guarantees the castle silhouette and city lights stay fully uncovered: no tree/star POINT enters the protected box (slight pane overlap allowed)', () => {
     const scene = renderScene(allOpened(), DEC_10);
     const protectedShapes = [
@@ -1722,11 +1768,16 @@ describe('stage 17 retro radio on the floor RIGHT of the side table, larger, pul
     expect(overlaps(bodyBox, tableBox)).toBe(false);
   });
 
-  it('has 3 music symbols in an arc above-left/above/above-right of the radio at the text readability floor, each with a soft gold halo (CSS only, no audio)', () => {
+  it('has 3 DRAWN VECTOR quavers in an arc above-left/above/above-right of the radio at the 10-14 readability floor, each head+stem+flag, each with a soft gold halo (no text glyph, no music Unicode, CSS only, no audio)', () => {
     const scene = stage17scene();
     const stage17 = scene.querySelector<SVGGElement>('g.scene-stage[data-stage="17"]');
-    const notes = Array.from(stage17?.querySelectorAll<SVGTextElement>('text.scene-radio-note') ?? []);
+    const notes = Array.from(stage17?.querySelectorAll<SVGGElement>('g.scene-radio-note') ?? []);
     expect(notes).toHaveLength(3);
+    // font-independence: no <text> element and no Unicode music character anywhere in the stage (or scene)
+    expect(stage17?.querySelectorAll('text')).toHaveLength(0);
+    const musicChars = /[\u2669\u266A\u266B\u266C\u266D\u266E\u266F\u{1D11E}\u{1D160}]/u;
+    expect(stage17?.outerHTML ?? '').not.toMatch(musicChars);
+    expect(scene.querySelector('svg')?.outerHTML ?? '').not.toMatch(musicChars);
     const halos = Array.from(stage17?.querySelectorAll<SVGCircleElement>('circle.scene-radio-note-halo') ?? []);
     expect(halos).toHaveLength(3);
     for (const halo of halos) {
@@ -1736,29 +1787,45 @@ describe('stage 17 retro radio on the floor RIGHT of the side table, larger, pul
       expect(Number(halo.getAttribute('r'))).toBeGreaterThanOrEqual(6);
     }
     for (const note of notes) {
-      expect(['♪', '♫']).toContain(note.textContent);
-      expect(note.getAttribute('fill')).toBe('#d9b64f');
+      // quaver structure: exactly one filled ellipse head + one stem line + one flag curve, all scene gold
+      const heads = Array.from(note.querySelectorAll<SVGEllipseElement>('ellipse.scene-quaver-head'));
+      const stems = Array.from(note.querySelectorAll<SVGLineElement>('line.scene-quaver-stem'));
+      const flags = Array.from(note.querySelectorAll<SVGPathElement>('path.scene-quaver-flag'));
+      expect(heads).toHaveLength(1);
+      expect(stems).toHaveLength(1);
+      expect(flags).toHaveLength(1);
+      expect(heads[0].getAttribute('fill')).toBe('#d9b64f');
+      expect(Number(heads[0].getAttribute('rx'))).toBeGreaterThan(0);
+      expect(Number(heads[0].getAttribute('ry'))).toBeGreaterThan(0);
+      expect(stems[0].getAttribute('stroke')).toBe('#d9b64f');
+      expect(Number(stems[0].getAttribute('stroke-width'))).toBeGreaterThan(0);
+      expect(Number(stems[0].getAttribute('y2'))).toBeLessThan(Number(stems[0].getAttribute('y1'))); // stem rises
+      expect(flags[0].getAttribute('stroke')).toBe('#d9b64f');
+      expect(flags[0].getAttribute('fill')).toBe('none');
+      expect(flags[0].getAttribute('d')).toMatch(/^M /);
       expect(note.style.animationDelay).toMatch(/^-?\d+(\.\d+)?s$/);
-      // readability floor: text glyphs font-size >= 9 units, card range 10-14
-      const size = Number(note.getAttribute('font-size'));
-      expect(size).toBeGreaterThanOrEqual(9);
+      // readability floor: card range 10-14 units
+      const size = Number(note.dataset.size);
       expect(size).toBeGreaterThanOrEqual(10);
       expect(size).toBeLessThanOrEqual(14);
     }
     expect(notes.map((n) => n.style.animationDelay)).toEqual(['0s', '-0.9s', '-1.8s']);
+    // same placement as the round-7 arc: (300,255) / (318,248) / (333,255)
+    expect(notes.map((n) => `${n.dataset.x},${n.dataset.y}`)).toEqual(['300,255', '318,248', '333,255']);
+    expect(notes.map((n) => Number(n.dataset.size))).toEqual([11, 13, 10]);
     // arc: every symbol sits ABOVE the radio body, spread left / center / right of it
     const body = stage17?.querySelector<SVGRectElement>('rect.scene-radio-body');
     const bx = Number(body?.getAttribute('x'));
     const by = Number(body?.getAttribute('y'));
     const bw = Number(body?.getAttribute('width'));
-    const xs = notes.map((n) => Number(n.getAttribute('x')));
+    const xs = notes.map((n) => Number(n.dataset.x));
     for (const note of notes) {
-      expect(Number(note.getAttribute('y'))).toBeLessThan(by);
+      expect(Number(note.dataset.y)).toBeLessThan(by);
     }
     expect(Math.min(...xs)).toBeLessThan(bx);
     expect(Math.max(...xs)).toBeGreaterThan(bx + bw);
     expect(xs.some((nx) => nx >= bx && nx <= bx + bw)).toBe(true);
-    // each symbol + halo clear of the side table, window, tree spot and gift pile
+    // each symbol (head+stem+flag bbox) + halo clear of the side table, window, tree spot and gift pile
     const table = scene.querySelector<SVGGElement>('g.scene-side-table');
     const tableBox = bboxOf(Array.from(table?.querySelectorAll('rect') ?? []));
     const windowBox: Box = { minX: 20, minY: 19, maxX: 148, maxY: 157 };
@@ -1772,6 +1839,13 @@ describe('stage 17 retro radio on the floor RIGHT of the side table, larger, pul
       expect(overlaps(haloBox, windowBox)).toBe(false);
       expect(overlaps(haloBox, treeBox)).toBe(false);
       expect(overlaps(haloBox, pileBox)).toBe(false);
+    }
+    for (const note of notes) {
+      const noteBox = bboxOf(Array.from(note.querySelectorAll('ellipse, line, path')));
+      expect(overlaps(noteBox, tableBox)).toBe(false);
+      expect(overlaps(noteBox, windowBox)).toBe(false);
+      expect(overlaps(noteBox, treeBox)).toBe(false);
+      expect(overlaps(noteBox, pileBox)).toBe(false);
     }
   });
 

@@ -99,8 +99,13 @@ export function treeHalfWidthAt(y: number): number {
 /** 13 baubles spread over 5 silhouette bands (2/2/3/3/3, top to bottom). */
 const TREE_BAUBLES_PER_BAND: readonly number[] = [2, 2, 3, 3, 3];
 
-/** Spiral strand swags across the silhouette (widely at the bottom, narrowing up). */
-const TREE_STRAND_OFFSETS: readonly number[] = [14, 46, 78];
+/**
+ * Spiral strand swags across the silhouette (widely at the bottom, narrowing
+ * up). Lifted UP the silhouette (WC-06T8: was [14, 46, 78]) so the lowest
+ * strand's bulbs end at y ~249 and keep a hard margin above the gift-pile /
+ * tree-skirt floor zone (skirt top y 280).
+ */
+const TREE_STRAND_OFFSETS: readonly number[] = [26, 58, 90];
 const TREE_STRAND_BULBS: readonly number[] = [7, 6, 5];
 
 const REVEAL_CLASS = 'scene-reveal';
@@ -388,7 +393,9 @@ function stage8CandleFlame(): SVGGElement {
 function stage9TartanRug(): SVGGElement {
   const x = 158;
   const y = 264;
-  const w = 100;
+  // width 88 (was 100): the right edge at x 246 ends CLEAR of the side
+  // table (its left leg starts at x 252, table top at x 252) with a margin
+  const w = 88;
   const h = 34;
   return group([
     rect(x, y, w, h, RED, { rx: 6 }),
@@ -754,34 +761,66 @@ function stage16Robin(): SVGGElement {
 }
 
 /**
- * One music-notation symbol (♪ / ♫) floating in an arc above the radio: a
- * soft warm gold halo circle behind an SVG text glyph (font-size in the
- * 10-14 readability floor for text glyphs) with a staggered deterministic
- * pulse delay. Pure CSS, no sound.
+ * One DRAWN vector quaver (eighth note) floating in an arc above the radio:
+ * a filled ellipse note head, a stem line and a flag curve, all in scene
+ * gold at the 10-14 readability floor — geometry only, no text glyph and no
+ * Unicode music character, so it renders identically on devices whose fonts
+ * lack music symbols. A soft warm gold halo circle sits behind it, with a
+ * staggered deterministic pulse delay. Pure CSS, no sound.
  */
-function radioSymbol(x: number, y: number, glyph: string, size: number, delay: number): SVGGElement {
+function radioSymbol(x: number, y: number, size: number, delay: number): SVGGElement {
   const halo = circle(x, y - size * 0.35, size * 0.7, GOLD, {
     opacity: 0.16,
     class: 'scene-radio-note-halo',
   });
-  const t = svgEl('text', {
-    x,
-    y,
-    'text-anchor': 'middle',
-    'font-size': size,
-    fill: XMAS_GOLD,
-    class: 'scene-radio-note',
-  });
-  t.textContent = glyph;
-  t.style.animationDelay = `${delay}s`;
-  return group([halo, t]);
+  const headCx = x - size * 0.12;
+  const headCy = y - size * 0.08;
+  const headRx = size * 0.3;
+  const headRy = size * 0.21;
+  const stemX = x + size * 0.16;
+  const stemTop = y - size * 0.82;
+  const note = group([
+    svgEl('ellipse', {
+      cx: headCx,
+      cy: headCy,
+      rx: headRx,
+      ry: headRy,
+      fill: XMAS_GOLD,
+      transform: `rotate(-20 ${headCx} ${headCy})`,
+      class: 'scene-quaver-head',
+    }),
+    svgEl('line', {
+      x1: stemX,
+      y1: headCy - headRy * 0.4,
+      x2: stemX,
+      y2: stemTop,
+      stroke: XMAS_GOLD,
+      'stroke-width': size * 0.11,
+      'stroke-linecap': 'round',
+      class: 'scene-quaver-stem',
+    }),
+    svgEl('path', {
+      d: `M ${stemX} ${stemTop} C ${stemX + size * 0.3} ${stemTop + size * 0.02} ${stemX + size * 0.42} ${stemTop + size * 0.3} ${stemX + size * 0.26} ${stemTop + size * 0.5}`,
+      stroke: XMAS_GOLD,
+      'stroke-width': size * 0.1,
+      'stroke-linecap': 'round',
+      fill: 'none',
+      class: 'scene-quaver-flag',
+    }),
+  ]);
+  note.classList.add('scene-radio-note');
+  note.dataset.x = String(x);
+  note.dataset.y = String(y);
+  note.dataset.size = String(size);
+  note.style.animationDelay = `${delay}s`;
+  return group([halo, note]);
 }
 
 /**
  * Stage 17: a larger retro radio on the floor to the RIGHT of the side table
  * — warm wood body, cream front panel with a speaker grid and a dial, tiny
  * feet and a thin antenna. It gently pulses (soft breathing scale + glow,
- * ~2.6 s) while 3 music symbols in an arc above-left / above / above-right
+ * ~2.6 s) while 3 drawn vector quavers in an arc above-left / above / above-right
  * of the body pulse with staggered delays (CSS only, no sound).
  */
 function stage17Radio(): SVGGElement {
@@ -804,9 +843,9 @@ function stage17Radio(): SVGGElement {
   radio.classList.add('scene-radio');
   return group([
     radio,
-    radioSymbol(300, 255, '♪', 11, 0),
-    radioSymbol(318, 248, '♫', 13, -0.9),
-    radioSymbol(333, 255, '♪', 10, -1.8),
+    radioSymbol(300, 255, 11, 0),
+    radioSymbol(318, 248, 13, -0.9),
+    radioSymbol(333, 255, 10, -1.8),
   ]);
 }
 
