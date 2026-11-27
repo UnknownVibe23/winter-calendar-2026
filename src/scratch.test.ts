@@ -160,7 +160,8 @@ describe('sample-grid progress', () => {
     expect(progressFromAlpha(new Array(grid * grid).fill(255), grid)).toBe(0);
   });
 
-  it('opens at exactly 70% scratched and above', () => {
+  it('opens at exactly 75% scratched and above (threshold tuned after the second art review)', () => {
+    expect(SCRATCH_OPEN_THRESHOLD).toBe(0.75);
     expect(isScratchComplete(SCRATCH_OPEN_THRESHOLD - 0.01)).toBe(false);
     expect(isScratchComplete(SCRATCH_OPEN_THRESHOLD)).toBe(true);
     expect(isScratchComplete(1)).toBe(true);

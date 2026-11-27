@@ -1,5 +1,6 @@
 import './styles/base.css';
 import './styles/calendar.css';
+import './styles/scene.css';
 import './lightbox.css';
 import './login.css';
 import { renderApp } from './app';
@@ -7,6 +8,9 @@ import { decryptBundle } from './crypto';
 import { resolveNow } from './doors';
 import { loadBundle, renderLogin } from './login';
 import { loadSession, saveSession } from './session';
+import { snowDayForDate } from './snow';
+import { attachSnowfall } from './snow-canvas';
+import { renderStarLayer } from './stars';
 
 const appElement = document.querySelector<HTMLDivElement>('#app');
 
@@ -17,12 +21,15 @@ if (!appElement) {
 const app: HTMLElement = appElement;
 
 async function boot(): Promise<void> {
+  const now = resolveNow();
+  attachSnowfall(document.body, snowDayForDate(now));
+  renderStarLayer(document.body);
   const session = loadSession();
   if (session) {
     try {
       const bundle = await loadBundle();
       const content = await decryptBundle(bundle, session.keyBits);
-      renderApp(app, content, resolveNow());
+      renderApp(app, content, now);
       return;
     } catch {
       // Stored session does not decrypt the current bundle: show the login.
@@ -31,7 +38,7 @@ async function boot(): Promise<void> {
   renderLogin(app, ({ keyBits, name, content }) => {
     saveSession(keyBits, name);
     app.replaceChildren();
-    renderApp(app, content, resolveNow());
+    renderApp(app, content, now);
   });
 }
 

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DOOR_COUNT,
+  decemberDayForDate,
   doorState,
   loadOpened,
   parseDateOverride,
@@ -70,6 +71,26 @@ describe('todayDoor', () => {
     expect(todayDoor(DEC_1_MIDNIGHT)).toBe(1);
     expect(todayDoor(DEC_5)).toBe(5);
     expect(todayDoor(DEC_24)).toBe(24);
+  });
+});
+
+describe('decemberDayForDate', () => {
+  it('is 0 before Dec 1 of the calendar year', () => {
+    expect(decemberDayForDate(new Date(2026, 10, 30, 12))).toBe(0);
+    expect(decemberDayForDate(new Date(2025, 11, 24, 12))).toBe(0);
+    expect(decemberDayForDate(new Date(2026, 0, 1, 12))).toBe(0);
+  });
+
+  it('is the day-of-month during December 2026, whatever the time of day', () => {
+    expect(decemberDayForDate(DEC_1_MIDNIGHT)).toBe(1);
+    expect(decemberDayForDate(DEC_5)).toBe(5);
+    expect(decemberDayForDate(DEC_24)).toBe(24);
+    expect(decemberDayForDate(new Date(2026, 11, 31, 12))).toBe(31);
+  });
+
+  it('is 32 after Dec 31 of the calendar year', () => {
+    expect(decemberDayForDate(new Date(2027, 0, 1, 12))).toBe(32);
+    expect(decemberDayForDate(new Date(2027, 11, 24, 12))).toBe(32);
   });
 });
 

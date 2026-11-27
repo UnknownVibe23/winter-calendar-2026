@@ -1,7 +1,8 @@
 import { applyDoorState, renderCalendar } from './calendar';
 import type { Content } from './content';
 import { loadOpened, saveOpened } from './doors';
-import { openLightbox } from './lightbox';
+import { openLightbox, type LightboxHandle } from './lightbox';
+import { renderRestoreOptions } from './restore';
 
 export function renderApp(container: HTMLElement, content: Content, now: Date): void {
   const opened = loadOpened();
@@ -10,10 +11,10 @@ export function renderApp(container: HTMLElement, content: Content, now: Date): 
     opened,
     now,
     doors: content.doors,
-    onDoorActivate(doorNumber) {
+    onDoorActivate(doorNumber): LightboxHandle | undefined {
       const door = content.doors.find((entry) => entry.n === doorNumber);
       if (!door) {
-        return;
+        return undefined;
       }
       if (!opened.has(doorNumber)) {
         opened.add(doorNumber);
@@ -25,7 +26,15 @@ export function renderApp(container: HTMLElement, content: Content, now: Date): 
       if (doorElement) {
         applyDoorState(doorElement, doorNumber, opened, now);
       }
-      openLightbox(container, door);
+      return openLightbox(container, door);
+    },
+  });
+
+  renderRestoreOptions(container, {
+    now,
+    onRestored() {
+      container.replaceChildren();
+      renderApp(container, content, now);
     },
   });
 }

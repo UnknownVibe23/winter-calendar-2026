@@ -97,6 +97,23 @@ describe('openLightbox', () => {
     expect(root.querySelector('.lightbox-overlay')).toBeNull();
   });
 
+  it('notifies onClose callbacks exactly once when the lightbox closes', () => {
+    const handle = openLightbox(root, { n: 1, text: 'x' });
+    const callback = vi.fn();
+    handle.onClose(callback);
+    expect(callback).not.toHaveBeenCalled();
+    handle.close();
+    expect(callback).toHaveBeenCalledTimes(1);
+    handle.close();
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    const second = openLightbox(root, { n: 2, text: 'y' });
+    const secondCallback = vi.fn();
+    second.onClose(secondCallback);
+    root.querySelector<HTMLButtonElement>('.lightbox-close')?.click();
+    expect(secondCallback).toHaveBeenCalledTimes(1);
+  });
+
   it('builds the header and photo data URL helpers', () => {
     expect(lightboxHeader(24)).toBe('Door 24 — December 24');
     expect(photoDataUrl({ name: '01.jpg', w: 1, h: 1, data: 'AAE=', thumb: 'QkJE' })).toBe(

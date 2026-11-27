@@ -23,6 +23,7 @@ export interface LightboxDoor {
 
 export interface LightboxHandle {
   close: () => void;
+  onClose: (callback: () => void) => void;
 }
 
 export function lightboxHeader(n: number): string {
@@ -255,6 +256,7 @@ export function openLightbox(root: HTMLElement, door: LightboxDoor): LightboxHan
   }
 
   let closed = false;
+  const closeCallbacks: Array<() => void> = [];
 
   function onKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
@@ -271,6 +273,9 @@ export function openLightbox(root: HTMLElement, door: LightboxDoor): LightboxHan
     document.removeEventListener('keydown', onKeydown);
     detachZoom?.();
     overlay.remove();
+    for (const callback of closeCallbacks) {
+      callback();
+    }
   }
 
   closeButton.addEventListener('click', close);
@@ -282,5 +287,10 @@ export function openLightbox(root: HTMLElement, door: LightboxDoor): LightboxHan
   document.addEventListener('keydown', onKeydown);
   closeButton.focus();
 
-  return { close };
+  return {
+    close,
+    onClose(callback: () => void) {
+      closeCallbacks.push(callback);
+    },
+  };
 }

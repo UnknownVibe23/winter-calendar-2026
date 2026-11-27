@@ -25,6 +25,23 @@ export function todayDoor(now: Date): number | null {
   return day >= 1 && day <= DOOR_COUNT ? day : null;
 }
 
+/**
+ * Calendar day of the December season as a plain number: 0 before Dec 1 of
+ * the calendar year, the day-of-month (1..31) during December, 32 after
+ * Dec 31. Consumers clamp, so out-of-season dates stay deterministic.
+ */
+export function decemberDayForDate(now: Date): number {
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  if (year < CALENDAR_YEAR || (year === CALENDAR_YEAR && month < CALENDAR_MONTH)) {
+    return 0;
+  }
+  if (year === CALENDAR_YEAR && month === CALENDAR_MONTH) {
+    return now.getDate();
+  }
+  return 32;
+}
+
 export function parseDateOverride(search: string): Date | null {
   const raw = new URLSearchParams(search).get('date');
   if (raw === null) {

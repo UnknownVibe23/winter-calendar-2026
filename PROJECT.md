@@ -22,6 +22,7 @@ Single intended user.
 - WC-SEC Security Review: implemented (PR #5)
 - WC-05 Scratch-Off Opening + UX Round 1: implemented (PR #6)
 - WC-SW Service Worker, Offline & Data Diet: implemented (PR #7)
+- WC-06 Scene, Snowfall & Festive Polish: implemented (PR #8)
 
 ## Working agreements
 See AGENTS.md. Content rules are absolute (no plaintext personal

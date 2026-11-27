@@ -1,5 +1,68 @@
+@font-face {
+  font-family: 'Mountains of Christmas';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/mountains-of-christmas-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Mountains of Christmas';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/mountains-of-christmas-latin-700-normal.woff2') format('woff2');
+}
+
 :root {
   color-scheme: dark light;
+  --font-display: 'Mountains of Christmas', Georgia, 'Times New Roman', serif;
+}
+
+#app {
+  position: relative;
+  z-index: 1;
+}
+
+.snow-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.star-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(243, 226, 195, 0.8);
+}
+
+.star--twinkle {
+  animation: star-twinkle 4s ease-in-out infinite;
+}
+
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .star--twinkle {
+    animation: none;
+  }
 }
 
 * {
@@ -25,10 +88,12 @@ body {
   color: #f3e2c3;
   background-color: #0b1d3a;
   background-image: radial-gradient(
-    ellipse 80% 50% at 50% -10%,
-    rgba(90, 130, 200, 0.35),
-    rgba(11, 29, 58, 0) 70%
+    ellipse 120% 90% at 50% 30%,
+    #14294d 0%,
+    #0b1d3a 55%,
+    #060f22 100%
   );
+  background-attachment: fixed;
   padding-top: env(safe-area-inset-top);
   padding-right: env(safe-area-inset-right);
   padding-bottom: env(safe-area-inset-bottom);
