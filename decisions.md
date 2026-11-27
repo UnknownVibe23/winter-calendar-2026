@@ -1615,3 +1615,63 @@
   available to the rasterizer). **Alternatives considered:** headless
   browser CI (rejected: no new dependencies). **Decided-by:**
   coding-agent. **Status:** Proposed in PR #8
+- **Context:** WC-06T8: the radio's 3 music symbols were SVG text glyphs
+  (U+266A/U+266B), which render as nothing on devices whose fonts lack
+  music symbols.
+  **Decision:** the 3 symbols are now drawn vector quavers — a group per
+  symbol with a filled rotated ellipse note head, a stem line and a flag
+  curve, all in scene gold `#d9b64f` at sizes 11/13/10 units (card range
+  10-14). Same arc placement (300,255)/(318,248)/(333,255), same soft gold
+  halos (r = 0.7×size, opacity 0.16), same staggered delays 0/-0.9/-1.8 s,
+  same CSS-only 2.6 s pulse class, reduced-motion still hides notes+halos,
+  no sound, count 3. No `<text>` element or Unicode music character is
+  used for the symbols (asserted: zero `text` in stage 17 and no music
+  Unicode in the scene; head+stem+flag structure asserted). Clearance
+  assertions kept at equal strength (halo AND full symbol bbox vs side
+  table, window, tree spot, gift pile). **Alternatives considered:**
+  keeping text glyphs with a bundled font (rejected: device fonts are
+  unreliable per the card; geometry only). **Decided-by:** planner.
+  **Status:** Proposed in PR #8
+- **Context:** WC-06T8: the tartan rug (stage 9, x 158-258) passed in front
+  of the side table's left leg (table starts x 252).
+  **Decision:** rug width 100 -> 88, left edge x 158 and y 264/34 unchanged,
+  all pattern elements unchanged (they all fit inside the shorter width);
+  right edge now x 246, a 6-unit margin clear of the table bbox left edge
+  x 252. New assertion: rug bbox right edge < side-table bbox left edge
+  (values 246 < 252 logged in the test); hearth, dog-on-rug and armchair
+  clearances unchanged and green. **Alternatives considered:** moving the
+  table (rejected: table is base art and fenced off). **Decided-by:**
+  planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T8: the lowest tree strand (offset 14 above the
+  foliage bottom) had its bulbs hovering at the gift pile and reading as
+  loose bulbs next to the presents.
+  **Decision:** TREE_STRAND_OFFSETS [14, 46, 78] -> [26, 58, 90], so the
+  strands sit at y 235.4 / 203.4 / 171.4, still wide-at-bottom
+  (wire widths ~33.9 / 25.3 / 15.0, narrowing up) and inside the silhouette.
+  Lowest bulb bbox (incl. halo) now ends at y 248.9, a 31.1-unit margin
+  above the tree-skirt floor top (y 280) and 32.1 above the full gift-pile
+  bbox top (y 281); new assertion: min box distance from any strand bulb
+  (incl. halo) to the gift-pile bbox >= 24, plus every bulb stays within the
+  foliage band (top..bottom). Counts (3 strands, 7/6/5 capped bulbs),
+  tricolor rotation, twinkle delays unchanged; the 13 baubles still cover
+  the lower silhouette (down to y ~259), so the lit impression does not
+  thin out at the bottom. **Alternatives considered:** keeping the lowest
+  strand low and shrinking bulbs (rejected: still reads as pile clutter).
+  **Decided-by:** planner. **Status:** Proposed in PR #8
+- **Context:** WC-06T8: per-door tint assignment rebalanced — balanced
+  counts (4-5 per tint across 24 doors) and no two adjacent tiles in the
+  rendered 4-column grid share a tint (adjacency = frozen DOOR_ORDER,
+  horizontal = consecutive, vertical = 4 apart).
+  **Decision:** DOOR_ORDER moved to its own module `src/door-order.ts`
+  (values byte-identical, re-exported from calendar.ts so existing imports
+  are untouched); `tintForDoor(n)` is now the pure function
+  `DOOR_PALETTE[(column + row) % 5]` where column/row come from the door's
+  position in DOOR_ORDER (grid 4 columns). Result: counts 5/5/5/5/4 per
+  tint, zero horizontal and vertical same-tint pairs, deterministic and
+  device-independent (asserted by pinned 24-door mapping, balance,
+  adjacency over DOOR_ORDER and repeated-call tests). All consumers keep
+  working unchanged: `--door-tint` per door, contrast >= 4.5 per tint under
+  the max frost ramp, glow state machine, photo-frame tint, scratch canvas
+  erase. **Alternatives considered:** keeping `PALETTE[(n-1)%5]` (rejected:
+  vertical neighbors in the rendered grid repeated tints). **Decided-by:**
+  planner. **Status:** Proposed in PR #8
